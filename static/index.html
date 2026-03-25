@@ -22,12 +22,20 @@
           <span>Folder</span>
           <input id="pathInput" type="text" placeholder="docs" />
         </label>
-        <button id="openFolderBtn">Open folder</button>
-        <div class="listing-wrap">
-          <h2>Listing</h2>
-          <ul id="listing"></ul>
+        <div class="control-row">
+          <button id="openFolderBtn">Open folder</button>
+          <button id="refreshTreeBtn">Refresh tree</button>
         </div>
-        <div class="listing-wrap">
+
+        <div class="tree-wrap">
+          <div class="section-head">
+            <h2>Tree</h2>
+            <span class="muted small">classic folder navigation</span>
+          </div>
+          <div id="treeView" class="tree-view"></div>
+        </div>
+
+        <div class="listing-wrap docs-list-wrap">
           <h2>Latest workspace docs</h2>
           <ul id="docsIndex"></ul>
         </div>

@@ -9,7 +9,8 @@ Read-only workbench MVP for browsing laptop-hosted OpenClaw-related repositories
   - openclaw
   - studio-framework
   - ui-extensions
-- folder browsing
+- classic folder tree view with nested open/close navigation
+- separate scrolling for navigation vs document reading
 - open file by URL
 - raw markdown/text view
 - rendered markdown preview

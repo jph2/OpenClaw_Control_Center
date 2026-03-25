@@ -4,12 +4,16 @@ const state = {
   currentFolder: 'docs',
   currentFile: '',
   currentMode: 'preview',
+  treePath: '',
+  expandedDirs: new Set(['']),
+  activePath: '',
 };
 
 const rootSelect = document.getElementById('rootSelect');
 const pathInput = document.getElementById('pathInput');
 const openFolderBtn = document.getElementById('openFolderBtn');
-const listing = document.getElementById('listing');
+const refreshTreeBtn = document.getElementById('refreshTreeBtn');
+const treeView = document.getElementById('treeView');
 const docsIndex = document.getElementById('docsIndex');
 const viewer = document.getElementById('viewer');
 const outline = document.getElementById('outline');
@@ -26,19 +30,6 @@ function escapeHtml(input) {
     .replaceAll('>', '&gt;');
 }
 
-function updateUrl() {
-  const params = new URLSearchParams();
-  params.set('root', state.currentRoot);
-  if (state.currentFile) {
-    params.set('path', state.currentFile);
-    params.set('mode', state.currentMode);
-  } else {
-    params.set('dir', state.currentFolder);
-  }
-  const base = appBase();
-  history.replaceState({}, '', `${base}/?${params.toString()}`);
-}
-
 function appBase() {
   const path = window.location.pathname || '/';
   return path.endsWith('/') ? path.slice(0, -1) || '/' : path;
@@ -52,6 +43,19 @@ function apiUrl(pathname, params) {
     }
   }
   return url.toString();
+}
+
+function updateUrl() {
+  const params = new URLSearchParams();
+  params.set('root', state.currentRoot);
+  if (state.currentFile) {
+    params.set('path', state.currentFile);
+    params.set('mode', state.currentMode);
+  } else {
+    params.set('dir', state.currentFolder);
+  }
+  const base = appBase();
+  history.replaceState({}, '', `${base}/?${params.toString()}`);
 }
 
 async function fetchJson(url) {
@@ -110,7 +114,8 @@ async function loadDocsIndex() {
       state.currentRoot = 'workspace';
       rootSelect.value = 'workspace';
       pathInput.value = 'docs';
-      await loadFolder();
+      state.expandedDirs.add('docs');
+      await loadTree('docs');
       await loadFile(doc.path, 'preview');
     };
     li.appendChild(a);
@@ -118,50 +123,118 @@ async function loadDocsIndex() {
   }
 }
 
+function renderTreeNodes(nodes, container) {
+  for (const node of nodes) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'tree-node';
+
+    const row = document.createElement('div');
+    row.className = 'tree-row';
+
+    if (node.type === 'dir') {
+      const toggle = document.createElement('button');
+      toggle.className = 'tree-toggle';
+      const isExpanded = state.expandedDirs.has(node.path);
+      toggle.textContent = isExpanded ? '▾' : '▸';
+      toggle.onclick = async () => {
+        if (isExpanded) state.expandedDirs.delete(node.path);
+        else state.expandedDirs.add(node.path);
+        renderTree();
+      };
+      row.appendChild(toggle);
+
+      const label = document.createElement('button');
+      label.className = `tree-label ${state.activePath === node.path ? 'active' : ''}`;
+      label.textContent = `📁 ${node.name}`;
+      label.onclick = async () => {
+        state.currentFolder = node.path;
+        state.activePath = node.path;
+        pathInput.value = node.path;
+        state.expandedDirs.add(node.path);
+        relativePath.textContent = node.path || '/';
+        await loadTree(node.path);
+        renderTree();
+        viewer.className = 'viewer empty-state';
+        viewer.textContent = 'Folder selected. Choose a file from the tree.';
+        outline.innerHTML = '<li class="muted">No headings</li>';
+        updateUrl();
+      };
+      row.appendChild(label);
+      wrapper.appendChild(row);
+
+      if (isExpanded) {
+        const childrenWrap = document.createElement('div');
+        childrenWrap.className = 'tree-children';
+        if (node.children?.length) {
+          renderTreeNodes(node.children, childrenWrap);
+        } else if (node.truncated) {
+          childrenWrap.innerHTML = '<div class="muted small">Depth limit reached</div>';
+        } else {
+          childrenWrap.innerHTML = '<div class="muted small">Empty</div>';
+        }
+        wrapper.appendChild(childrenWrap);
+      }
+    } else {
+      const spacer = document.createElement('span');
+      spacer.className = 'tree-kind';
+      spacer.textContent = '•';
+      row.appendChild(spacer);
+
+      const label = document.createElement('button');
+      label.className = `tree-label ${state.activePath === node.path ? 'active' : ''}`;
+      label.textContent = `📄 ${node.name}`;
+      label.onclick = async () => {
+        await loadFile(node.path, state.currentMode);
+      };
+      row.appendChild(label);
+      wrapper.appendChild(row);
+    }
+
+    container.appendChild(wrapper);
+  }
+}
+
+function renderTree() {
+  treeView.innerHTML = '';
+  if (!state.tree?.length) {
+    treeView.innerHTML = '<div class="muted">No files</div>';
+    return;
+  }
+  renderTreeNodes(state.tree, treeView);
+}
+
+async function loadTree(rootPath = '') {
+  state.treePath = rootPath;
+  const data = await fetchJson(apiUrl('tree', { root: state.currentRoot, path: rootPath, maxDepth: 5 }));
+  state.tree = data.tree;
+  renderTree();
+}
+
 async function loadFolder() {
   const dir = pathInput.value.trim();
   state.currentFolder = dir;
   state.currentFile = '';
-  const data = await fetchJson(apiUrl('list', { root: state.currentRoot, path: dir }));
-  relativePath.textContent = data.relativePath || '/';
-  absolutePath.textContent = data.absolutePath;
+  state.activePath = dir;
+  relativePath.textContent = dir || '/';
+  absolutePath.textContent = '—';
   viewer.className = 'viewer empty-state';
-  viewer.textContent = 'Select a file from the left.';
+  viewer.textContent = 'Folder selected. Choose a file from the tree.';
   outline.innerHTML = '<li class="muted">No headings</li>';
-  listing.innerHTML = '';
-
-  const entries = [];
-  if (data.relativePath) {
-    const parent = data.relativePath.split('/').slice(0, -1).join('/');
-    entries.push({ name: '..', path: parent, type: 'dir' });
+  state.expandedDirs.add('');
+  if (dir) {
+    const parts = dir.split('/');
+    for (let i = 0; i < parts.length; i += 1) {
+      state.expandedDirs.add(parts.slice(0, i + 1).join('/'));
+    }
   }
-  entries.push(...data.items);
-
-  for (const item of entries) {
-    const li = document.createElement('li');
-    const a = document.createElement('a');
-    a.href = '#';
-    a.className = item.type;
-    a.textContent = item.name;
-    a.onclick = async (event) => {
-      event.preventDefault();
-      if (item.type === 'dir') {
-        pathInput.value = item.path;
-        await loadFolder();
-      } else {
-        await loadFile(item.path, state.currentMode);
-      }
-    };
-    li.appendChild(a);
-    listing.appendChild(li);
-  }
-
+  await loadTree(dir);
   updateUrl();
 }
 
 async function loadFile(filePath, mode = state.currentMode) {
   state.currentFile = filePath;
   state.currentMode = mode;
+  state.activePath = filePath;
   const data = await fetchJson(apiUrl('file', { root: state.currentRoot, path: filePath, mode }));
   relativePath.textContent = data.relativePath;
   absolutePath.textContent = data.absolutePath;
@@ -177,6 +250,7 @@ async function loadFile(filePath, mode = state.currentMode) {
     renderOutline(data.headings || []);
   }
 
+  renderTree();
   updateUrl();
 }
 
@@ -217,8 +291,14 @@ function parseInitialState() {
 }
 
 openFolderBtn.onclick = () => loadFolder().catch(showError);
+refreshTreeBtn.onclick = () => loadTree(pathInput.value.trim()).catch(showError);
 rootSelect.onchange = () => {
   state.currentRoot = rootSelect.value;
+  state.currentFolder = '';
+  state.currentFile = '';
+  state.activePath = '';
+  state.expandedDirs = new Set(['']);
+  pathInput.value = '';
   loadFolder().catch(showError);
 };
 rawBtn.onclick = () => {
@@ -244,8 +324,24 @@ async function init() {
   await loadDocsIndex();
   rootSelect.value = state.currentRoot;
   pathInput.value = state.currentFile ? state.currentFile.split('/').slice(0, -1).join('/') : state.currentFolder;
+  if (state.currentFolder) {
+    const parts = state.currentFolder.split('/').filter(Boolean);
+    let current = '';
+    for (const part of parts) {
+      current = current ? `${current}/${part}` : part;
+      state.expandedDirs.add(current);
+    }
+  }
   await loadFolder();
   if (state.currentFile) {
+    const dir = state.currentFile.split('/').slice(0, -1).join('/');
+    const parts = dir.split('/').filter(Boolean);
+    let current = '';
+    for (const part of parts) {
+      current = current ? `${current}/${part}` : part;
+      state.expandedDirs.add(current);
+    }
+    await loadTree(dir);
     await loadFile(state.currentFile, state.currentMode);
   }
 }

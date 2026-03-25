@@ -96,6 +96,29 @@ async function listDirectory(rootKey, relativePath = '') {
   return items;
 }
 
+async function buildTree(rootKey, relativePath = '', depth = 0, maxDepth = 4) {
+  const items = await listDirectory(rootKey, relativePath);
+  if (depth >= maxDepth) {
+    return items.map((item) => ({ ...item, children: item.type === 'dir' ? [] : undefined, truncated: item.type === 'dir' }));
+  }
+
+  const result = [];
+  for (const item of items) {
+    if (item.type === 'dir') {
+      let children = [];
+      try {
+        children = await buildTree(rootKey, item.path, depth + 1, maxDepth);
+      } catch {
+        children = [];
+      }
+      result.push({ ...item, children });
+    } else {
+      result.push(item);
+    }
+  }
+  return result;
+}
+
 function registerApiRoutes(router) {
 router.get('/roots', (req, res) => {
   res.json({ roots: Object.entries(ROOTS).map(([key, value]) => ({ key, path: value })) });
@@ -176,6 +199,26 @@ router.get('/docs-index', async (req, res) => {
     }
     docs.sort((a, b) => b.updatedAt - a.updatedAt);
     res.json({ docs: docs.slice(0, 20) });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.get('/tree', async (req, res) => {
+  try {
+    const root = String(req.query.root || 'workspace');
+    const relPath = String(req.query.path || '');
+    const maxDepth = Math.max(1, Math.min(6, Number(req.query.maxDepth || 4)));
+    const tree = await buildTree(root, relPath, 0, maxDepth);
+    const { resolved, relative, rootPath } = resolveSafe(root, relPath);
+    res.json({
+      root,
+      absolutePath: resolved,
+      relativePath: relative === '.' ? '' : relative.replaceAll(path.sep, '/'),
+      rootPath,
+      tree,
+      maxDepth,
+    });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
