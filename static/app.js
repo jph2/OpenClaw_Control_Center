@@ -35,7 +35,23 @@ function updateUrl() {
   } else {
     params.set('dir', state.currentFolder);
   }
-  history.replaceState({}, '', `/?${params.toString()}`);
+  const base = appBase();
+  history.replaceState({}, '', `${base}/?${params.toString()}`);
+}
+
+function appBase() {
+  const path = window.location.pathname || '/';
+  return path.endsWith('/') ? path.slice(0, -1) || '/' : path;
+}
+
+function apiUrl(pathname, params) {
+  const url = new URL(`${appBase()}/api/${pathname}`, window.location.origin);
+  if (params) {
+    for (const [key, value] of Object.entries(params)) {
+      url.searchParams.set(key, value);
+    }
+  }
+  return url.toString();
 }
 
 async function fetchJson(url) {
@@ -46,7 +62,7 @@ async function fetchJson(url) {
 }
 
 async function loadRoots() {
-  const data = await fetchJson('/api/roots');
+  const data = await fetchJson(apiUrl('roots'));
   state.roots = data.roots;
   rootSelect.innerHTML = data.roots
     .map(root => `<option value="${root.key}">${root.key}</option>`)
@@ -81,7 +97,7 @@ function renderOutline(headings = []) {
 }
 
 async function loadDocsIndex() {
-  const data = await fetchJson('/api/docs-index');
+  const data = await fetchJson(apiUrl('docs-index'));
   docsIndex.innerHTML = '';
   for (const doc of data.docs) {
     const li = document.createElement('li');
@@ -106,8 +122,7 @@ async function loadFolder() {
   const dir = pathInput.value.trim();
   state.currentFolder = dir;
   state.currentFile = '';
-  const query = new URLSearchParams({ root: state.currentRoot, path: dir });
-  const data = await fetchJson(`/api/list?${query.toString()}`);
+  const data = await fetchJson(apiUrl('list', { root: state.currentRoot, path: dir }));
   relativePath.textContent = data.relativePath || '/';
   absolutePath.textContent = data.absolutePath;
   viewer.className = 'viewer empty-state';
@@ -147,8 +162,7 @@ async function loadFolder() {
 async function loadFile(filePath, mode = state.currentMode) {
   state.currentFile = filePath;
   state.currentMode = mode;
-  const query = new URLSearchParams({ root: state.currentRoot, path: filePath, mode });
-  const data = await fetchJson(`/api/file?${query.toString()}`);
+  const data = await fetchJson(apiUrl('file', { root: state.currentRoot, path: filePath, mode }));
   relativePath.textContent = data.relativePath;
   absolutePath.textContent = data.absolutePath;
 
