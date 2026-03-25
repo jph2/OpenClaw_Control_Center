@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>OpenClaw Workbench MVP</title>
-    <link rel="stylesheet" href="./static/styles.css?v=20260325e" />
+    <link rel="stylesheet" href="./static/styles.css?v=20260325f" />
     <script>
       window.addEventListener('error', function (event) {
         const el = document.getElementById('debugStatus');
@@ -16,7 +16,7 @@
         if (el) el.textContent = 'startup rejection: ' + reason;
       });
     </script>
-    <script type="module" src="./static/app.js?v=20260325e" defer></script>
+    <script type="module" src="./static/app.js?v=20260325f" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -29,53 +29,76 @@
           <span>Root</span>
           <select id="rootSelect"></select>
         </label>
-        <label>
-          <span>Relative path</span>
-          <div class="input-row">
-            <input id="pathInput" type="text" placeholder="docs/openclaw-four-repo-strategy-v1.md" />
-            <button id="openPathBtn">Open</button>
+
+        <div class="search-panel">
+          <div class="section-head">
+            <h2>Search</h2>
+            <span class="muted small">live filename search</span>
           </div>
-        </label>
-        <label>
-          <span>Absolute path</span>
-          <div class="input-row">
-            <input id="absolutePathInput" type="text" placeholder="/home/claw-agentbox/.openclaw/workspace/docs/..." />
-            <button id="openAbsoluteBtn">Open</button>
+          <label>
+            <span>Filename search</span>
+            <input id="searchInput" type="text" placeholder="Type a filename; filters apply live" />
+          </label>
+          <div class="filter-row three-up">
+            <select id="kindFilter">
+              <option value="all">all kinds</option>
+              <option value="text">text</option>
+              <option value="image">image</option>
+              <option value="pdf">pdf</option>
+              <option value="dir">folder</option>
+            </select>
+            <select id="ageFilter">
+              <option value="all">all ages</option>
+              <option value="1d">1 day</option>
+              <option value="7d">7 days</option>
+              <option value="30d">30 days</option>
+              <option value="older">older</option>
+            </select>
+            <select id="sizeFilter">
+              <option value="all">all sizes</option>
+              <option value="tiny">&lt;10 KB</option>
+              <option value="small">10–100 KB</option>
+              <option value="medium">100 KB–1 MB</option>
+              <option value="large">&gt;1 MB</option>
+            </select>
           </div>
-        </label>
-        <label>
-          <span>Filename search</span>
-          <input id="searchInput" type="text" placeholder="Type a filename; filters apply live" />
-        </label>
-        <div class="filter-row three-up">
-          <select id="kindFilter">
-            <option value="all">all kinds</option>
-            <option value="text">text</option>
-            <option value="image">image</option>
-            <option value="pdf">pdf</option>
-            <option value="dir">folder</option>
-          </select>
-          <select id="ageFilter">
-            <option value="all">all ages</option>
-            <option value="1d">1 day</option>
-            <option value="7d">7 days</option>
-            <option value="30d">30 days</option>
-            <option value="older">older</option>
-          </select>
-          <select id="sizeFilter">
-            <option value="all">all sizes</option>
-            <option value="tiny">&lt;10 KB</option>
-            <option value="small">10–100 KB</option>
-            <option value="medium">100 KB–1 MB</option>
-            <option value="large">&gt;1 MB</option>
-          </select>
+          <div class="results-panel">
+            <div class="results-head muted small">Search results</div>
+            <div id="searchResults" class="search-results muted small">Start typing to search.</div>
+          </div>
         </div>
-        <div id="searchResults" class="search-results muted small">Start typing to search.</div>
-        <div class="control-row">
-          <button id="openFolderBtn">Open folder</button>
-          <button id="refreshTreeBtn">Refresh tree</button>
+
+        <div class="nav-panel">
+          <div class="section-head">
+            <h2>Tree navigation</h2>
+            <span class="muted small">browse current root</span>
+          </div>
+          <div class="nav-buttons-row">
+            <button id="backBtn" title="Back">&lt;</button>
+            <button id="forwardBtn" title="Forward">&gt;</button>
+            <button id="upBtn" title="Parent folder">↑</button>
+            <button id="refreshTreeBtn">Refresh tree</button>
+          </div>
+          <div id="breadcrumbs" class="breadcrumbs"></div>
+          <label>
+            <span>Relative path</span>
+            <div class="input-row">
+              <input id="pathInput" type="text" placeholder="docs/openclaw-four-repo-strategy-v1.md" />
+              <button id="openPathBtn">Open</button>
+            </div>
+          </label>
+          <label>
+            <span>Absolute path</span>
+            <div class="input-row">
+              <input id="absolutePathInput" type="text" placeholder="/home/claw-agentbox/.openclaw/workspace/docs/..." />
+              <button id="openAbsoluteBtn">Open</button>
+            </div>
+          </label>
+          <div class="control-row single">
+            <button id="openFolderBtn">Open folder</button>
+          </div>
+          <div id="debugStatus" class="debug-status muted small">debug: pending</div>
         </div>
-        <div id="debugStatus" class="debug-status muted small">debug: pending</div>
 
         <div class="sidebar-stack" id="sidebarStack">
           <div class="tree-wrap" id="treeWrap">
@@ -99,11 +122,10 @@
 
       <main class="main-panel">
         <header class="toolbar">
-          <div class="path-block">
-            <div><strong>Repo-relative:</strong></div>
-            <input id="relativePathDisplay" class="path-edit" type="text" />
-            <div><strong>Absolute:</strong></div>
-            <input id="absolutePathDisplay" class="path-edit" type="text" />
+          <div class="path-summary">
+            <div><strong>Current root:</strong> <span id="currentRootLabel">—</span></div>
+            <div><strong>Current relative path:</strong> <span id="currentRelativeLabel">—</span></div>
+            <div><strong>Current absolute path:</strong> <span id="currentAbsoluteLabel">—</span></div>
           </div>
           <div class="toolbar-actions">
             <button id="rawBtn">Raw</button>

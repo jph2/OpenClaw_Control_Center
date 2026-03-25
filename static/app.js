@@ -1,7 +1,7 @@
 const state = {
   roots: [],
   currentRoot: 'workspace',
-  currentFolder: 'docs',
+  currentFolder: '',
   currentFile: '',
   currentMode: 'preview',
   treePath: '',
@@ -9,6 +9,9 @@ const state = {
   activePath: '',
   tree: [],
   imageScale: 1,
+  history: [],
+  historyIndex: -1,
+  suppressHistory: false,
 };
 
 const ROOT_MAP = {
@@ -19,32 +22,38 @@ const ROOT_MAP = {
 };
 
 const rootSelect = document.getElementById('rootSelect');
-const pathInput = document.getElementById('pathInput');
-const absolutePathInput = document.getElementById('absolutePathInput');
-const openPathBtn = document.getElementById('openPathBtn');
-const openAbsoluteBtn = document.getElementById('openAbsoluteBtn');
 const searchInput = document.getElementById('searchInput');
-const searchBtn = document.getElementById('searchBtn');
 const kindFilter = document.getElementById('kindFilter');
 const ageFilter = document.getElementById('ageFilter');
 const sizeFilter = document.getElementById('sizeFilter');
 const searchResults = document.getElementById('searchResults');
-const debugStatus = document.getElementById('debugStatus');
+const pathInput = document.getElementById('pathInput');
+const absolutePathInput = document.getElementById('absolutePathInput');
+const openPathBtn = document.getElementById('openPathBtn');
+const openAbsoluteBtn = document.getElementById('openAbsoluteBtn');
 const openFolderBtn = document.getElementById('openFolderBtn');
 const refreshTreeBtn = document.getElementById('refreshTreeBtn');
+const backBtn = document.getElementById('backBtn');
+const forwardBtn = document.getElementById('forwardBtn');
+const upBtn = document.getElementById('upBtn');
+const breadcrumbs = document.getElementById('breadcrumbs');
+const debugStatus = document.getElementById('debugStatus');
 const treeView = document.getElementById('treeView');
 const docsIndex = document.getElementById('docsIndex');
 const viewer = document.getElementById('viewer');
+const currentRootLabel = document.getElementById('currentRootLabel');
+const currentRelativeLabel = document.getElementById('currentRelativeLabel');
+const currentAbsoluteLabel = document.getElementById('currentAbsoluteLabel');
 const outline = document.getElementById('outline');
 const previewControls = document.getElementById('previewControls');
 const rawBtn = document.getElementById('rawBtn');
 const previewBtn = document.getElementById('previewBtn');
 const copyLinkBtn = document.getElementById('copyLinkBtn');
-const relativePathDisplay = document.getElementById('relativePathDisplay');
-const absolutePathDisplay = document.getElementById('absolutePathDisplay');
 const sidebarResizer = document.getElementById('sidebarResizer');
 const outlineResizer = document.getElementById('outlineResizer');
 const treeHeightResizer = document.getElementById('treeHeightResizer');
+
+let searchDebounce = null;
 
 function escapeHtml(input) {
   return String(input).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
@@ -63,29 +72,11 @@ function apiUrl(pathname, params) {
   return url.toString();
 }
 
-function updateUrl() {
-  const params = new URLSearchParams();
-  params.set('root', state.currentRoot);
-  if (state.currentFile) {
-    params.set('path', state.currentFile);
-    params.set('mode', state.currentMode);
-  } else {
-    params.set('dir', state.currentFolder);
-  }
-  history.replaceState({}, '', `${appBase()}/?${params.toString()}`);
-}
-
 async function fetchJson(url) {
   const res = await fetch(url);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
-}
-
-async function loadRoots() {
-  const data = await fetchJson(apiUrl('roots'));
-  state.roots = data.roots;
-  rootSelect.innerHTML = data.roots.map(root => `<option value="${root.key}">${root.key}</option>`).join('');
 }
 
 function slugifyHeading(text) {
@@ -112,7 +103,6 @@ function renderOutline(headings = []) {
 function renderPreviewControls(kind = 'text') {
   previewControls.innerHTML = '';
   if (kind !== 'image') return;
-
   const controls = [
     ['Fit', () => setImageScale(0.6)],
     ['100%', () => setImageScale(1)],
@@ -132,11 +122,56 @@ function setImageScale(scale) {
   document.documentElement.style.setProperty('--image-scale', String(scale));
 }
 
-function setPathDisplays(relativePath = '', absolutePath = '') {
-  relativePathDisplay.value = relativePath;
-  absolutePathDisplay.value = absolutePath;
-  pathInput.value = relativePath;
-  absolutePathInput.value = absolutePath;
+function updateUrl() {
+  const params = new URLSearchParams();
+  params.set('root', state.currentRoot);
+  if (state.currentFile) {
+    params.set('path', state.currentFile);
+    params.set('mode', state.currentMode);
+  } else {
+    params.set('dir', state.currentFolder);
+  }
+  history.replaceState({}, '', `${appBase()}/?${params.toString()}`);
+}
+
+function currentAbsolutePath() {
+  const rootPath = ROOT_MAP[state.currentRoot] || '';
+  if (state.currentFile) return `${rootPath}/${state.currentFile}`.replace(/\/+/g, '/');
+  if (state.currentFolder) return `${rootPath}/${state.currentFolder}`.replace(/\/+/g, '/');
+  return rootPath;
+}
+
+function currentRelativePath() {
+  return state.currentFile || state.currentFolder || '';
+}
+
+function updateSummary() {
+  currentRootLabel.textContent = state.currentRoot || '—';
+  currentRelativeLabel.textContent = currentRelativePath() || '(root)';
+  currentAbsoluteLabel.textContent = currentAbsolutePath() || '—';
+  pathInput.value = state.currentFile || state.currentFolder || '';
+  absolutePathInput.value = currentAbsolutePath();
+}
+
+function countTreeItems(nodes = []) {
+  let count = 0;
+  for (const node of nodes) {
+    count += 1;
+    if (node.children?.length) count += countTreeItems(node.children);
+  }
+  return count;
+}
+
+function updateDebugStatus(extra = '') {
+  const lines = [
+    `root: ${state.currentRoot}`,
+    `folder: ${state.currentFolder || '(root)'}`,
+    `treePath: ${state.treePath || '(root)'}`,
+    `file: ${state.currentFile || '(none)'}`,
+    `treeItems: ${countTreeItems(state.tree || [])}`,
+  ];
+  if (extra) lines.push(`note: ${extra}`);
+  debugStatus.textContent = lines.join(' | ');
 }
 
 function ensureExpandedFor(pathValue = '') {
@@ -158,46 +193,48 @@ function inferRootFromAbsolute(absPath) {
   return null;
 }
 
-async function openTarget(targetPath, preferredRoot = state.currentRoot) {
-  if (!targetPath) return;
-  let root = preferredRoot;
-  let relative = targetPath.trim();
+function pushHistory(entry) {
+  if (state.suppressHistory) return;
+  const last = state.history[state.historyIndex];
+  if (last && last.root === entry.root && last.path === entry.path && last.mode === entry.mode) return;
+  state.history = state.history.slice(0, state.historyIndex + 1);
+  state.history.push(entry);
+  state.historyIndex = state.history.length - 1;
+  updateNavButtons();
+}
 
-  if (relative.startsWith('/')) {
-    const inferred = inferRootFromAbsolute(relative);
-    if (!inferred) throw new Error('Absolute path does not match an approved root');
-    root = inferred.root;
-    relative = inferred.relative;
+function updateNavButtons() {
+  backBtn.disabled = state.historyIndex <= 0;
+  forwardBtn.disabled = state.historyIndex >= state.history.length - 1;
+  upBtn.disabled = !(state.currentFolder || state.currentFile);
+}
+
+function renderBreadcrumbs() {
+  breadcrumbs.innerHTML = '';
+  const parts = (state.currentFile ? state.currentFile.split('/').slice(0, -1).join('/') : state.currentFolder || '').split('/').filter(Boolean);
+  const chain = [''];
+  for (let i = 0; i < parts.length; i += 1) {
+    chain.push(parts.slice(0, i + 1).join('/'));
   }
-
-  state.currentRoot = root;
-  rootSelect.value = root;
-
-  if (!relative || !relative.includes('/')) {
-    const search = relative.trim();
-    if (search && !search.includes('/') && !search.startsWith('.')) {
-      searchInput.value = search;
-      await runSearch();
-      return;
+  const labels = [state.currentRoot, ...parts];
+  chain.forEach((pathValue, index) => {
+    const btn = document.createElement('button');
+    btn.textContent = labels[index] || state.currentRoot;
+    btn.onclick = () => openFolderAt(pathValue).catch(showError);
+    breadcrumbs.appendChild(btn);
+    if (index < chain.length - 1) {
+      const sep = document.createElement('span');
+      sep.className = 'breadcrumb-sep';
+      sep.textContent = '/';
+      breadcrumbs.appendChild(sep);
     }
-  }
+  });
+}
 
-  const isLikelyFile = /\.[a-zA-Z0-9]{1,8}$/.test(relative);
-  if (isLikelyFile) {
-    const dir = relative.split('/').slice(0, -1).join('/');
-    state.currentFolder = dir;
-    state.activePath = relative;
-    ensureExpandedFor(dir);
-    await loadTree(dir);
-    await loadFile(relative, state.currentMode);
-  } else {
-    state.currentFolder = relative;
-    state.currentFile = '';
-    state.activePath = relative;
-    ensureExpandedFor(relative);
-    pathInput.value = relative;
-    await loadFolder();
-  }
+async function loadRoots() {
+  const data = await fetchJson(apiUrl('roots'));
+  state.roots = data.roots;
+  rootSelect.innerHTML = data.roots.map(root => `<option value="${root.key}">${root.key}</option>`).join('');
 }
 
 async function loadDocsIndex() {
@@ -230,7 +267,7 @@ function renderTreeNodes(nodes, container) {
       toggle.className = 'tree-toggle';
       const isExpanded = state.expandedDirs.has(node.path);
       toggle.textContent = isExpanded ? '▾' : '▸';
-      toggle.onclick = async () => {
+      toggle.onclick = () => {
         if (isExpanded) state.expandedDirs.delete(node.path);
         else state.expandedDirs.add(node.path);
         renderTree();
@@ -240,20 +277,7 @@ function renderTreeNodes(nodes, container) {
       const label = document.createElement('button');
       label.className = `tree-label ${state.activePath === node.path ? 'active' : ''}`;
       label.textContent = `📁 ${node.name}`;
-      label.onclick = async () => {
-        state.currentFolder = node.path;
-        state.currentFile = '';
-        state.activePath = node.path;
-        ensureExpandedFor(node.path);
-        await loadTree(node.path);
-        renderTree();
-        viewer.className = 'viewer empty-state';
-        viewer.textContent = 'Folder selected. Choose a file from the tree.';
-        renderOutline([]);
-        renderPreviewControls('text');
-        setPathDisplays(node.path, `${ROOT_MAP[state.currentRoot]}/${node.path}`.replace(/\/$/, ''));
-        updateUrl();
-      };
+      label.onclick = () => openFolderAt(node.path).catch(showError);
       row.appendChild(label);
       wrapper.appendChild(row);
 
@@ -274,33 +298,13 @@ function renderTreeNodes(nodes, container) {
       const label = document.createElement('button');
       label.className = `tree-label ${state.activePath === node.path ? 'active' : ''}`;
       label.textContent = `📄 ${node.name}`;
-      label.onclick = async () => { await loadFile(node.path, state.currentMode); };
+      label.onclick = () => loadFile(node.path, state.currentMode).catch(showError);
       row.appendChild(label);
       wrapper.appendChild(row);
     }
+
     container.appendChild(wrapper);
   }
-}
-
-function countTreeItems(nodes = []) {
-  let count = 0;
-  for (const node of nodes) {
-    count += 1;
-    if (node.children?.length) count += countTreeItems(node.children);
-  }
-  return count;
-}
-
-function updateDebugStatus(extra = '') {
-  const lines = [
-    `root: ${state.currentRoot}`,
-    `folder: ${state.currentFolder || '(root)'}`,
-    `treePath: ${state.treePath || '(root)'}`,
-    `file: ${state.currentFile || '(none)'}`,
-    `treeItems: ${countTreeItems(state.tree || [])}`,
-  ];
-  if (extra) lines.push(`note: ${extra}`);
-  debugStatus.textContent = lines.join(' | ');
 }
 
 function renderTree() {
@@ -322,30 +326,35 @@ async function loadTree(rootPath = '') {
   renderTree();
 }
 
-async function loadFolder(forcedDir = null) {
-  const dir = forcedDir !== null ? forcedDir : pathInput.value.trim();
+function renderFolderViewMessage() {
+  viewer.className = 'viewer empty-state';
+  viewer.textContent = state.currentFolder ? 'Folder selected. Choose a file from the tree.' : 'Root loaded. Choose a folder or file from the tree.';
+  renderOutline([]);
+  renderPreviewControls('text');
+}
+
+async function openFolderAt(dir = '', options = {}) {
   state.currentFolder = dir;
   state.currentFile = '';
   state.activePath = dir;
   state.treePath = dir;
   state.expandedDirs = new Set(['']);
   ensureExpandedFor(dir);
-  viewer.className = 'viewer empty-state';
-  viewer.textContent = dir ? 'Folder selected. Choose a file from the tree.' : 'Root loaded. Choose a folder or file from the tree.';
-  renderOutline([]);
-  renderPreviewControls('text');
+  renderFolderViewMessage();
   await loadTree(dir);
-  const abs = dir ? `${ROOT_MAP[state.currentRoot]}/${dir}` : ROOT_MAP[state.currentRoot];
-  setPathDisplays(dir || '', abs);
-  pathInput.value = dir || '';
-  absolutePathInput.value = abs;
+  updateSummary();
+  renderBreadcrumbs();
   updateUrl();
+  updateNavButtons();
+  if (!options.skipHistory) pushHistory({ root: state.currentRoot, path: dir, mode: 'folder' });
 }
 
-async function loadFile(filePath, mode = state.currentMode) {
+async function loadFile(filePath, mode = state.currentMode, options = {}) {
   state.currentFile = filePath;
   state.currentMode = mode;
   state.activePath = filePath;
+  state.currentFolder = filePath.split('/').slice(0, -1).join('/');
+  ensureExpandedFor(state.currentFolder);
   const data = await fetchJson(apiUrl('file', { root: state.currentRoot, path: filePath, mode }));
 
   if (data.kind === 'text') {
@@ -363,12 +372,7 @@ async function loadFile(filePath, mode = state.currentMode) {
   } else if (data.kind === 'image') {
     viewer.className = 'viewer';
     setImageScale(0.6);
-    viewer.innerHTML = `
-      <div class="media-frame">
-        <div class="media-image-wrap">
-          <img class="media-image" src="${data.mediaUrl}" alt="${escapeHtml(data.relativePath)}" />
-        </div>
-      </div>`;
+    viewer.innerHTML = `<div class="media-frame"><div class="media-image-wrap"><img class="media-image" src="${data.mediaUrl}" alt="${escapeHtml(data.relativePath)}" /></div></div>`;
     renderOutline([]);
     renderPreviewControls('image');
   } else if (data.kind === 'pdf') {
@@ -378,9 +382,12 @@ async function loadFile(filePath, mode = state.currentMode) {
     renderPreviewControls('pdf');
   }
 
-  setPathDisplays(data.relativePath, data.absolutePath);
+  updateSummary();
+  renderBreadcrumbs();
   renderTree();
   updateUrl();
+  updateNavButtons();
+  if (!options.skipHistory) pushHistory({ root: state.currentRoot, path: filePath, mode });
 }
 
 async function renderMermaid() {
@@ -420,8 +427,6 @@ function formatDate(ts) {
   return new Date(ts).toLocaleDateString();
 }
 
-let searchDebounce = null;
-
 async function runSearch() {
   const q = searchInput.value.trim();
   if (!q) {
@@ -445,12 +450,56 @@ async function runSearch() {
     const li = document.createElement('li');
     const btn = document.createElement('button');
     btn.innerHTML = `${result.type === 'dir' ? '📁' : '📄'} ${escapeHtml(result.path)}<div class="search-meta">${escapeHtml(result.kind)} • ${formatBytes(result.size)} • ${formatDate(result.updatedAt)}</div>`;
-    btn.onclick = async () => { await openTarget(result.path, state.currentRoot); };
+    btn.onclick = async () => {
+      if (result.type === 'dir') await openFolderAt(result.path);
+      else await openTarget(result.path, state.currentRoot);
+    };
     li.appendChild(btn);
     ul.appendChild(li);
   }
   searchResults.innerHTML = '';
   searchResults.appendChild(ul);
+}
+
+async function openTarget(targetPath, preferredRoot = state.currentRoot, options = {}) {
+  if (!targetPath) return;
+  let root = preferredRoot;
+  let relative = targetPath.trim();
+
+  if (relative.startsWith('/')) {
+    const inferred = inferRootFromAbsolute(relative);
+    if (!inferred) throw new Error('Absolute path does not match an approved root');
+    root = inferred.root;
+    relative = inferred.relative;
+  }
+
+  state.currentRoot = root;
+  rootSelect.value = root;
+
+  if (!relative || !relative.includes('/')) {
+    const search = relative.trim();
+    if (search && !search.includes('/') && !search.startsWith('.')) {
+      searchInput.value = search;
+      await runSearch();
+      return;
+    }
+  }
+
+  const isLikelyFile = /\.[a-zA-Z0-9]{1,8}$/.test(relative);
+  if (isLikelyFile) {
+    const dir = relative.split('/').slice(0, -1).join('/');
+    await loadTree(dir);
+    await loadFile(relative, state.currentMode, options);
+  } else {
+    await openFolderAt(relative, options);
+  }
+}
+
+function scheduleSearch() {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => {
+    runSearch().catch(showError);
+  }, 180);
 }
 
 function attachResizable(handle, initialVar, min, max, direction = 'normal', storageKey) {
@@ -501,7 +550,7 @@ function setupResizablePanes() {
   if (savedSidebar) document.documentElement.style.setProperty('--sidebar-width', `${savedSidebar}px`);
   if (savedOutline) document.documentElement.style.setProperty('--outline-width', `${savedOutline}px`);
   if (savedTreeHeight) document.documentElement.style.setProperty('--tree-height', `${savedTreeHeight}px`);
-  attachResizable(sidebarResizer, '--sidebar-width', 260, 720, 'normal', 'workbench.sidebarWidth');
+  attachResizable(sidebarResizer, '--sidebar-width', 260, 760, 'normal', 'workbench.sidebarWidth');
   attachResizable(outlineResizer, '--outline-width', 180, 500, 'inverse', 'workbench.outlineWidth');
   attachVerticalResizable(treeHeightResizer, '--tree-height', 160, 700, 'workbench.treeHeight');
 }
@@ -509,30 +558,39 @@ function setupResizablePanes() {
 function parseInitialState() {
   const params = new URLSearchParams(location.search);
   state.currentRoot = params.get('root') || 'workspace';
-  state.currentFolder = params.get('dir') || 'docs';
+  state.currentFolder = params.get('dir') || '';
   state.currentFile = params.get('path') || '';
   state.currentMode = params.get('mode') || 'preview';
 }
 
-openFolderBtn.onclick = () => loadFolder().catch(showError);
-refreshTreeBtn.onclick = () => loadTree(pathInput.value.trim()).catch(showError);
-openPathBtn.onclick = () => openTarget(pathInput.value.trim(), state.currentRoot).catch(showError);
-openAbsoluteBtn.onclick = () => openTarget(absolutePathInput.value.trim()).catch(showError);
-function scheduleSearch() {
-  clearTimeout(searchDebounce);
-  searchDebounce = setTimeout(() => {
-    runSearch().catch(showError);
-  }, 180);
+async function navigateHistory(delta) {
+  const nextIndex = state.historyIndex + delta;
+  if (nextIndex < 0 || nextIndex >= state.history.length) return;
+  state.historyIndex = nextIndex;
+  const entry = state.history[nextIndex];
+  state.suppressHistory = true;
+  try {
+    if (entry.mode === 'folder') await openTarget(entry.path, entry.root, { skipHistory: true });
+    else await openTarget(entry.path, entry.root, { skipHistory: true });
+  } finally {
+    state.suppressHistory = false;
+    updateNavButtons();
+  }
 }
 
-if (searchBtn) searchBtn.onclick = () => runSearch().catch(showError);
-searchInput.addEventListener('input', () => scheduleSearch());
-searchInput.addEventListener('keydown', (event) => { if (event.key === 'Enter') runSearch().catch(showError); });
-kindFilter.onchange = () => scheduleSearch();
-ageFilter.onchange = () => scheduleSearch();
-sizeFilter.onchange = () => scheduleSearch();
-relativePathDisplay.addEventListener('keydown', (event) => { if (event.key === 'Enter') openTarget(relativePathDisplay.value.trim(), state.currentRoot).catch(showError); });
-absolutePathDisplay.addEventListener('keydown', (event) => { if (event.key === 'Enter') openTarget(absolutePathDisplay.value.trim()).catch(showError); });
+async function navigateUp() {
+  const source = state.currentFile ? state.currentFile.split('/').slice(0, -1).join('/') : state.currentFolder;
+  if (!source) return;
+  const parent = source.split('/').slice(0, -1).join('/');
+  await openFolderAt(parent);
+}
+
+function showError(error) {
+  viewer.className = 'viewer';
+  viewer.innerHTML = `<pre><code>${escapeHtml(error.message)}</code></pre>`;
+  updateDebugStatus(`error: ${error.message}`);
+}
+
 rootSelect.onchange = () => {
   state.currentRoot = rootSelect.value;
   state.currentFolder = '';
@@ -541,15 +599,27 @@ rootSelect.onchange = () => {
   state.tree = [];
   state.treePath = '';
   state.expandedDirs = new Set(['']);
-  pathInput.value = '';
-  absolutePathInput.value = ROOT_MAP[state.currentRoot];
-  relativePathDisplay.value = '';
-  absolutePathDisplay.value = ROOT_MAP[state.currentRoot];
-  viewer.className = 'viewer empty-state';
-  viewer.textContent = 'Loading selected root…';
-  treeView.innerHTML = '<div class="muted">Loading root…</div>';
-  loadFolder('').catch(showError);
+  searchResults.textContent = 'Start typing to search.';
+  openFolderAt('').catch(showError);
 };
+
+searchInput.addEventListener('input', () => scheduleSearch());
+kindFilter.onchange = () => scheduleSearch();
+ageFilter.onchange = () => scheduleSearch();
+sizeFilter.onchange = () => scheduleSearch();
+openPathBtn.onclick = () => openTarget(pathInput.value.trim(), state.currentRoot).catch(showError);
+openAbsoluteBtn.onclick = () => openTarget(absolutePathInput.value.trim()).catch(showError);
+openFolderBtn.onclick = () => openFolderAt(pathInput.value.trim()).catch(showError);
+refreshTreeBtn.onclick = () => loadTree(state.currentFolder || '').catch(showError);
+backBtn.onclick = () => navigateHistory(-1).catch(showError);
+forwardBtn.onclick = () => navigateHistory(1).catch(showError);
+upBtn.onclick = () => navigateUp().catch(showError);
+pathInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') openTarget(pathInput.value.trim(), state.currentRoot).catch(showError);
+});
+absolutePathInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') openTarget(absolutePathInput.value.trim()).catch(showError);
+});
 rawBtn.onclick = () => { if (state.currentFile) loadFile(state.currentFile, 'raw').catch(showError); };
 previewBtn.onclick = () => { if (state.currentFile) loadFile(state.currentFile, 'preview').catch(showError); };
 copyLinkBtn.onclick = async () => {
@@ -558,24 +628,18 @@ copyLinkBtn.onclick = async () => {
   setTimeout(() => { copyLinkBtn.textContent = 'Copy link'; }, 1200);
 };
 
-function showError(error) {
-  viewer.className = 'viewer';
-  viewer.innerHTML = `<pre><code>${escapeHtml(error.message)}</code></pre>`;
-  updateDebugStatus(`error: ${error.message}`);
-}
-
 async function init() {
   parseInitialState();
   await loadRoots();
   if (!state.roots.find((r) => r.key === state.currentRoot)) {
     state.currentRoot = state.roots[0]?.key || 'workspace';
   }
+  rootSelect.value = state.currentRoot;
   await loadDocsIndex();
   setupResizablePanes();
-  rootSelect.value = state.currentRoot;
-  absolutePathInput.value = ROOT_MAP[state.currentRoot];
-  relativePathDisplay.value = '';
-  absolutePathDisplay.value = ROOT_MAP[state.currentRoot];
+  updateSummary();
+  renderBreadcrumbs();
+  updateNavButtons();
 
   if (state.currentFile) {
     const dir = state.currentFile.split('/').slice(0, -1).join('/');
@@ -585,7 +649,7 @@ async function init() {
     return;
   }
 
-  await loadFolder(state.currentFolder || '');
+  await openFolderAt(state.currentFolder || '');
 }
 
 init().catch(showError);
