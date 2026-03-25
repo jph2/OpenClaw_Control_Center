@@ -11,6 +11,7 @@
   --sidebar-width: 380px;
   --outline-width: 320px;
   --image-scale: 1;
+  --tree-height: 340px;
 }
 
 * { box-sizing: border-box; }
@@ -73,6 +74,7 @@ button:hover { border-color: var(--accent); }
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px;
+  min-height: 64px;
   max-height: 220px;
   overflow: auto;
 }
@@ -80,12 +82,17 @@ button:hover { border-color: var(--accent); }
 .search-results li { margin-bottom: 6px; }
 .search-results button { text-align: left; width: 100%; padding: 8px 10px; }
 .search-meta { color: var(--muted); font-size: 0.78rem; margin-top: 2px; }
+.sidebar-stack {
+  display: grid;
+  grid-template-rows: minmax(160px, var(--tree-height)) 8px minmax(120px, 1fr);
+  min-height: 0;
+  flex: 1 1 auto;
+}
 .tree-wrap {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-height: 320px;
-  flex: 1 1 auto;
+  min-height: 0;
 }
 .tree-view {
   background: var(--panel-2);
@@ -93,7 +100,8 @@ button:hover { border-color: var(--accent); }
   border-radius: 10px;
   padding: 10px;
   overflow: auto;
-  min-height: 240px;
+  min-height: 0;
+  height: 100%;
 }
 .tree-node { margin-left: 0; }
 .tree-children {
@@ -115,7 +123,10 @@ button:hover { border-color: var(--accent); }
   border-color: rgba(88,166,255,0.4);
 }
 .tree-kind { color: var(--muted); width: 20px; text-align: center; }
-.docs-list-wrap { flex: 0 0 auto; }
+.docs-list-wrap {
+  min-height: 0;
+  overflow: auto;
+}
 #docsIndex { list-style: none; padding: 0; margin: 10px 0 0; }
 #docsIndex li { margin-bottom: 6px; }
 #docsIndex a {
@@ -130,6 +141,11 @@ button:hover { border-color: var(--accent); }
   cursor: col-resize;
 }
 .pane-resizer.vertical { width: 8px; cursor: col-resize; }
+.pane-resizer.horizontal {
+  height: 8px;
+  background: linear-gradient(to bottom, transparent, rgba(88,166,255,0.25), transparent);
+  cursor: row-resize;
+}
 
 .main-panel {
   display: grid;

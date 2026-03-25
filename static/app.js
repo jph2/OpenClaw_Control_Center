@@ -43,6 +43,7 @@ const relativePathDisplay = document.getElementById('relativePathDisplay');
 const absolutePathDisplay = document.getElementById('absolutePathDisplay');
 const sidebarResizer = document.getElementById('sidebarResizer');
 const outlineResizer = document.getElementById('outlineResizer');
+const treeHeightResizer = document.getElementById('treeHeightResizer');
 
 function escapeHtml(input) {
   return String(input).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
@@ -390,10 +391,12 @@ function formatDate(ts) {
   return new Date(ts).toLocaleDateString();
 }
 
+let searchDebounce = null;
+
 async function runSearch() {
   const q = searchInput.value.trim();
   if (!q) {
-    searchResults.textContent = 'No search yet.';
+    searchResults.textContent = 'Start typing to search.';
     return;
   }
   const data = await fetchJson(apiUrl('search', {
@@ -442,13 +445,36 @@ function attachResizable(handle, initialVar, min, max, direction = 'normal', sto
   });
 }
 
+function attachVerticalResizable(handle, initialVar, min, max, storageKey) {
+  handle.addEventListener('mousedown', (event) => {
+    event.preventDefault();
+    const startY = event.clientY;
+    const startValue = parseInt(getComputedStyle(document.documentElement).getPropertyValue(initialVar), 10);
+    const onMove = (moveEvent) => {
+      const delta = moveEvent.clientY - startY;
+      const value = Math.max(min, Math.min(max, startValue + delta));
+      document.documentElement.style.setProperty(initialVar, `${value}px`);
+      if (storageKey) localStorage.setItem(storageKey, String(value));
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  });
+}
+
 function setupResizablePanes() {
   const savedSidebar = localStorage.getItem('workbench.sidebarWidth');
   const savedOutline = localStorage.getItem('workbench.outlineWidth');
+  const savedTreeHeight = localStorage.getItem('workbench.treeHeight');
   if (savedSidebar) document.documentElement.style.setProperty('--sidebar-width', `${savedSidebar}px`);
   if (savedOutline) document.documentElement.style.setProperty('--outline-width', `${savedOutline}px`);
+  if (savedTreeHeight) document.documentElement.style.setProperty('--tree-height', `${savedTreeHeight}px`);
   attachResizable(sidebarResizer, '--sidebar-width', 260, 720, 'normal', 'workbench.sidebarWidth');
   attachResizable(outlineResizer, '--outline-width', 180, 500, 'inverse', 'workbench.outlineWidth');
+  attachVerticalResizable(treeHeightResizer, '--tree-height', 160, 700, 'workbench.treeHeight');
 }
 
 function parseInitialState() {
@@ -463,11 +489,19 @@ openFolderBtn.onclick = () => loadFolder().catch(showError);
 refreshTreeBtn.onclick = () => loadTree(pathInput.value.trim()).catch(showError);
 openPathBtn.onclick = () => openTarget(pathInput.value.trim(), state.currentRoot).catch(showError);
 openAbsoluteBtn.onclick = () => openTarget(absolutePathInput.value.trim()).catch(showError);
+function scheduleSearch() {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => {
+    runSearch().catch(showError);
+  }, 180);
+}
+
 searchBtn.onclick = () => runSearch().catch(showError);
+searchInput.addEventListener('input', () => scheduleSearch());
 searchInput.addEventListener('keydown', (event) => { if (event.key === 'Enter') runSearch().catch(showError); });
-kindFilter.onchange = () => { if (searchInput.value.trim()) runSearch().catch(showError); };
-ageFilter.onchange = () => { if (searchInput.value.trim()) runSearch().catch(showError); };
-sizeFilter.onchange = () => { if (searchInput.value.trim()) runSearch().catch(showError); };
+kindFilter.onchange = () => scheduleSearch();
+ageFilter.onchange = () => scheduleSearch();
+sizeFilter.onchange = () => scheduleSearch();
 relativePathDisplay.addEventListener('keydown', (event) => { if (event.key === 'Enter') openTarget(relativePathDisplay.value.trim(), state.currentRoot).catch(showError); });
 absolutePathDisplay.addEventListener('keydown', (event) => { if (event.key === 'Enter') openTarget(absolutePathDisplay.value.trim()).catch(showError); });
 rootSelect.onchange = () => {

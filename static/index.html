@@ -34,10 +34,7 @@
         </label>
         <label>
           <span>Filename search</span>
-          <div class="input-row">
-            <input id="searchInput" type="text" placeholder="openclaw-four-repo-strategy-v1.md" />
-            <button id="searchBtn">Find</button>
-          </div>
+          <input id="searchInput" type="text" placeholder="Type a filename; filters apply live" />
         </label>
         <div class="filter-row three-up">
           <select id="kindFilter">
@@ -62,23 +59,27 @@
             <option value="large">&gt;1 MB</option>
           </select>
         </div>
-        <div id="searchResults" class="search-results muted small">No search yet.</div>
+        <div id="searchResults" class="search-results muted small">Start typing to search.</div>
         <div class="control-row">
           <button id="openFolderBtn">Open folder</button>
           <button id="refreshTreeBtn">Refresh tree</button>
         </div>
 
-        <div class="tree-wrap">
-          <div class="section-head">
-            <h2>Tree</h2>
-            <span class="muted small">classic folder navigation</span>
+        <div class="sidebar-stack" id="sidebarStack">
+          <div class="tree-wrap" id="treeWrap">
+            <div class="section-head">
+              <h2>Tree</h2>
+              <span class="muted small">classic folder navigation</span>
+            </div>
+            <div id="treeView" class="tree-view"></div>
           </div>
-          <div id="treeView" class="tree-view"></div>
-        </div>
 
-        <div class="listing-wrap docs-list-wrap">
-          <h2>Latest workspace docs</h2>
-          <ul id="docsIndex"></ul>
+          <div id="treeHeightResizer" class="pane-resizer horizontal" aria-hidden="true"></div>
+
+          <div class="listing-wrap docs-list-wrap" id="docsWrap">
+            <h2>Latest workspace docs</h2>
+            <ul id="docsIndex"></ul>
+          </div>
         </div>
       </aside>
 
