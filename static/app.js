@@ -525,7 +525,7 @@ function scheduleSearch() {
   }, 180);
 }
 
-searchBtn.onclick = () => runSearch().catch(showError);
+if (searchBtn) searchBtn.onclick = () => runSearch().catch(showError);
 searchInput.addEventListener('input', () => scheduleSearch());
 searchInput.addEventListener('keydown', (event) => { if (event.key === 'Enter') runSearch().catch(showError); });
 kindFilter.onchange = () => scheduleSearch();
