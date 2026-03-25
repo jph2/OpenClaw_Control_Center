@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenClaw Workbench MVP</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <script type="module" src="/static/app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-head">
+          <h1>Workbench</h1>
+          <p>Read-only artifact browser MVP</p>
+        </div>
+        <label>
+          <span>Root</span>
+          <select id="rootSelect"></select>
+        </label>
+        <label>
+          <span>Folder</span>
+          <input id="pathInput" type="text" placeholder="docs" />
+        </label>
+        <button id="openFolderBtn">Open folder</button>
+        <div class="listing-wrap">
+          <h2>Listing</h2>
+          <ul id="listing"></ul>
+        </div>
+      </aside>
+
+      <main class="main-panel">
+        <header class="toolbar">
+          <div class="path-block">
+            <div><strong>Repo-relative:</strong> <span id="relativePath">—</span></div>
+            <div><strong>Absolute:</strong> <span id="absolutePath">—</span></div>
+          </div>
+          <div class="toolbar-actions">
+            <button id="rawBtn">Raw</button>
+            <button id="previewBtn">Preview</button>
+            <button id="copyLinkBtn">Copy link</button>
+          </div>
+        </header>
+
+        <section id="viewer" class="viewer empty-state">
+          Select a file from the left.
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
