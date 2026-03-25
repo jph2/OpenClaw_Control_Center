@@ -22,9 +22,17 @@ const TEXT_EXTENSIONS = new Set([
   '.yml', '.yaml', '.toml', '.py', '.sh', '.env', '.gitignore', '.ini', '.cfg', '.sql'
 ]);
 
+const renderer = new marked.Renderer();
+renderer.heading = ({ tokens, depth }) => {
+  const text = tokens.map((token) => token.text || '').join('');
+  const slug = text.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+  return `<h${depth} id="${slug}">${text}</h${depth}>`;
+};
+
 marked.setOptions({
   gfm: true,
   breaks: false,
+  renderer,
 });
 
 function assertRoot(rootKey) {
@@ -50,6 +58,20 @@ function isTextFile(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   if (TEXT_EXTENSIONS.has(ext)) return true;
   return path.basename(filePath).toUpperCase() === 'README' || path.basename(filePath).endsWith('.md');
+}
+
+function extractHeadings(markdown) {
+  return markdown
+    .split(/\r?\n/)
+    .map((line) => {
+      const match = /^(#{1,6})\s+(.*)$/.exec(line.trim());
+      if (!match) return null;
+      return {
+        level: match[1].length,
+        text: match[2].trim(),
+      };
+    })
+    .filter(Boolean);
 }
 
 async function listDirectory(rootKey, relativePath = '') {
@@ -119,6 +141,7 @@ app.get('/api/file', async (req, res) => {
     const ext = path.extname(resolved).toLowerCase();
     const isMarkdown = ext === '.md' || path.basename(resolved).toLowerCase().endsWith('.md');
     const html = mode === 'preview' && isMarkdown ? marked.parse(raw) : null;
+    const headings = isMarkdown ? extractHeadings(raw) : [];
 
     res.json({
       root,
@@ -128,8 +151,32 @@ app.get('/api/file', async (req, res) => {
       raw,
       html,
       isMarkdown,
+      headings,
       mode,
     });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.get('/api/docs-index', async (req, res) => {
+  try {
+    const root = 'workspace';
+    const docsDir = path.join(ROOTS[root], 'docs');
+    const entries = await fs.readdir(docsDir, { withFileTypes: true });
+    const docs = [];
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
+      const absolutePath = path.join(docsDir, entry.name);
+      const stat = await fs.stat(absolutePath);
+      docs.push({
+        name: entry.name,
+        path: `docs/${entry.name}`,
+        updatedAt: stat.mtimeMs,
+      });
+    }
+    docs.sort((a, b) => b.updatedAt - a.updatedAt);
+    res.json({ docs: docs.slice(0, 20) });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }

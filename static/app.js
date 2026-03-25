@@ -10,7 +10,9 @@ const rootSelect = document.getElementById('rootSelect');
 const pathInput = document.getElementById('pathInput');
 const openFolderBtn = document.getElementById('openFolderBtn');
 const listing = document.getElementById('listing');
+const docsIndex = document.getElementById('docsIndex');
 const viewer = document.getElementById('viewer');
+const outline = document.getElementById('outline');
 const rawBtn = document.getElementById('rawBtn');
 const previewBtn = document.getElementById('previewBtn');
 const copyLinkBtn = document.getElementById('copyLinkBtn');
@@ -51,6 +53,55 @@ async function loadRoots() {
     .join('');
 }
 
+function slugifyHeading(text) {
+  return text
+    .toLowerCase()
+    .trim()
+    .replaceAll(/[^a-z0-9\s-]/g, '')
+    .replaceAll(/\s+/g, '-');
+}
+
+function renderOutline(headings = []) {
+  outline.innerHTML = '';
+  if (!headings.length) {
+    outline.innerHTML = '<li class="muted">No headings</li>';
+    return;
+  }
+
+  for (const heading of headings) {
+    const li = document.createElement('li');
+    li.style.marginLeft = `${(heading.level - 1) * 12}px`;
+    const a = document.createElement('a');
+    const slug = slugifyHeading(heading.text);
+    a.href = `#${slug}`;
+    a.textContent = heading.text;
+    li.appendChild(a);
+    outline.appendChild(li);
+  }
+}
+
+async function loadDocsIndex() {
+  const data = await fetchJson('/api/docs-index');
+  docsIndex.innerHTML = '';
+  for (const doc of data.docs) {
+    const li = document.createElement('li');
+    const a = document.createElement('a');
+    a.href = '#';
+    a.className = 'file';
+    a.textContent = doc.name;
+    a.onclick = async (event) => {
+      event.preventDefault();
+      state.currentRoot = 'workspace';
+      rootSelect.value = 'workspace';
+      pathInput.value = 'docs';
+      await loadFolder();
+      await loadFile(doc.path, 'preview');
+    };
+    li.appendChild(a);
+    docsIndex.appendChild(li);
+  }
+}
+
 async function loadFolder() {
   const dir = pathInput.value.trim();
   state.currentFolder = dir;
@@ -61,6 +112,7 @@ async function loadFolder() {
   absolutePath.textContent = data.absolutePath;
   viewer.className = 'viewer empty-state';
   viewer.textContent = 'Select a file from the left.';
+  outline.innerHTML = '<li class="muted">No headings</li>';
   listing.innerHTML = '';
 
   const entries = [];
@@ -103,10 +155,12 @@ async function loadFile(filePath, mode = state.currentMode) {
   if (mode === 'preview' && data.html) {
     viewer.className = 'viewer';
     viewer.innerHTML = `<article class="markdown-body">${data.html}</article>`;
+    renderOutline(data.headings);
     await renderMermaid();
   } else {
     viewer.className = 'viewer';
     viewer.innerHTML = `<pre><code>${escapeHtml(data.raw)}</code></pre>`;
+    renderOutline(data.headings || []);
   }
 
   updateUrl();
@@ -173,6 +227,7 @@ function showError(error) {
 async function init() {
   parseInitialState();
   await loadRoots();
+  await loadDocsIndex();
   rootSelect.value = state.currentRoot;
   pathInput.value = state.currentFile ? state.currentFile.split('/').slice(0, -1).join('/') : state.currentFolder;
   await loadFolder();

@@ -15,6 +15,8 @@ Read-only workbench MVP for browsing laptop-hosted OpenClaw-related repositories
 - rendered markdown preview
 - mermaid rendering in preview mode
 - stable browser URL parameters
+- latest workspace docs list
+- markdown heading outline panel
 
 ## Why this exists
 
