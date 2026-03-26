@@ -138,6 +138,8 @@
           <div class="toolbar-actions">
             <button id="rawBtn">Raw</button>
             <button id="previewBtn">Preview</button>
+            <button id="saveBtn">Save</button>
+            <button id="revertBtn">Revert</button>
             <button id="copyLinkBtn">Copy link</button>
           </div>
         </header>
@@ -151,6 +153,17 @@
             <div class="outline-header">
               <h2>Outline / Preview tools</h2>
               <div id="previewControls" class="preview-controls"></div>
+            </div>
+            <div id="editorTools" class="editor-tools hidden">
+              <div class="input-row compact-tools">
+                <input id="findInput" type="text" placeholder="Find" />
+                <input id="replaceInput" type="text" placeholder="Replace" />
+              </div>
+              <div class="control-row three-actions compact-actions">
+                <button id="findNextBtn">Find next</button>
+                <button id="replaceBtn">Replace</button>
+                <button id="replaceAllBtn">Replace all</button>
+              </div>
             </div>
             <ul id="outline"></ul>
           </aside>

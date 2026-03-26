@@ -9,6 +9,8 @@ const state = {
   activePath: '',
   tree: [],
   imageScale: 1,
+  rawContent: '',
+  savedContent: '',
   history: [],
   historyIndex: -1,
   suppressHistory: false,
@@ -51,8 +53,16 @@ const currentRelativeLabel = document.getElementById('currentRelativeLabel');
 const currentAbsoluteLabel = document.getElementById('currentAbsoluteLabel');
 const outline = document.getElementById('outline');
 const previewControls = document.getElementById('previewControls');
+const editorTools = document.getElementById('editorTools');
+const findInput = document.getElementById('findInput');
+const replaceInput = document.getElementById('replaceInput');
+const findNextBtn = document.getElementById('findNextBtn');
+const replaceBtn = document.getElementById('replaceBtn');
+const replaceAllBtn = document.getElementById('replaceAllBtn');
 const rawBtn = document.getElementById('rawBtn');
 const previewBtn = document.getElementById('previewBtn');
+const saveBtn = document.getElementById('saveBtn');
+const revertBtn = document.getElementById('revertBtn');
 const copyLinkBtn = document.getElementById('copyLinkBtn');
 const sidebarResizer = document.getElementById('sidebarResizer');
 const outlineResizer = document.getElementById('outlineResizer');
@@ -105,8 +115,18 @@ function renderOutline(headings = []) {
   }
 }
 
+function setEditorMode(active) {
+  editorTools.classList.toggle('hidden', !active);
+}
+
+function renderLineNumbers(text) {
+  const lines = text.split('\n').length;
+  return Array.from({ length: lines }, (_, i) => i + 1).join('\n');
+}
+
 function renderPreviewControls(kind = 'text') {
   previewControls.innerHTML = '';
+  setEditorMode(false);
   if (kind !== 'image') return;
   const controls = [
     ['Fit', () => setImageScale(0.6)],
@@ -224,6 +244,8 @@ function updateNavButtons() {
   newFolderBtn.disabled = !writable;
   newFileBtn.disabled = !writable;
   uploadBtn.disabled = !writable;
+  saveBtn.disabled = !writable || !state.currentFile;
+  revertBtn.disabled = !state.currentFile;
   dropZone.classList.toggle('disabled', !writable);
   dropZone.textContent = writable ? 'Drop file here into current folder' : 'Drag-and-drop disabled in read-only roots';
 }
@@ -389,17 +411,35 @@ async function loadFile(filePath, mode = state.currentMode, options = {}) {
   const data = await fetchJson(apiUrl('file', { root: state.currentRoot, path: filePath, mode }));
 
   if (data.kind === 'text') {
+    state.savedContent = data.raw;
+    state.rawContent = data.raw;
     if (mode === 'preview' && data.html) {
       viewer.className = 'viewer';
       viewer.innerHTML = `<article class="markdown-body">${data.html}</article>`;
       renderOutline(data.headings);
       await renderMermaid();
+      renderPreviewControls('text');
     } else {
       viewer.className = 'viewer';
-      viewer.innerHTML = `<pre><code>${escapeHtml(data.raw)}</code></pre>`;
+      viewer.innerHTML = `
+        <div class="raw-editor-wrap">
+          <pre id="lineNumbers" class="raw-line-numbers">${renderLineNumbers(data.raw)}</pre>
+          <textarea id="rawEditor" class="raw-editor">${escapeHtml(data.raw)}</textarea>
+        </div>`;
       renderOutline(data.headings || []);
+      setEditorMode(true);
+      const rawEditor = document.getElementById('rawEditor');
+      const lineNumbers = document.getElementById('lineNumbers');
+      rawEditor.value = data.raw;
+      rawEditor.addEventListener('input', () => {
+        state.rawContent = rawEditor.value;
+        lineNumbers.textContent = renderLineNumbers(rawEditor.value);
+      });
+      rawEditor.addEventListener('scroll', () => {
+        lineNumbers.scrollTop = rawEditor.scrollTop;
+      });
+      updateNavButtons();
     }
-    renderPreviewControls('text');
   } else if (data.kind === 'image') {
     viewer.className = 'viewer';
     setImageScale(0.6);
@@ -627,6 +667,59 @@ async function postJson(pathname, payload) {
   return data;
 }
 
+async function saveRawFile() {
+  if (!state.currentFile) return;
+  const rawEditor = document.getElementById('rawEditor');
+  const content = rawEditor ? rawEditor.value : state.rawContent;
+  await postJson('save', { root: state.currentRoot, path: state.currentFile, content });
+  state.savedContent = content;
+  state.rawContent = content;
+  updateDebugStatus('file saved');
+}
+
+function revertRawFile() {
+  const rawEditor = document.getElementById('rawEditor');
+  if (!rawEditor) return;
+  rawEditor.value = state.savedContent;
+  state.rawContent = state.savedContent;
+  const lineNumbers = document.getElementById('lineNumbers');
+  if (lineNumbers) lineNumbers.textContent = renderLineNumbers(state.savedContent);
+}
+
+function findInRaw(next = true) {
+  const rawEditor = document.getElementById('rawEditor');
+  if (!rawEditor) return;
+  const query = findInput.value;
+  if (!query) return;
+  const text = rawEditor.value;
+  const start = next ? rawEditor.selectionEnd : Math.max(0, rawEditor.selectionStart - query.length - 1);
+  const index = next ? text.indexOf(query, start) : text.lastIndexOf(query, start);
+  if (index >= 0) {
+    rawEditor.focus();
+    rawEditor.setSelectionRange(index, index + query.length);
+  }
+}
+
+function replaceInRaw(all = false) {
+  const rawEditor = document.getElementById('rawEditor');
+  if (!rawEditor) return;
+  const query = findInput.value;
+  const replacement = replaceInput.value;
+  if (!query) return;
+  if (all) {
+    rawEditor.value = rawEditor.value.split(query).join(replacement);
+  } else if (rawEditor.selectionStart !== rawEditor.selectionEnd && rawEditor.value.slice(rawEditor.selectionStart, rawEditor.selectionEnd) === query) {
+    const before = rawEditor.value.slice(0, rawEditor.selectionStart);
+    const after = rawEditor.value.slice(rawEditor.selectionEnd);
+    const pos = rawEditor.selectionStart;
+    rawEditor.value = before + replacement + after;
+    rawEditor.setSelectionRange(pos, pos + replacement.length);
+  }
+  state.rawContent = rawEditor.value;
+  const lineNumbers = document.getElementById('lineNumbers');
+  if (lineNumbers) lineNumbers.textContent = renderLineNumbers(rawEditor.value);
+}
+
 async function createFolder() {
   const name = window.prompt('New folder name');
   if (!name) return;
@@ -720,6 +813,11 @@ absolutePathInput.addEventListener('keydown', (event) => {
 });
 rawBtn.onclick = () => { if (state.currentFile) loadFile(state.currentFile, 'raw').catch(showError); };
 previewBtn.onclick = () => { if (state.currentFile) loadFile(state.currentFile, 'preview').catch(showError); };
+saveBtn.onclick = () => saveRawFile().catch(showError);
+revertBtn.onclick = () => revertRawFile();
+findNextBtn.onclick = () => findInRaw(true);
+replaceBtn.onclick = () => replaceInRaw(false);
+replaceAllBtn.onclick = () => replaceInRaw(true);
 copyLinkBtn.onclick = async () => {
   await navigator.clipboard.writeText(location.href);
   copyLinkBtn.textContent = 'Copied';

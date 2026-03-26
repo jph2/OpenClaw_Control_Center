@@ -408,6 +408,23 @@ router.post('/upload', async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 });
+
+router.post('/save', async (req, res) => {
+  try {
+    const root = String(req.body.root || 'workspace');
+    const filePath = String(req.body.path || '');
+    const content = String(req.body.content || '');
+    assertWritableRoot(root);
+    const { resolved } = resolveSafe(root, filePath);
+    const stat = await fs.stat(resolved);
+    if (!stat.isFile()) throw new Error('Path is not a file');
+    if (!isTextFile(resolved)) throw new Error('Only text files can be edited in raw mode');
+    await fs.writeFile(resolved, content, 'utf8');
+    res.json({ ok: true, path: filePath });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
 }
 
 app.use('/static', express.static(path.join(__dirname, 'static')));
