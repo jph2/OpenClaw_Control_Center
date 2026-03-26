@@ -214,12 +214,16 @@ function sortNodes(nodes = []) {
 function applyTreeFilter(nodes = []) {
   const matches = state.treeFilter.matches;
   const active = isTreeFilterActive();
+  const activePath = state.activePath || state.currentFile || state.currentFolder || '';
   const walk = (inputNodes) => {
     const output = [];
     for (const node of inputNodes) {
       const filteredChildren = node.children ? walk(node.children) : [];
-      const isMatch = !active || !matches || matches.has(node.path);
-      const keepNode = node.type === 'dir' ? (isMatch || filteredChildren.length > 0) : isMatch;
+      const isExactMatch = !active || !matches || matches.has(node.path);
+      const isAncestorOfActive = !!activePath && (activePath === node.path || activePath.startsWith(`${node.path}/`));
+      const keepNode = node.type === 'dir'
+        ? (isExactMatch || filteredChildren.length > 0 || isAncestorOfActive)
+        : isExactMatch;
       if (!keepNode) continue;
       output.push({
         ...node,
@@ -519,8 +523,11 @@ function renderTree() {
   treeView.innerHTML = '';
   const visibleTree = applyTreeFilter(state.tree || []);
   if (!visibleTree.length) {
-    treeView.innerHTML = `<div class="muted">${isTreeFilterActive() ? 'No items match the current tree filter.' : 'No files'}</div>`;
-    updateDebugStatus('tree empty after render');
+    const active = isTreeFilterActive();
+    const matchesSize = state.treeFilter.matches?.size ?? 0;
+    const note = active ? `No items match the current tree filter. (matches: ${matchesSize}, treePath: ${state.treePath || '(root)'})` : 'No files';
+    treeView.innerHTML = `<div class="muted">${note}</div>`;
+    updateDebugStatus(`tree empty after render | filterActive=${active ? 'yes' : 'no'} | matches=${matchesSize}`);
     return;
   }
   renderTreeNodes(visibleTree, treeView);
@@ -530,7 +537,7 @@ function renderTree() {
       activeLabel.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     });
   }
-  updateDebugStatus();
+  updateDebugStatus(`tree rendered | visible=${countTreeItems(visibleTree)}`);
 }
 
 async function loadTree(rootPath = '') {
