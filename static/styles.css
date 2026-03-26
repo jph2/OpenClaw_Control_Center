@@ -59,6 +59,48 @@ body {
 }
 label { display: block; }
 label span { display: block; margin-bottom: 6px; color: var(--muted); }
+.workspace-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+.workspace-select-wrap {
+  min-width: 0;
+}
+.workspace-label {
+  display: block;
+  margin-bottom: 4px;
+}
+.workspace-actions {
+  display: flex;
+  gap: 8px;
+}
+.workspace-actions button {
+  width: auto;
+  white-space: nowrap;
+}
+.compact-head {
+  align-items: center;
+}
+.compact-head h2 {
+  font-size: 0.98rem;
+}
+.compact-path-label span {
+  margin-bottom: 4px;
+}
+.compact-input-row {
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+}
+.compact-input-row input,
+.compact-input-row button {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.compact-input-row button {
+  min-width: 58px;
+}
 input, select, button {
   width: 100%;
   background: var(--panel-2);
@@ -540,5 +582,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   #sidebarResizer { display: none; }
   .sidebar, .main-panel { height: auto; }
   .toolbar { flex-direction: column; }
+  .workspace-row,
   .control-row, .input-row, .filter-row.three-up, .nav-buttons-row { grid-template-columns: 1fr; }
+  .workspace-actions { flex-wrap: wrap; }
 }

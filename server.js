@@ -11,12 +11,14 @@ const app = express();
 const PORT = process.env.PORT || 4260;
 app.use(express.json({ limit: '10mb' }));
 
-const ROOTS = {
+const DEFAULT_ROOTS = {
   workspace: '/home/claw-agentbox/.openclaw/workspace',
   openclaw: '/media/claw-agentbox/data/9999_LocalRepo/openclaw',
   'studio-framework': '/media/claw-agentbox/data/9999_LocalRepo/Studio_Framework',
   'ui-extensions': '/media/claw-agentbox/data/9999_LocalRepo/Openclaw-OpenUSDGoodtstart-Extension',
 };
+const CUSTOM_ROOTS_FILE = path.join(__dirname, 'data', 'custom-roots.json');
+let customRoots = {};
 
 const WRITABLE_ROOTS = new Set(['workspace', 'studio-framework']);
 
@@ -41,8 +43,32 @@ marked.setOptions({
   renderer,
 });
 
+function getRoots() {
+  return { ...DEFAULT_ROOTS, ...customRoots };
+}
+
+async function loadCustomRoots() {
+  try {
+    const raw = await fs.readFile(CUSTOM_ROOTS_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    customRoots = parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    customRoots = {};
+  }
+}
+
+async function saveCustomRoots() {
+  await fs.mkdir(path.dirname(CUSTOM_ROOTS_FILE), { recursive: true });
+  await fs.writeFile(CUSTOM_ROOTS_FILE, JSON.stringify(customRoots, null, 2) + '\n', 'utf8');
+}
+
+function makeRootKeyFromPath(targetPath) {
+  return path.basename(targetPath).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'custom-root';
+}
+
 function assertRoot(rootKey) {
-  const rootPath = ROOTS[rootKey];
+  const rootPath = getRoots()[rootKey];
   if (!rootPath) {
     throw new Error(`Unknown root: ${rootKey}`);
   }
@@ -148,7 +174,46 @@ async function buildTree(rootKey, relativePath = '', depth = 0, maxDepth = 4) {
 
 function registerApiRoutes(router) {
 router.get('/roots', (req, res) => {
-  res.json({ roots: Object.entries(ROOTS).map(([key, value]) => ({ key, path: value })) });
+  const roots = getRoots();
+  res.json({ roots: Object.entries(roots).map(([key, value]) => ({ key, path: value, custom: !!customRoots[key] })) });
+});
+
+router.post('/roots', async (req, res) => {
+  try {
+    const targetPath = String(req.body.path || '').trim();
+    if (!targetPath) throw new Error('Path is required');
+    const resolved = path.resolve(targetPath);
+    const stat = await fs.stat(resolved);
+    if (!stat.isDirectory()) throw new Error('Path is not a directory');
+    let key = String(req.body.key || '').trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-');
+    if (!key) key = makeRootKeyFromPath(resolved);
+    if (DEFAULT_ROOTS[key]) throw new Error('Key conflicts with built-in workspace');
+    const roots = getRoots();
+    let finalKey = key;
+    let suffix = 2;
+    while (roots[finalKey] && roots[finalKey] !== resolved) {
+      finalKey = `${key}-${suffix}`;
+      suffix += 1;
+    }
+    customRoots[finalKey] = resolved;
+    await saveCustomRoots();
+    res.json({ ok: true, key: finalKey, path: resolved, custom: true });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/roots/remove', async (req, res) => {
+  try {
+    const key = String(req.body.key || '').trim();
+    if (!key) throw new Error('Key is required');
+    if (!customRoots[key]) throw new Error('Only custom workspaces can be removed');
+    delete customRoots[key];
+    await saveCustomRoots();
+    res.json({ ok: true, key });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
 });
 
 router.get('/list', async (req, res) => {
@@ -447,6 +512,8 @@ app.get('/health', (req, res) => {
 app.get(['/workbench', '/workbench/*', '/', '/*'], (req, res) => {
   res.sendFile(path.join(__dirname, 'static', 'index.html'));
 });
+
+await loadCustomRoots();
 
 app.listen(PORT, () => {
   console.log(`OpenClaw workbench MVP listening on http://localhost:${PORT}`);

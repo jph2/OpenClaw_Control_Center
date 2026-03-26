@@ -37,6 +37,8 @@ const ROOT_MAP = {
 };
 
 const rootSelect = document.getElementById('rootSelect');
+const addRootBtn = document.getElementById('addRootBtn');
+const removeRootBtn = document.getElementById('removeRootBtn');
 const searchInput = document.getElementById('searchInput');
 const kindFilter = document.getElementById('kindFilter');
 const ageMinInput = document.getElementById('ageMinInput');
@@ -431,10 +433,16 @@ function renderBreadcrumbs() {
   });
 }
 
-async function loadRoots() {
+async function loadRoots(selectedKey = state.currentRoot) {
   const data = await fetchJson(apiUrl('roots'));
   state.roots = data.roots;
-  rootSelect.innerHTML = data.roots.map(root => `<option value="${root.key}">${root.key}</option>`).join('');
+  rootSelect.innerHTML = data.roots.map(root => `<option value="${root.key}">${root.key}${root.custom ? ' *' : ''}</option>`).join('');
+  const availableKeys = new Set(data.roots.map((root) => root.key));
+  if (!availableKeys.has(selectedKey)) selectedKey = data.roots[0]?.key || 'workspace';
+  state.currentRoot = selectedKey;
+  rootSelect.value = selectedKey;
+  const selected = data.roots.find((root) => root.key === selectedKey);
+  if (removeRootBtn) removeRootBtn.disabled = !selected?.custom;
 }
 
 async function loadDocsIndex() {
@@ -1213,6 +1221,8 @@ rootSelect.onchange = async () => {
     return;
   }
   state.currentRoot = nextRoot;
+  const selected = state.roots.find((root) => root.key === nextRoot);
+  if (removeRootBtn) removeRootBtn.disabled = !selected?.custom;
   state.currentFolder = '';
   state.currentFile = '';
   state.activePath = '';
@@ -1296,6 +1306,43 @@ copyLinkBtn.onclick = async () => {
   copyLinkBtn.textContent = 'Copied';
   setTimeout(() => { copyLinkBtn.textContent = 'Copy link'; }, 1200);
 };
+if (addRootBtn) {
+  addRootBtn.onclick = async () => {
+    const targetPath = window.prompt('Add workspace root folder path');
+    if (!targetPath) return;
+    const key = window.prompt('Optional workspace key (leave blank to auto-generate)') || '';
+    try {
+      const result = await postJson('roots', { path: targetPath, key });
+      await loadRoots(result.key);
+      updateDebugStatus(`workspace added: ${result.key}`);
+    } catch (error) {
+      showError(error);
+    }
+  };
+}
+if (removeRootBtn) {
+  removeRootBtn.onclick = async () => {
+    const selected = state.roots.find((root) => root.key === rootSelect.value);
+    if (!selected?.custom) return;
+    const confirmed = window.confirm(`Remove workspace ${selected.key}?`);
+    if (!confirmed) return;
+    try {
+      await postJson('roots/remove', { key: selected.key });
+      await loadRoots('workspace');
+      state.currentFolder = '';
+      state.currentFile = '';
+      state.activePath = '';
+      state.tree = [];
+      state.treePath = '';
+      state.expandedDirs = new Set(['']);
+      setCurrentDocument(null);
+      await openFolderAt('');
+      updateDebugStatus(`workspace removed: ${selected.key}`);
+    } catch (error) {
+      showError(error);
+    }
+  };
+}
 if (autosaveCheckbox) {
   autosaveCheckbox.addEventListener('change', () => {
     state.autosave = autosaveCheckbox.checked;
@@ -1349,9 +1396,7 @@ window.addEventListener('beforeunload', (event) => {
 
 async function init() {
   parseInitialState();
-  await loadRoots();
-  if (!state.roots.find((r) => r.key === state.currentRoot)) state.currentRoot = state.roots[0]?.key || 'workspace';
-  rootSelect.value = state.currentRoot;
+  await loadRoots(state.currentRoot);
   await loadDocsIndex();
   setupResizablePanes();
   updateSummary();

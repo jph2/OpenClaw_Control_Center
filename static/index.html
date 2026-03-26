@@ -30,20 +30,23 @@
             <span>upcoming plugin / extension page</span>
           </div>
         </div>
-        <label>
-          <span>Root</span>
-          <select id="rootSelect"></select>
-        </label>
+        <div class="workspace-row">
+          <div class="workspace-select-wrap">
+            <span class="workspace-label muted small">Workspaces</span>
+            <select id="rootSelect"></select>
+          </div>
+          <div class="workspace-actions">
+            <button id="addRootBtn" type="button">Add workspace</button>
+            <button id="removeRootBtn" type="button">Remove</button>
+          </div>
+        </div>
 
         <div class="search-panel">
-          <div class="section-head">
-            <h2>Tree filter</h2>
-            <span class="muted small">live filter + sort for the tree</span>
+          <div class="section-head compact-head">
+            <h2>Tree filter | Filename search</h2>
+            <span class="muted small">live filter + sort</span>
           </div>
-          <label>
-            <span>Filename search</span>
-            <input id="searchInput" type="text" placeholder="Type a filename; filters apply live" />
-          </label>
+          <input id="searchInput" type="text" placeholder="Type a filename; filters apply live" />
           <div class="filter-row four-up">
             <select id="kindFilter">
               <option value="all">all kinds</option>
@@ -79,16 +82,16 @@
             <h2>Tree navigation</h2>
             <span class="muted small">browse current root</span>
           </div>
-          <label>
+          <label class="compact-path-label">
             <span>Relative path</span>
-            <div class="input-row">
+            <div class="input-row compact-input-row">
               <input id="pathInput" type="text" placeholder="docs/openclaw-four-repo-strategy-v1.md" />
               <button id="openPathBtn">Open</button>
             </div>
           </label>
-          <label>
+          <label class="compact-path-label">
             <span>Absolute path</span>
-            <div class="input-row">
+            <div class="input-row compact-input-row">
               <input id="absolutePathInput" type="text" placeholder="/home/claw-agentbox/.openclaw/workspace/docs/..." />
               <button id="openAbsoluteBtn">Open</button>
             </div>
