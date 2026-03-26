@@ -234,6 +234,11 @@ button:hover { border-color: var(--accent); }
   background: rgba(88,166,255,0.12);
   border-color: rgba(88,166,255,0.4);
 }
+.tree-label-text {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
 .tree-kind { color: var(--muted); width: 20px; text-align: center; }
 .docs-list-wrap {
   min-height: 0;

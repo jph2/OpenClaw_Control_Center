@@ -295,8 +295,14 @@ function renderTreeNodes(nodes, container) {
 
       const label = document.createElement('button');
       label.className = `tree-label ${state.activePath === node.path ? 'active' : ''}`;
-      label.textContent = `📁 ${node.name}`;
-      label.onclick = () => openFolderAt(node.path).catch(showError);
+      const text = document.createElement('span');
+      text.className = 'tree-label-text';
+      text.textContent = `📁 ${node.name}`;
+      label.appendChild(text);
+      label.onclick = (event) => {
+        if (window.getSelection && String(window.getSelection()).length > 0) return;
+        openFolderAt(node.path).catch(showError);
+      };
       row.appendChild(label);
       wrapper.appendChild(row);
 
@@ -316,8 +322,14 @@ function renderTreeNodes(nodes, container) {
 
       const label = document.createElement('button');
       label.className = `tree-label ${state.activePath === node.path ? 'active' : ''}`;
-      label.textContent = `📄 ${node.name}`;
-      label.onclick = () => loadFile(node.path, state.currentMode).catch(showError);
+      const text = document.createElement('span');
+      text.className = 'tree-label-text';
+      text.textContent = `📄 ${node.name}`;
+      label.appendChild(text);
+      label.onclick = () => {
+        if (window.getSelection && String(window.getSelection()).length > 0) return;
+        loadFile(node.path, state.currentMode).catch(showError);
+      };
       row.appendChild(label);
       wrapper.appendChild(row);
     }
