@@ -13,7 +13,9 @@ const state = {
   historyIndex: -1,
   suppressHistory: false,
   autosave: false,
-  activeDocument: null,
+  activeDocumentKey: null,
+  documents: new Map(),
+  lastFocusedElement: null,
 };
 
 const ROOT_MAP = {
@@ -72,6 +74,7 @@ const treeHeightResizer = document.getElementById('treeHeightResizer');
 const autosaveCheckbox = document.getElementById('autosaveCheckbox');
 const docStatus = document.getElementById('docStatus');
 const unsavedModal = document.getElementById('unsavedModal');
+const unsavedModalCard = unsavedModal?.querySelector('.modal-card') || null;
 const unsavedModalMessage = document.getElementById('unsavedModalMessage');
 const modalStayBtn = document.getElementById('modalStayBtn');
 const modalDiscardBtn = document.getElementById('modalDiscardBtn');
@@ -141,13 +144,35 @@ function documentKey(root, filePath) {
   return `${root}:${filePath}`;
 }
 
+function getDocument(root, filePath) {
+  if (!root || !filePath) return null;
+  return state.documents.get(documentKey(root, filePath)) || null;
+}
+
 function currentDoc() {
-  const doc = state.activeDocument;
-  return doc && doc.key === documentKey(state.currentRoot, state.currentFile) ? doc : null;
+  return getDocument(state.currentRoot, state.currentFile);
+}
+
+function setCurrentDocument(doc) {
+  state.activeDocumentKey = doc ? doc.key : null;
+  if (doc) state.documents.set(doc.key, doc);
 }
 
 function isDocumentDirty(doc = currentDoc()) {
   return !!(doc && doc.workingContent !== doc.savedContent);
+}
+
+function dirtyDocumentCount() {
+  let count = 0;
+  for (const doc of state.documents.values()) {
+    if (isDocumentDirty(doc)) count += 1;
+  }
+  return count;
+}
+
+function dirtyLabelForFile(pathValue) {
+  const doc = getDocument(state.currentRoot, pathValue);
+  return !!(doc && isDocumentDirty(doc));
 }
 
 function setEditorMode(active) {
@@ -238,7 +263,8 @@ function updateDebugStatus(extra = '') {
     `file: ${state.currentFile || '(none)'}`,
     `treeItems: ${countTreeItems(state.tree || [])}`,
     `autosave: ${state.autosave ? 'on' : 'off'}`,
-    `dirty: ${doc && isDocumentDirty(doc) ? 'yes' : 'no'}`,
+    `dirtyCurrent: ${doc && isDocumentDirty(doc) ? 'yes' : 'no'}`,
+    `dirtyTracked: ${dirtyDocumentCount()}`,
   ];
   if (extra) lines.push(`note: ${extra}`);
   debugStatus.textContent = lines.join(' | ');
@@ -247,13 +273,10 @@ function updateDebugStatus(extra = '') {
 function updateDocumentStatus() {
   const doc = currentDoc();
   if (!docStatus) return;
-  if (!doc) {
-    docStatus.textContent = state.autosave ? 'Autosave on' : 'Autosave off';
-    return;
-  }
-  const parts = [];
-  parts.push(state.autosave ? 'Autosave on' : 'Autosave off');
-  parts.push(isDocumentDirty(doc) ? 'Unsaved changes' : 'Saved');
+  const dirtyCount = dirtyDocumentCount();
+  const parts = [state.autosave ? 'Autosave on' : 'Autosave off'];
+  if (doc) parts.push(isDocumentDirty(doc) ? 'Unsaved changes' : 'Saved');
+  if (dirtyCount > 0) parts.push(`${dirtyCount} dirty doc${dirtyCount === 1 ? '' : 's'}`);
   docStatus.textContent = parts.join(' • ');
 }
 
@@ -290,8 +313,8 @@ function currentTargetDir() {
   return state.currentFile ? state.currentFile.split('/').slice(0, -1).join('/') : state.currentFolder;
 }
 
-function isWritableRoot() {
-  return state.currentRoot === 'workspace' || state.currentRoot === 'studio-framework';
+function isWritableRoot(root = state.currentRoot) {
+  return root === 'workspace' || root === 'studio-framework';
 }
 
 function updateNavButtons() {
@@ -346,8 +369,9 @@ async function loadDocsIndex() {
     const li = document.createElement('li');
     const a = document.createElement('a');
     a.href = '#';
-    a.className = 'file';
+    a.className = `file${dirtyLabelForFile(doc.path) ? ' dirty-link' : ''}`;
     a.textContent = doc.name;
+    if (dirtyLabelForFile(doc.path)) a.title = 'Unsaved changes';
     a.onclick = async (event) => {
       event.preventDefault();
       await guardedOpenTarget(doc.path, 'workspace');
@@ -363,7 +387,7 @@ function renderTreeNodes(nodes, container) {
     wrapper.className = 'tree-node';
     const row = document.createElement('div');
     row.className = 'tree-row';
-    const nodeIsDirty = node.type === 'file' && currentDoc() && node.path === state.currentFile && isDocumentDirty(currentDoc());
+    const nodeIsDirty = node.type === 'file' && dirtyLabelForFile(node.path);
 
     if (node.type === 'dir') {
       const toggle = document.createElement('button');
@@ -458,8 +482,15 @@ function renderFolderViewMessage() {
   updateDocumentStatus();
 }
 
+function getFocusableElements() {
+  if (!unsavedModalCard) return [];
+  return Array.from(unsavedModalCard.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+    .filter((el) => !el.hasAttribute('disabled'));
+}
+
 function showUnsavedModal(label) {
   return new Promise((resolve) => {
+    state.lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     unsavedModalResolver = resolve;
     unsavedModalMessage.textContent = `You have unsaved changes in ${label}. What should happen before leaving this document?`;
     unsavedModal.classList.remove('hidden');
@@ -474,6 +505,8 @@ function closeUnsavedModal(result) {
   unsavedModalResolver = null;
   unsavedModal.classList.add('hidden');
   unsavedModal.setAttribute('aria-hidden', 'true');
+  if (state.lastFocusedElement?.focus) state.lastFocusedElement.focus();
+  state.lastFocusedElement = null;
   resolve(result);
 }
 
@@ -505,8 +538,11 @@ function pushUndoSnapshot(doc, value) {
 function applyDocumentContent(doc, value, options = {}) {
   doc.workingContent = value;
   if (!options.skipUndo) pushUndoSnapshot(doc, value);
+  state.documents.set(doc.key, doc);
   updateSummary();
   updateNavButtons();
+  renderTree();
+  loadDocsIndex().catch(() => {});
   updateDebugStatus();
 }
 
@@ -517,6 +553,7 @@ function syncDocumentFromEditor() {
   doc.workingContent = rawEditor.value;
   doc.lastSelectionStart = rawEditor.selectionStart;
   doc.lastSelectionEnd = rawEditor.selectionEnd;
+  state.documents.set(doc.key, doc);
 }
 
 function updateRawEditorUI(rawEditor, value, options = {}) {
@@ -525,9 +562,7 @@ function updateRawEditorUI(rawEditor, value, options = {}) {
   if (lineNumbers) lineNumbers.textContent = renderLineNumbers(value);
   if (options.restoreSelection) {
     const doc = currentDoc();
-    if (doc) {
-      rawEditor.setSelectionRange(doc.lastSelectionStart ?? value.length, doc.lastSelectionEnd ?? value.length);
-    }
+    if (doc) rawEditor.setSelectionRange(doc.lastSelectionStart ?? value.length, doc.lastSelectionEnd ?? value.length);
   }
 }
 
@@ -536,6 +571,7 @@ function restoreUndoState(doc, step) {
   if (nextIndex < 0 || nextIndex >= doc.undoStack.length) return;
   doc.undoIndex = nextIndex;
   doc.workingContent = doc.undoStack[doc.undoIndex];
+  state.documents.set(doc.key, doc);
   const rawEditor = document.getElementById('rawEditor');
   if (rawEditor) {
     updateRawEditorUI(rawEditor, doc.workingContent);
@@ -545,6 +581,8 @@ function restoreUndoState(doc, step) {
   }
   updateSummary();
   updateNavButtons();
+  renderTree();
+  loadDocsIndex().catch(() => {});
   updateDebugStatus(step < 0 ? 'undo' : 'redo');
 }
 
@@ -589,9 +627,7 @@ function setupRawEditor(doc) {
 }
 
 async function getMarked() {
-  if (!markdownModulePromise) {
-    markdownModulePromise = import('https://cdn.jsdelivr.net/npm/marked@15/lib/marked.esm.js');
-  }
+  if (!markdownModulePromise) markdownModulePromise = import('https://cdn.jsdelivr.net/npm/marked@15/lib/marked.esm.js');
   return markdownModulePromise;
 }
 
@@ -652,14 +688,25 @@ async function loadFile(filePath, mode = state.currentMode, options = {}) {
   const data = await fetchJson(apiUrl('file', { root: state.currentRoot, path: filePath, mode: 'raw' }));
 
   if (data.kind === 'text') {
-    const existingDoc = currentDoc();
-    const doc = existingDoc && existingDoc.key === documentKey(state.currentRoot, filePath)
-      ? existingDoc
-      : createDocumentState({ root: state.currentRoot, filePath, raw: data.raw, isMarkdown: data.isMarkdown, kind: data.kind });
-    state.activeDocument = doc;
+    const key = documentKey(state.currentRoot, filePath);
+    let doc = state.documents.get(key);
+    if (!doc) {
+      doc = createDocumentState({ root: state.currentRoot, filePath, raw: data.raw, isMarkdown: data.isMarkdown, kind: data.kind });
+      state.documents.set(key, doc);
+    } else {
+      doc.kind = data.kind;
+      doc.isMarkdown = data.isMarkdown;
+      if (!isDocumentDirty(doc)) {
+        doc.savedContent = data.raw;
+        doc.workingContent = data.raw;
+        doc.undoStack = [data.raw];
+        doc.undoIndex = 0;
+      }
+    }
+    setCurrentDocument(doc);
     await renderTextDocument(doc, mode);
   } else {
-    state.activeDocument = null;
+    setCurrentDocument(null);
     if (data.kind === 'image') {
       viewer.className = 'viewer';
       setImageScale(0.6);
@@ -679,6 +726,7 @@ async function loadFile(filePath, mode = state.currentMode, options = {}) {
   renderTree();
   updateUrl();
   updateNavButtons();
+  loadDocsIndex().catch(() => {});
   if (!options.skipHistory) pushHistory({ root: state.currentRoot, path: filePath, mode });
 }
 
@@ -739,9 +787,10 @@ async function runSearch() {
   }
   const ul = document.createElement('ul');
   for (const result of data.results) {
+    const isDirty = result.type === 'file' && dirtyLabelForFile(result.path);
     const li = document.createElement('li');
     const btn = document.createElement('button');
-    btn.innerHTML = `${result.type === 'dir' ? '📁' : '📄'} ${escapeHtml(result.path)}<div class="search-meta">${escapeHtml(result.kind)} • ${formatBytes(result.size)} • ${formatDate(result.updatedAt)}</div>`;
+    btn.innerHTML = `${result.type === 'dir' ? '📁' : '📄'} ${isDirty ? '● ' : ''}${escapeHtml(result.path)}<div class="search-meta">${escapeHtml(result.kind)} • ${formatBytes(result.size)} • ${formatDate(result.updatedAt)}</div>`;
     btn.onclick = async () => {
       if (result.type === 'dir') await guardedOpenFolderAt(result.path);
       else await guardedOpenTarget(result.path, state.currentRoot);
@@ -894,7 +943,7 @@ async function postJson(pathname, payload) {
 
 async function saveDocument(doc = currentDoc(), options = {}) {
   if (!doc) return false;
-  if (!isWritableRoot()) throw new Error('Current root is read-only');
+  if (!isWritableRoot(doc.root)) throw new Error('Current root is read-only');
   if (!doc.filePath) return false;
   await postJson('save', { root: doc.root, path: doc.filePath, content: doc.workingContent });
   doc.savedContent = doc.workingContent;
@@ -902,8 +951,11 @@ async function saveDocument(doc = currentDoc(), options = {}) {
     doc.undoStack = [doc.savedContent];
     doc.undoIndex = 0;
   }
+  state.documents.set(doc.key, doc);
   updateSummary();
   updateNavButtons();
+  renderTree();
+  loadDocsIndex().catch(() => {});
   updateDebugStatus('file saved');
   return true;
 }
@@ -914,10 +966,13 @@ function revertRawFile() {
   doc.workingContent = doc.savedContent;
   doc.undoStack = [doc.savedContent];
   doc.undoIndex = 0;
+  state.documents.set(doc.key, doc);
   const rawEditor = document.getElementById('rawEditor');
   if (rawEditor) updateRawEditorUI(rawEditor, doc.savedContent);
   updateSummary();
   updateNavButtons();
+  renderTree();
+  loadDocsIndex().catch(() => {});
   updateDebugStatus('reverted to saved');
 }
 
@@ -939,9 +994,7 @@ async function ensureCanLeaveCurrentDocument(nextRoot = state.currentRoot, nextP
     await saveDocument(doc);
     return true;
   }
-  if (decision === 'discard') {
-    return true;
-  }
+  if (decision === 'discard') return true;
   return false;
 }
 
@@ -1056,7 +1109,7 @@ rootSelect.onchange = async () => {
   state.tree = [];
   state.treePath = '';
   state.expandedDirs = new Set(['']);
-  state.activeDocument = null;
+  setCurrentDocument(null);
   searchResults.textContent = 'Start typing to search.';
   openFolderAt('').catch(showError);
 };
@@ -1138,15 +1191,34 @@ if (unsavedModal) {
   });
 }
 window.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && unsavedModalResolver) {
-    event.preventDefault();
-    closeUnsavedModal('stay');
+  if (unsavedModalResolver) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeUnsavedModal('stay');
+      return;
+    }
+    if (event.key === 'Tab') {
+      const focusables = getFocusableElements();
+      if (!focusables.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey) {
+        if (active === first || !unsavedModalCard.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (active === last || !unsavedModalCard.contains(active)) {
+        event.preventDefault();
+        first.focus();
+      }
+      return;
+    }
   }
 });
 window.addEventListener('beforeunload', (event) => {
   syncDocumentFromEditor();
-  const doc = currentDoc();
-  if (doc && isDocumentDirty(doc) && !state.autosave) {
+  if (dirtyDocumentCount() > 0 && !state.autosave) {
     event.preventDefault();
     event.returnValue = '';
   }

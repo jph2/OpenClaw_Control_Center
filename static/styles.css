@@ -277,6 +277,9 @@ button:hover { border-color: var(--accent); }
   border: 1px solid transparent; border-radius: 8px; padding: 8px 10px;
 }
 #docsIndex a:hover { border-color: var(--accent); }
+#docsIndex a.dirty-link {
+  border-color: rgba(243,156,18,0.45);
+}
 .file::before { content: '📄 '; }
 
 .pane-resizer {
