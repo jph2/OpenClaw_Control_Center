@@ -272,7 +272,8 @@ router.get('/search', async (req, res) => {
   try {
     const q = String(req.query.q || '').trim().toLowerCase();
     const root = String(req.query.root || 'workspace');
-    const maxResults = Math.max(1, Math.min(1000, Number(req.query.maxResults || 200)));
+    const basePath = String(req.query.basePath || '');
+    const maxResults = Math.max(1, Math.min(5000, Number(req.query.maxResults || 200)));
     const kindFilter = String(req.query.kind || 'all');
     const ageMinDays = req.query.ageMinDays === undefined || req.query.ageMinDays === '' ? null : Number(req.query.ageMinDays);
     const ageMaxDays = req.query.ageMaxDays === undefined || req.query.ageMaxDays === '' ? null : Number(req.query.ageMaxDays);
@@ -281,6 +282,7 @@ router.get('/search', async (req, res) => {
     const sort = String(req.query.sort || 'name');
     const now = Date.now();
     const rootPath = assertRoot(root);
+    const { resolved: searchBasePath } = resolveSafe(root, basePath);
     const results = [];
 
     function ageMatch(updatedAt) {
@@ -330,7 +332,7 @@ router.get('/search', async (req, res) => {
       }
     }
 
-    await walk(rootPath);
+    await walk(searchBasePath);
     results.sort((a, b) => {
       if (sort === 'newest') return b.updatedAt - a.updatedAt || a.name.localeCompare(b.name);
       if (sort === 'oldest') return a.updatedAt - b.updatedAt || a.name.localeCompare(b.name);
@@ -341,7 +343,7 @@ router.get('/search', async (req, res) => {
       if (aExact !== bExact) return aExact - bExact;
       return a.name.localeCompare(b.name);
     });
-    res.json({ root, query: q, filters: { kind: kindFilter, ageMinDays, ageMaxDays, sizeMinKb, sizeMaxKb, sort }, results });
+    res.json({ root, basePath, query: q, filters: { kind: kindFilter, ageMinDays, ageMaxDays, sizeMinKb, sizeMaxKb, sort }, results });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }

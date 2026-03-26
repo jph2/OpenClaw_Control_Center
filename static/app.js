@@ -878,8 +878,9 @@ async function runSearch(options = {}) {
 
   const data = await fetchJson(apiUrl('search', {
     root: state.currentRoot,
+    basePath: state.treePath || '',
     q: state.treeFilter.query,
-    maxResults: 500,
+    maxResults: 5000,
     kind: state.treeFilter.kind,
     ageMinDays: state.treeFilter.ageMin,
     ageMaxDays: state.treeFilter.ageMax,
@@ -906,6 +907,7 @@ async function runSearch(options = {}) {
   if (state.treeFilter.ageMin !== '' || state.treeFilter.ageMax !== '') bits.push(`age: ${state.treeFilter.ageMin || '0'}–${state.treeFilter.ageMax || '∞'} days`);
   if (state.treeFilter.sizeMin !== '' || state.treeFilter.sizeMax !== '') bits.push(`size: ${state.treeFilter.sizeMin || '0'}–${state.treeFilter.sizeMax || '∞'} KB`);
   bits.push(`sort: ${state.treeFilter.sort}`);
+  if (state.treePath) bits.push(`scope: ${state.treePath}`);
   updateFilterStatus(`${data.results.length} matching item${data.results.length === 1 ? '' : 's'} • ${bits.join(' • ')}`);
   if (!options.silent) renderTree();
 }
