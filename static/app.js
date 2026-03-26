@@ -214,11 +214,18 @@ function sortNodes(nodes = []) {
 function applyTreeFilter(nodes = []) {
   const matches = state.treeFilter.matches;
   const active = isTreeFilterActive();
+  const basePath = state.treePath || '';
+  const fullPath = (nodePath) => {
+    if (!basePath) return nodePath;
+    if (!nodePath) return basePath;
+    return `${basePath}/${nodePath}`;
+  };
   const walk = (inputNodes) => {
     const output = [];
     for (const node of inputNodes) {
       const filteredChildren = node.children ? walk(node.children) : [];
-      const isMatch = !active || !matches || matches.has(node.path);
+      const nodeFullPath = fullPath(node.path);
+      const isMatch = !active || !matches || matches.has(nodeFullPath);
       const keepNode = node.type === 'dir' ? (isMatch || filteredChildren.length > 0) : isMatch;
       if (!keepNode) continue;
       output.push({
