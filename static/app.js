@@ -962,43 +962,73 @@ function scheduleSearch() {
 }
 
 function attachResizable(handle, initialVar, min, max, direction = 'normal', storageKey) {
-  handle.addEventListener('mousedown', (event) => {
+  if (!handle) return;
+  handle.addEventListener('pointerdown', (event) => {
     event.preventDefault();
     const startX = event.clientX;
-    const startValue = parseInt(getComputedStyle(document.documentElement).getPropertyValue(initialVar), 10);
+    const startValue = parseInt(getComputedStyle(document.documentElement).getPropertyValue(initialVar), 10) || min;
+    const pointerId = event.pointerId;
+    handle.setPointerCapture(pointerId);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
     const onMove = (moveEvent) => {
+      if (moveEvent.pointerId !== pointerId) return;
       const delta = moveEvent.clientX - startX;
       const raw = direction === 'inverse' ? startValue - delta : startValue + delta;
       const value = Math.max(min, Math.min(max, raw));
       document.documentElement.style.setProperty(initialVar, `${value}px`);
       if (storageKey) localStorage.setItem(storageKey, String(value));
     };
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+
+    const onUp = (upEvent) => {
+      if (upEvent.pointerId !== pointerId) return;
+      handle.releasePointerCapture(pointerId);
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      handle.removeEventListener('pointercancel', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
     };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+    handle.addEventListener('pointercancel', onUp);
   });
 }
 
 function attachVerticalResizable(handle, initialVar, min, max, storageKey) {
-  handle.addEventListener('mousedown', (event) => {
+  if (!handle) return;
+  handle.addEventListener('pointerdown', (event) => {
     event.preventDefault();
     const startY = event.clientY;
-    const startValue = parseInt(getComputedStyle(document.documentElement).getPropertyValue(initialVar), 10);
+    const startValue = parseInt(getComputedStyle(document.documentElement).getPropertyValue(initialVar), 10) || min;
+    const pointerId = event.pointerId;
+    handle.setPointerCapture(pointerId);
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+
     const onMove = (moveEvent) => {
+      if (moveEvent.pointerId !== pointerId) return;
       const delta = moveEvent.clientY - startY;
       const value = Math.max(min, Math.min(max, startValue + delta));
       document.documentElement.style.setProperty(initialVar, `${value}px`);
       if (storageKey) localStorage.setItem(storageKey, String(value));
     };
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+
+    const onUp = (upEvent) => {
+      if (upEvent.pointerId !== pointerId) return;
+      handle.releasePointerCapture(pointerId);
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      handle.removeEventListener('pointercancel', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
     };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+    handle.addEventListener('pointercancel', onUp);
   });
 }
 
