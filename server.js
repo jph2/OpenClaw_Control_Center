@@ -268,6 +268,7 @@ router.get('/file', async (req, res) => {
         html,
         isMarkdown,
         headings,
+        updatedAt: (await fs.stat(resolved)).mtimeMs,
         mode,
       });
     }
@@ -484,13 +485,24 @@ router.post('/save', async (req, res) => {
     const root = String(req.body.root || 'workspace');
     const filePath = String(req.body.path || '');
     const content = String(req.body.content || '');
+    const expectedUpdatedAt = req.body.expectedUpdatedAt === undefined || req.body.expectedUpdatedAt === null || req.body.expectedUpdatedAt === ''
+      ? null
+      : Number(req.body.expectedUpdatedAt);
     assertWritableRoot(root);
     const { resolved } = resolveSafe(root, filePath);
     const stat = await fs.stat(resolved);
     if (!stat.isFile()) throw new Error('Path is not a file');
     if (!isTextFile(resolved)) throw new Error('Only text files can be edited in raw mode');
+    if (Number.isFinite(expectedUpdatedAt) && Math.abs(stat.mtimeMs - expectedUpdatedAt) > 1) {
+      return res.status(409).json({
+        error: 'File changed on disk since this editor loaded it',
+        code: 'conflict',
+        currentUpdatedAt: stat.mtimeMs,
+      });
+    }
     await fs.writeFile(resolved, content, 'utf8');
-    res.json({ ok: true, path: filePath });
+    const newStat = await fs.stat(resolved);
+    res.json({ ok: true, path: filePath, updatedAt: newStat.mtimeMs });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }

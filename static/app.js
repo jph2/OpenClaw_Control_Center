@@ -13,6 +13,7 @@ const state = {
   historyIndex: -1,
   suppressHistory: false,
   autosave: false,
+  autosaveDelayMs: 900,
   activeDocumentKey: null,
   documents: new Map(),
   lastFocusedElement: null,
@@ -104,6 +105,38 @@ const modalSaveBtn = document.getElementById('modalSaveBtn');
 let searchDebounce = null;
 let markdownModulePromise = null;
 let unsavedModalResolver = null;
+
+function formatTime(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function setSaveState(doc, saveState, extra = {}) {
+  if (!doc) return;
+  doc.saveState = saveState;
+  Object.assign(doc, extra);
+  state.documents.set(doc.key, doc);
+  updateDocumentStatus();
+  updateDebugStatus();
+}
+
+function clearAutosaveTimer(doc) {
+  if (!doc?.autosaveTimer) return;
+  clearTimeout(doc.autosaveTimer);
+  doc.autosaveTimer = null;
+}
+
+function scheduleAutosave(doc = currentDoc()) {
+  if (!doc) return;
+  clearAutosaveTimer(doc);
+  if (!state.autosave || !isWritableRoot(doc.root) || !isDocumentDirty(doc)) return;
+  doc.autosaveTimer = setTimeout(() => {
+    saveDocument(doc, { trigger: 'autosave' }).catch((error) => {
+      setSaveState(doc, 'error', { lastError: error.message || String(error) });
+      showError(error);
+    });
+  }, state.autosaveDelayMs);
+}
 
 function escapeHtml(input) {
   return String(input).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
@@ -343,7 +376,8 @@ function updateDebugStatus(extra = '') {
     `treePath: ${state.treePath || '(root)'}`,
     `file: ${state.currentFile || '(none)'}`,
     `treeItems: ${countTreeItems(state.tree || [])}`,
-    `autosave: ${state.autosave ? 'on' : 'off'}`,
+    `autosave: ${state.autosave ? `on/${state.autosaveDelayMs}ms` : 'off'}`,
+    `saveState: ${doc?.saveState || '(none)'}`,
     `dirtyCurrent: ${doc && isDocumentDirty(doc) ? 'yes' : 'no'}`,
     `dirtyTracked: ${dirtyDocumentCount()}`,
   ];
@@ -355,8 +389,14 @@ function updateDocumentStatus() {
   const doc = currentDoc();
   if (!docStatus) return;
   const dirtyCount = dirtyDocumentCount();
-  const parts = [state.autosave ? 'Autosave on' : 'Autosave off'];
-  if (doc) parts.push(isDocumentDirty(doc) ? 'Unsaved changes' : 'Saved');
+  const parts = [state.autosave ? `Autosave on (${Math.round(state.autosaveDelayMs / 100) / 10}s debounce)` : 'Autosave off'];
+  if (doc) {
+    if (doc.saveState === 'saving') parts.push('Saving…');
+    else if (doc.saveState === 'error') parts.push(`Save failed: ${doc.lastError || 'unknown error'}`);
+    else if (doc.saveState === 'dirty-autosave') parts.push('Unsaved changes • autosave pending');
+    else if (doc.saveState === 'dirty') parts.push('Unsaved changes');
+    else parts.push(`Saved at ${formatTime(doc.lastSavedAt)}`);
+  }
   if (dirtyCount > 0) parts.push(`${dirtyCount} dirty doc${dirtyCount === 1 ? '' : 's'}`);
   docStatus.textContent = parts.join(' • ');
 }
@@ -608,7 +648,7 @@ function closeUnsavedModal(result) {
   resolve(result);
 }
 
-function createDocumentState({ root, filePath, raw, isMarkdown, kind }) {
+function createDocumentState({ root, filePath, raw, isMarkdown, kind, updatedAt }) {
   return {
     key: documentKey(root, filePath),
     root,
@@ -617,6 +657,11 @@ function createDocumentState({ root, filePath, raw, isMarkdown, kind }) {
     isMarkdown,
     savedContent: raw,
     workingContent: raw,
+    savedUpdatedAt: updatedAt || null,
+    lastSavedAt: updatedAt || null,
+    saveState: 'saved',
+    lastError: null,
+    autosaveTimer: null,
     undoStack: [raw],
     undoIndex: 0,
     lastSelectionStart: 0,
@@ -636,12 +681,19 @@ function pushUndoSnapshot(doc, value) {
 function applyDocumentContent(doc, value, options = {}) {
   doc.workingContent = value;
   if (!options.skipUndo) pushUndoSnapshot(doc, value);
+  if (doc.workingContent !== doc.savedContent) {
+    doc.saveState = state.autosave ? 'dirty-autosave' : 'dirty';
+    doc.lastError = null;
+  } else if (doc.saveState !== 'saving') {
+    doc.saveState = 'saved';
+  }
   state.documents.set(doc.key, doc);
   updateSummary();
   updateNavButtons();
   renderTree();
   loadDocsIndex().catch(() => {});
   updateDebugStatus();
+  scheduleAutosave(doc);
 }
 
 function syncDocumentFromEditor() {
@@ -789,7 +841,7 @@ async function loadFile(filePath, mode = state.currentMode, options = {}) {
     const key = documentKey(state.currentRoot, filePath);
     let doc = state.documents.get(key);
     if (!doc) {
-      doc = createDocumentState({ root: state.currentRoot, filePath, raw: data.raw, isMarkdown: data.isMarkdown, kind: data.kind });
+      doc = createDocumentState({ root: state.currentRoot, filePath, raw: data.raw, isMarkdown: data.isMarkdown, kind: data.kind, updatedAt: data.updatedAt });
       state.documents.set(key, doc);
     } else {
       doc.kind = data.kind;
@@ -797,6 +849,10 @@ async function loadFile(filePath, mode = state.currentMode, options = {}) {
       if (!isDocumentDirty(doc)) {
         doc.savedContent = data.raw;
         doc.workingContent = data.raw;
+        doc.savedUpdatedAt = data.updatedAt || doc.savedUpdatedAt || null;
+        doc.lastSavedAt = data.updatedAt || doc.lastSavedAt || null;
+        doc.saveState = 'saved';
+        doc.lastError = null;
         doc.undoStack = [data.raw];
         doc.undoIndex = 0;
       }
@@ -1161,8 +1217,26 @@ async function saveDocument(doc = currentDoc(), options = {}) {
   if (!doc) return false;
   if (!isWritableRoot(doc.root)) throw new Error('Current root is read-only');
   if (!doc.filePath) return false;
-  await postJson('save', { root: doc.root, path: doc.filePath, content: doc.workingContent });
+  clearAutosaveTimer(doc);
+  if (!isDocumentDirty(doc) && options.trigger !== 'manual') return true;
+  setSaveState(doc, 'saving', { lastError: null });
+  let data;
+  try {
+    data = await postJson('save', {
+      root: doc.root,
+      path: doc.filePath,
+      content: doc.workingContent,
+      expectedUpdatedAt: doc.savedUpdatedAt,
+    });
+  } catch (error) {
+    setSaveState(doc, 'error', { lastError: error.message || String(error) });
+    throw error;
+  }
   doc.savedContent = doc.workingContent;
+  doc.savedUpdatedAt = data.updatedAt || Date.now();
+  doc.lastSavedAt = doc.savedUpdatedAt;
+  doc.saveState = 'saved';
+  doc.lastError = null;
   if (options.resetUndoToSaved) {
     doc.undoStack = [doc.savedContent];
     doc.undoIndex = 0;
@@ -1172,16 +1246,19 @@ async function saveDocument(doc = currentDoc(), options = {}) {
   updateNavButtons();
   renderTree();
   loadDocsIndex().catch(() => {});
-  updateDebugStatus('file saved');
+  updateDebugStatus(`file saved (${options.trigger || 'manual'})`);
   return true;
 }
 
 function revertRawFile() {
   const doc = currentDoc();
   if (!doc || state.autosave) return;
+  clearAutosaveTimer(doc);
   doc.workingContent = doc.savedContent;
   doc.undoStack = [doc.savedContent];
   doc.undoIndex = 0;
+  doc.saveState = 'saved';
+  doc.lastError = null;
   state.documents.set(doc.key, doc);
   const rawEditor = document.getElementById('rawEditor');
   if (rawEditor) updateRawEditorUI(rawEditor, doc.savedContent);
@@ -1386,7 +1463,7 @@ absolutePathInput.addEventListener('keydown', (event) => {
 });
 rawBtn.onclick = () => { if (state.currentFile) loadFile(state.currentFile, 'raw').catch(showError); };
 previewBtn.onclick = () => { if (state.currentFile) loadFile(state.currentFile, 'preview').catch(showError); };
-saveBtn.onclick = () => saveDocument().catch(showError);
+saveBtn.onclick = () => saveDocument(currentDoc(), { trigger: 'manual' }).catch(showError);
 revertBtn.onclick = () => revertRawFile();
 findNextBtn.onclick = () => findInRaw(true);
 replaceBtn.onclick = () => replaceInRaw(false);
@@ -1445,6 +1522,9 @@ if (autosaveCheckbox) {
   autosaveCheckbox.addEventListener('change', () => {
     state.autosave = autosaveCheckbox.checked;
     localStorage.setItem('workbench.autosave', String(state.autosave));
+    const doc = currentDoc();
+    if (state.autosave) scheduleAutosave(doc);
+    else clearAutosaveTimer(doc);
     updateNavButtons();
     updateSummary();
     updateDebugStatus('autosave toggled');
@@ -1459,6 +1539,13 @@ if (unsavedModal) {
   });
 }
 window.addEventListener('keydown', (event) => {
+  const mod = event.ctrlKey || event.metaKey;
+  if (mod && event.key.toLowerCase() === 's') {
+    event.preventDefault();
+    syncDocumentFromEditor();
+    saveDocument(currentDoc(), { trigger: 'manual' }).catch(showError);
+    return;
+  }
   if (unsavedModalResolver) {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -1486,7 +1573,11 @@ window.addEventListener('keydown', (event) => {
 });
 window.addEventListener('beforeunload', (event) => {
   syncDocumentFromEditor();
-  if (dirtyDocumentCount() > 0 && !state.autosave) {
+  const doc = currentDoc();
+  if (doc && state.autosave && isDocumentDirty(doc)) {
+    saveDocument(doc, { trigger: 'autosave' }).catch(() => {});
+  }
+  if (dirtyDocumentCount() > 0) {
     event.preventDefault();
     event.returnValue = '';
   }
