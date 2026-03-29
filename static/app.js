@@ -23,6 +23,7 @@ const state = {
   },
   syncScroll: true,
   scrollSyncLock: false,
+  lastScrollRatio: { left: 0, right: 0 },
   treeFilter: {
     query: '',
     kind: 'all',
@@ -93,8 +94,6 @@ const replaceBtn = document.getElementById('replaceBtn');
 const replaceAllBtn = document.getElementById('replaceAllBtn');
 const undoBtn = document.getElementById('undoBtn');
 const redoBtn = document.getElementById('redoBtn');
-const rawBtn = document.getElementById('rawBtn');
-const previewBtn = document.getElementById('previewBtn');
 const saveBtn = document.getElementById('saveBtn');
 const revertBtn = document.getElementById('revertBtn');
 const copyLinkBtn = document.getElementById('copyLinkBtn');
@@ -331,7 +330,8 @@ function renderPreviewControls(kind = 'text') {
   syncBtn.textContent = `Scroll lock: ${state.syncScroll ? 'on' : 'off'}`;
   syncBtn.onclick = () => {
     state.syncScroll = !state.syncScroll;
-    renderCurrentFile().catch(showError);
+    if (state.syncScroll) requestAnimationFrame(() => alignPanesFromSavedRatio());
+    renderPreviewControls(kind);
   };
   previewControls.appendChild(syncBtn);
   if (kind !== 'image') return;
@@ -807,6 +807,7 @@ function setupRawEditor(doc, side) {
   });
   rawEditor.addEventListener('scroll', () => {
     if (lineNumbers) lineNumbers.scrollTop = rawEditor.scrollTop;
+    state.lastScrollRatio[side] = getScrollRatio(rawEditor);
     syncPaneScroll(side, 'raw');
   });
   rawEditor.addEventListener('click', () => {
@@ -866,8 +867,14 @@ function getScrollSource(side) {
   const pane = getPaneContainer(side);
   if (!pane) return null;
   if (mode === 'raw') return pane.querySelector('[data-role="raw-editor"]');
-  if (mode === 'preview') return pane;
+  if (mode === 'preview' || mode === 'outline') return pane;
   return null;
+}
+
+function getScrollRatio(target) {
+  if (!target) return 0;
+  const maxScroll = Math.max(1, target.scrollHeight - target.clientHeight);
+  return target.scrollTop / maxScroll;
 }
 
 function applyScrollRatio(target, ratio) {
@@ -884,11 +891,30 @@ function syncPaneScroll(fromSide, fromMode) {
   const source = getScrollSource(fromSide);
   const target = getScrollSource(otherSide);
   if (!source || !target) return;
-  const maxScroll = Math.max(1, source.scrollHeight - source.clientHeight);
-  const ratio = source.scrollTop / maxScroll;
+  const ratio = getScrollRatio(source);
+  state.lastScrollRatio[fromSide] = ratio;
+  state.lastScrollRatio[otherSide] = ratio;
   state.scrollSyncLock = true;
   applyScrollRatio(target, ratio);
   setTimeout(() => { state.scrollSyncLock = false; }, 0);
+}
+
+function alignPanesFromSavedRatio(preferredSide = null) {
+  if (!state.syncScroll) return;
+  const leftMode = state.paneTabs.left;
+  const rightMode = state.paneTabs.right;
+  const lockable = (leftMode === 'raw' && rightMode === 'preview') || (leftMode === 'preview' && rightMode === 'raw');
+  if (!lockable) return;
+  const sourceSide = preferredSide || (leftMode === 'raw' ? 'left' : 'right');
+  const targetSide = sourceSide === 'left' ? 'right' : 'left';
+  const ratio = state.lastScrollRatio[sourceSide] ?? state.lastScrollRatio[targetSide] ?? 0;
+  const source = getScrollSource(sourceSide);
+  const target = getScrollSource(targetSide);
+  if (!source || !target) return;
+  state.scrollSyncLock = true;
+  applyScrollRatio(source, ratio);
+  applyScrollRatio(target, ratio);
+  requestAnimationFrame(() => { state.scrollSyncLock = false; });
 }
 
 async function refreshPassivePanes(doc, sourceSide = null) {
@@ -920,12 +946,19 @@ async function renderCurrentFile() {
   }
   if (state.paneTabs.left === 'raw') setupRawEditor(doc, 'left');
   if (state.paneTabs.right === 'raw') setupRawEditor(doc, 'right');
-  if (state.paneTabs.left === 'preview') viewer.onscroll = () => syncPaneScroll('left', 'preview');
-  if (state.paneTabs.right === 'preview') secondaryViewer.onscroll = () => syncPaneScroll('right', 'preview');
+  if (state.paneTabs.left === 'preview') viewer.onscroll = () => {
+    state.lastScrollRatio.left = getScrollRatio(viewer);
+    syncPaneScroll('left', 'preview');
+  };
+  if (state.paneTabs.right === 'preview') secondaryViewer.onscroll = () => {
+    state.lastScrollRatio.right = getScrollRatio(secondaryViewer);
+    syncPaneScroll('right', 'preview');
+  };
   renderPreviewControls('text');
   setEditorMode(state.paneTabs.left === 'raw' || state.paneTabs.right === 'raw');
   updateSummary();
   updateNavButtons();
+  requestAnimationFrame(() => alignPanesFromSavedRatio());
 }
 
 async function renderTextDocument(doc) {
@@ -1232,15 +1265,19 @@ function setCssSizeVar(name, value, storageKey) {
 function setupResizablePanes() {
   const savedSidebar = localStorage.getItem('workbench.sidebarWidth');
   const savedOutline = localStorage.getItem('workbench.outlineWidth');
+const viewportWidth = window.innerWidth || 1600;
   const savedTreeHeight = localStorage.getItem('workbench.treeHeight');
   const savedAutosave = localStorage.getItem('workbench.autosave');
   if (savedSidebar) setCssSizeVar('--sidebar-width', savedSidebar, null);
-  if (savedOutline) setCssSizeVar('--outline-width', savedOutline, null);
+  if (savedOutline) {
+    const clampedOutline = Math.max(220, Math.min(Math.floor(viewportWidth * 0.72), Number(savedOutline)));
+    setCssSizeVar('--outline-width', clampedOutline, null);
+  }
   if (savedTreeHeight) setCssSizeVar('--tree-height', savedTreeHeight, null);
   state.autosave = savedAutosave === 'true';
   if (autosaveCheckbox) autosaveCheckbox.checked = state.autosave;
   attachResizable(sidebarResizer, '--sidebar-width', 260, 760, 'normal', 'workbench.sidebarWidth');
-  attachResizable(outlineResizer, '--outline-width', 180, 500, 'inverse', 'workbench.outlineWidth');
+  attachResizable(outlineResizer, '--outline-width', 220, 1400, 'inverse', 'workbench.outlineWidth');
   attachVerticalResizable(treeHeightResizer, '--tree-height', 160, 700, 'workbench.treeHeight');
 
   if (sidebarResizer) {
@@ -1599,16 +1636,6 @@ rightTabRaw.onclick = () => setPaneTab('right', 'raw');
 rightTabPreview.onclick = () => setPaneTab('right', 'preview');
 rightTabOutline.onclick = () => setPaneTab('right', 'outline');
 
-rawBtn.onclick = () => {
-  state.paneTabs.left = 'raw';
-  state.paneTabs.right = 'preview';
-  if (currentDoc()) renderCurrentFile().catch(showError);
-};
-previewBtn.onclick = () => {
-  state.paneTabs.left = 'preview';
-  state.paneTabs.right = 'outline';
-  if (currentDoc()) renderCurrentFile().catch(showError);
-};
 saveBtn.onclick = () => saveDocument(currentDoc(), { trigger: 'manual' }).catch(showError);
 revertBtn.onclick = () => revertRawFile();
 findNextBtn.onclick = () => findInRaw(true);

@@ -159,8 +159,6 @@
               <button id="sidebarNarrowerBtn" title="Narrower sidebar">− side</button>
               <button id="sidebarWiderBtn" title="Wider sidebar">+ side</button>
             </div>
-            <button id="rawBtn">Raw</button>
-            <button id="previewBtn">Preview</button>
             <button id="saveBtn">Save</button>
             <button id="revertBtn">Revert</button>
             <button id="copyLinkBtn">Copy link</button>
@@ -186,20 +184,22 @@
               <button id="rightTabOutline" class="pane-tab">Outline</button>
             </div>
             <div class="pane-meta-bar">
-              <div id="previewControls" class="preview-controls"></div>
-            </div>
-            <div id="editorTools" class="editor-tools hidden">
-              <div class="input-row compact-tools">
-                <input id="findInput" type="text" placeholder="Find" />
-                <input id="replaceInput" type="text" placeholder="Replace" />
+              <div class="pane-meta-row">
+                <div id="previewControls" class="preview-controls"></div>
               </div>
-              <div class="control-row editor-action-grid compact-actions">
-                <button id="findNextBtn">Find next</button>
-                <button id="replaceBtn">Replace</button>
-                <button id="replaceAllBtn">Replace all</button>
-                <button id="undoBtn">Undo</button>
-                <button id="redoBtn">Redo</button>
-                <div class="shortcut-hint muted small">Shortcuts: Ctrl/Cmd+S, Ctrl/Cmd+Z, Ctrl/Cmd+Y, Ctrl/Cmd+Shift+Z</div>
+              <div id="editorTools" class="editor-tools hidden">
+                <div class="input-row compact-tools">
+                  <input id="findInput" type="text" placeholder="Find" />
+                  <input id="replaceInput" type="text" placeholder="Replace" />
+                </div>
+                <div class="control-row editor-action-grid compact-actions">
+                  <button id="findNextBtn">Find next</button>
+                  <button id="replaceBtn">Replace</button>
+                  <button id="replaceAllBtn">Replace all</button>
+                  <button id="undoBtn">Undo</button>
+                  <button id="redoBtn">Redo</button>
+                  <div class="shortcut-hint muted small">Shortcuts: Ctrl/Cmd+S, Ctrl/Cmd+Z, Ctrl/Cmd+Y, Ctrl/Cmd+Shift+Z</div>
+                </div>
               </div>
             </div>
             <section id="secondaryViewer" class="viewer empty-state">Select a file from the left.</section>

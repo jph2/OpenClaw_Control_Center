@@ -10,7 +10,7 @@
   --border: #30363d;
   --code: #0b1220;
   --sidebar-width: 410px;
-  --outline-width: 320px;
+  --outline-width: 420px;
   --image-scale: 1;
   --tree-height: 340px;
 }
@@ -424,7 +424,7 @@ button:hover { border-color: var(--accent); }
 .hidden { display: none !important; }
 .editor-tools {
   margin: 0;
-  padding: 10px 16px 0;
+  padding: 10px 0 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -481,6 +481,12 @@ button:hover { border-color: var(--accent); }
 .pane-meta-bar {
   padding: 10px 16px 0;
   min-height: 12px;
+}
+.pane-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 .viewer {
   padding: 16px 20px 20px;
