@@ -77,6 +77,7 @@ const treeView = document.getElementById('treeView');
 const docsIndex = document.getElementById('docsIndex');
 const viewer = document.getElementById('viewer');
 const secondaryViewer = document.getElementById('secondaryViewer');
+const outlineViewer = document.getElementById('outlineViewer');
 const currentRootLabel = document.getElementById('currentRootLabel');
 const currentRelativeLabel = document.getElementById('currentRelativeLabel');
 const currentAbsoluteLabel = document.getElementById('currentAbsoluteLabel');
@@ -99,6 +100,7 @@ const saveBtn = document.getElementById('saveBtn');
 const revertBtn = document.getElementById('revertBtn');
 const copyLinkBtn = document.getElementById('copyLinkBtn');
 const sidebarResizer = document.getElementById('sidebarResizer');
+const previewResizer = document.getElementById('previewResizer');
 const outlineResizer = document.getElementById('outlineResizer');
 const treeHeightResizer = document.getElementById('treeHeightResizer');
 const sidebarNarrowerBtn = document.getElementById('sidebarNarrowerBtn');
@@ -298,29 +300,17 @@ function setEditorMode(active) {
 }
 
 function activeRawPane() {
-  if (state.paneTabs.left === 'raw') return 'left';
-  if (state.paneTabs.right === 'raw') return 'right';
-  return null;
+  return 'left';
 }
 
 function getPaneContainer(side) {
-  return side === 'left' ? viewer : secondaryViewer;
+  if (side === 'left') return viewer;
+  if (side === 'right') return secondaryViewer;
+  if (side === 'outline') return outlineViewer;
+  return null;
 }
 
 function renderPaneTabState() {
-  const map = {
-    left: { raw: leftTabRaw, preview: leftTabPreview, outline: leftTabOutline },
-    right: { raw: rightTabRaw, preview: rightTabPreview, outline: rightTabOutline },
-  };
-  for (const side of ['left', 'right']) {
-    const otherSide = side === 'left' ? 'right' : 'left';
-    for (const tab of ['raw', 'preview', 'outline']) {
-      const button = map[side][tab];
-      if (!button) continue;
-      button.classList.toggle('active', state.paneTabs[side] === tab);
-      button.disabled = state.paneTabs[otherSide] === tab;
-    }
-  }
 }
 
 function renderLineNumbers(text) {
@@ -665,11 +655,12 @@ function renderFolderViewMessage() {
   const message = state.currentFolder ? 'Folder selected. Choose a file from the tree.' : 'Root loaded. Choose a folder or file from the tree.';
   viewer.className = 'viewer empty-state';
   secondaryViewer.className = 'viewer empty-state';
+  outlineViewer.className = 'viewer empty-state';
   viewer.textContent = message;
   secondaryViewer.textContent = message;
+  outlineViewer.textContent = message;
   renderPreviewControls('text');
   updateDocumentStatus();
-  renderPaneTabState();
 }
 
 function getFocusableElements() {
@@ -887,11 +878,7 @@ function getScrollRatio(target) {
 }
 
 function getLockedPanePair() {
-  const leftMode = state.paneTabs.left;
-  const rightMode = state.paneTabs.right;
-  if (leftMode === 'raw' && rightMode === 'preview') return { rawSide: 'left', previewSide: 'right' };
-  if (leftMode === 'preview' && rightMode === 'raw') return { rawSide: 'right', previewSide: 'left' };
-  return null;
+  return { rawSide: 'left', previewSide: 'right' };
 }
 
 function applyScrollRatio(target, ratio) {
@@ -938,46 +925,35 @@ function alignPanesFromSavedRatio(preferredSide = null) {
 }
 
 async function refreshPassivePanes(doc, sourceSide = null) {
-  for (const side of ['left', 'right']) {
-    if (side === sourceSide && state.paneTabs[side] === 'raw') continue;
-    const pane = getPaneContainer(side);
-    const mode = state.paneTabs[side];
-    pane.onscroll = null;
-    if (mode === 'preview') {
-      await renderPreviewPane(pane, doc);
-      pane.onscroll = () => syncPaneScroll(side, 'preview');
-    } else if (mode === 'outline') {
-      renderOutlinePane(pane, doc);
-    }
+  if (sourceSide !== 'right') {
+    secondaryViewer.onscroll = null;
+    await renderPreviewPane(secondaryViewer, doc);
+    secondaryViewer.onscroll = () => {
+      state.lastActiveScrollSide = 'right';
+      state.lastScrollRatio.right = getScrollRatio(secondaryViewer);
+      syncPaneScroll('right', 'preview');
+    };
   }
+  renderOutlinePane(outlineViewer, doc);
 }
 
 async function renderCurrentFile() {
   const doc = currentDoc();
   if (!doc) return;
-  renderPaneTabState();
-  for (const side of ['left', 'right']) {
-    const pane = getPaneContainer(side);
-    const mode = state.paneTabs[side];
-    pane.onscroll = null;
-    if (mode === 'raw') renderRawPane(pane);
-    else if (mode === 'preview') await renderPreviewPane(pane, doc);
-    else renderOutlinePane(pane, doc);
-  }
-  if (state.paneTabs.left === 'raw') setupRawEditor(doc, 'left');
-  if (state.paneTabs.right === 'raw') setupRawEditor(doc, 'right');
-  if (state.paneTabs.left === 'preview') viewer.onscroll = () => {
-    state.lastActiveScrollSide = 'left';
-    state.lastScrollRatio.left = getScrollRatio(viewer);
-    syncPaneScroll('left', 'preview');
-  };
-  if (state.paneTabs.right === 'preview') secondaryViewer.onscroll = () => {
+  viewer.onscroll = null;
+  secondaryViewer.onscroll = null;
+  outlineViewer.onscroll = null;
+  renderRawPane(viewer);
+  setupRawEditor(doc, 'left');
+  await renderPreviewPane(secondaryViewer, doc);
+  renderOutlinePane(outlineViewer, doc);
+  secondaryViewer.onscroll = () => {
     state.lastActiveScrollSide = 'right';
     state.lastScrollRatio.right = getScrollRatio(secondaryViewer);
     syncPaneScroll('right', 'preview');
   };
   renderPreviewControls('text');
-  setEditorMode(state.paneTabs.left === 'raw' || state.paneTabs.right === 'raw');
+  setEditorMode(true);
   updateSummary();
   updateNavButtons();
   requestAnimationFrame(() => alignPanesFromSavedRatio());
@@ -1041,11 +1017,13 @@ async function loadFile(filePath, mode = state.currentMode, options = {}) {
       : `<div class="media-frame"><iframe class="media-pdf" src="${data.mediaUrl}"></iframe></div>`;
     viewer.className = 'viewer';
     secondaryViewer.className = 'viewer';
+    outlineViewer.className = 'viewer empty-state';
     if (data.kind === 'image') setImageScale(0.6);
     viewer.innerHTML = mediaHtml;
     secondaryViewer.innerHTML = mediaHtml;
+    outlineViewer.textContent = 'Outline is available for text/markdown files only.';
     renderPreviewControls(data.kind);
-    renderPaneTabState();
+    setEditorMode(false);
   }
 
   updateSummary();
@@ -1288,20 +1266,26 @@ function setCssSizeVar(name, value, storageKey) {
 
 function setupResizablePanes() {
   const savedSidebar = localStorage.getItem('workbench.sidebarWidth');
+  const savedPreview = localStorage.getItem('workbench.previewWidth');
   const savedOutline = localStorage.getItem('workbench.outlineWidth');
-const viewportWidth = window.innerWidth || 1600;
+  const viewportWidth = window.innerWidth || 1600;
   const savedTreeHeight = localStorage.getItem('workbench.treeHeight');
   const savedAutosave = localStorage.getItem('workbench.autosave');
   if (savedSidebar) setCssSizeVar('--sidebar-width', savedSidebar, null);
+  if (savedPreview) {
+    const clampedPreview = Math.max(320, Math.min(Math.floor(viewportWidth * 0.62), Number(savedPreview)));
+    setCssSizeVar('--preview-width', clampedPreview, null);
+  }
   if (savedOutline) {
-    const clampedOutline = Math.max(220, Math.min(Math.floor(viewportWidth * 0.72), Number(savedOutline)));
+    const clampedOutline = Math.max(140, Math.min(320, Number(savedOutline)));
     setCssSizeVar('--outline-width', clampedOutline, null);
   }
   if (savedTreeHeight) setCssSizeVar('--tree-height', savedTreeHeight, null);
   state.autosave = savedAutosave === 'true';
   if (autosaveCheckbox) autosaveCheckbox.checked = state.autosave;
   attachResizable(sidebarResizer, '--sidebar-width', 260, 760, 'normal', 'workbench.sidebarWidth');
-  attachResizable(outlineResizer, '--outline-width', 220, 1400, 'inverse', 'workbench.outlineWidth');
+  attachResizable(previewResizer, '--preview-width', 320, Math.floor(viewportWidth * 0.62), 'inverse', 'workbench.previewWidth');
+  attachResizable(outlineResizer, '--outline-width', 140, 320, 'inverse', 'workbench.outlineWidth');
   attachVerticalResizable(treeHeightResizer, '--tree-height', 160, 700, 'workbench.treeHeight');
 
   if (sidebarResizer) {
@@ -1566,9 +1550,11 @@ async function uploadSelectedFile(file) {
 function showError(error) {
   viewer.className = 'viewer';
   secondaryViewer.className = 'viewer';
+  outlineViewer.className = 'viewer';
   const html = `<pre><code>${escapeHtml(error.message)}</code></pre>`;
   viewer.innerHTML = html;
   secondaryViewer.innerHTML = html;
+  outlineViewer.innerHTML = html;
   updateDebugStatus(`error: ${error.message}`);
 }
 
@@ -1645,32 +1631,6 @@ pathInput.addEventListener('keydown', (event) => {
 absolutePathInput.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') guardedOpenTarget(absolutePathInput.value.trim()).catch(showError);
 });
-
-function nextAvailableTab(excludedTab) {
-  for (const candidate of ['raw', 'preview', 'outline']) {
-    if (candidate !== excludedTab) return candidate;
-  }
-  return 'preview';
-}
-
-function setPaneTab(side, tab) {
-  const otherSide = side === 'left' ? 'right' : 'left';
-  state.paneTabs[side] = tab;
-  if (state.paneTabs[otherSide] === tab) {
-    state.paneTabs[otherSide] = nextAvailableTab(tab);
-  }
-  state.currentMode = state.paneTabs.left;
-  if (currentDoc()) {
-    renderCurrentFile().then(() => alignPanesFromSavedRatio(side)).catch(showError);
-  } else renderPaneTabState();
-}
-
-leftTabRaw.onclick = () => setPaneTab('left', 'raw');
-leftTabPreview.onclick = () => setPaneTab('left', 'preview');
-leftTabOutline.onclick = () => setPaneTab('left', 'outline');
-rightTabRaw.onclick = () => setPaneTab('right', 'raw');
-rightTabPreview.onclick = () => setPaneTab('right', 'preview');
-rightTabOutline.onclick = () => setPaneTab('right', 'outline');
 
 saveBtn.onclick = () => saveDocument(currentDoc(), { trigger: 'manual' }).catch(showError);
 revertBtn.onclick = () => revertRawFile();

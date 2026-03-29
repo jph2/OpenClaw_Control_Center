@@ -156,10 +156,6 @@
                 <span>Autosave</span>
               </label>
               <div id="docStatus" class="doc-status muted small">Autosave off</div>
-              <div class="resize-stepper" aria-label="Sidebar size controls">
-                <button id="sidebarNarrowerBtn" title="Narrower sidebar">− side</button>
-                <button id="sidebarWiderBtn" title="Wider sidebar">+ side</button>
-              </div>
               <button id="saveBtn">Save</button>
               <button id="revertBtn">Revert</button>
               <button id="copyLinkBtn">Copy link</button>
@@ -183,24 +179,21 @@
         </header>
 
         <section class="content-grid">
-          <section class="pane-shell" id="leftPaneShell">
-            <div class="pane-tabs">
-              <button id="leftTabRaw" class="pane-tab">Raw</button>
-              <button id="leftTabPreview" class="pane-tab">Preview</button>
-              <button id="leftTabOutline" class="pane-tab">Outline</button>
-            </div>
+          <section class="pane-shell fixed-pane-shell" id="rawPanel">
+            <div class="pane-title">Raw</div>
             <section id="viewer" class="viewer empty-state">
               Select a file from the left.
             </section>
           </section>
-          <div id="outlineResizer" class="pane-resizer vertical" aria-hidden="true"></div>
-          <aside class="pane-shell right-pane-shell" id="outlinePanel">
-            <div class="pane-tabs pane-tabs-right">
-              <button id="rightTabRaw" class="pane-tab">Raw</button>
-              <button id="rightTabPreview" class="pane-tab">Preview</button>
-              <button id="rightTabOutline" class="pane-tab">Outline</button>
-            </div>
+          <div id="previewResizer" class="pane-resizer vertical" aria-hidden="true"></div>
+          <section class="pane-shell fixed-pane-shell" id="previewPanel">
+            <div class="pane-title">Preview</div>
             <section id="secondaryViewer" class="viewer empty-state">Select a file from the left.</section>
+          </section>
+          <div id="outlineResizer" class="pane-resizer vertical" aria-hidden="true"></div>
+          <aside class="pane-shell fixed-pane-shell outline-fixed-shell" id="outlinePanel">
+            <div class="pane-title">Outline</div>
+            <section id="outlineViewer" class="viewer empty-state">Select a file from the left.</section>
           </aside>
         </section>
       </main>
