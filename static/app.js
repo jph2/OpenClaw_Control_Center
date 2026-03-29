@@ -325,7 +325,6 @@ function renderLineNumbers(text) {
 
 function renderPreviewControls(kind = 'text') {
   previewControls.innerHTML = '';
-  setEditorMode(false);
   const syncBtn = document.createElement('button');
   syncBtn.textContent = `Scroll lock: ${state.syncScroll ? 'on' : 'off'}`;
   syncBtn.onclick = () => {
