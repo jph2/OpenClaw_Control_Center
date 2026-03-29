@@ -25,6 +25,10 @@ const state = {
   scrollSyncLock: false,
   lastScrollRatio: { left: 0, right: 0 },
   lastActiveScrollSide: 'left',
+  selectionMirror: {
+    text: '',
+    source: null,
+  },
   treeFilter: {
     query: '',
     kind: 'all',
@@ -811,12 +815,13 @@ function setupRawEditor(doc, side) {
     syncPaneScroll(side, 'raw');
   });
   rawEditor.addEventListener('click', () => {
-    doc.lastSelectionStart = rawEditor.selectionStart;
-    doc.lastSelectionEnd = rawEditor.selectionEnd;
+    handleRawSelectionSync(doc, side);
   });
   rawEditor.addEventListener('keyup', () => {
-    doc.lastSelectionStart = rawEditor.selectionStart;
-    doc.lastSelectionEnd = rawEditor.selectionEnd;
+    handleRawSelectionSync(doc, side);
+  });
+  rawEditor.addEventListener('select', () => {
+    handleRawSelectionSync(doc, side);
   });
   rawEditor.addEventListener('keydown', (event) => {
     const mod = event.ctrlKey || event.metaKey;
@@ -837,6 +842,71 @@ async function getMarked() {
   return markdownModulePromise;
 }
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function highlightPreviewSelection(target, text) {
+  if (!text || text.length < 2) return;
+  const article = target.querySelector('.markdown-body') || target.querySelector('pre');
+  if (!article) return;
+  const walker = document.createTreeWalker(article, NodeFilter.SHOW_TEXT);
+  const needle = text.trim();
+  if (!needle) return;
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    const haystack = node.nodeValue || '';
+    const index = haystack.indexOf(needle);
+    if (index < 0) continue;
+    const range = document.createRange();
+    range.setStart(node, index);
+    range.setEnd(node, index + needle.length);
+    const mark = document.createElement('mark');
+    mark.className = 'mirror-highlight';
+    try {
+      range.surroundContents(mark);
+      mark.scrollIntoView({ block: 'center', inline: 'nearest' });
+      return;
+    } catch {
+      return;
+    }
+  }
+}
+
+function reflectSelectionToRaw(text) {
+  const rawEditor = getRawEditor('left');
+  if (!rawEditor || !text) return;
+  const needle = text.trim();
+  if (!needle) return;
+  const index = rawEditor.value.indexOf(needle);
+  if (index < 0) return;
+  rawEditor.focus();
+  rawEditor.setSelectionRange(index, index + needle.length);
+  const lineHeight = parseFloat(getComputedStyle(rawEditor).lineHeight) || 21;
+  const before = rawEditor.value.slice(0, index);
+  const lineNumber = before.split('\n').length - 1;
+  rawEditor.scrollTop = Math.max(0, (lineNumber - 3) * lineHeight);
+}
+
+function handleRawSelectionSync(doc, side) {
+  const rawEditor = getRawEditor(side);
+  if (!rawEditor) return;
+  const selectedText = rawEditor.value.slice(rawEditor.selectionStart, rawEditor.selectionEnd);
+  doc.lastSelectionStart = rawEditor.selectionStart;
+  doc.lastSelectionEnd = rawEditor.selectionEnd;
+  state.selectionMirror = { text: selectedText, source: 'raw' };
+  refreshPassivePanes(doc, side).catch(showError);
+}
+
+function handlePreviewSelectionSync() {
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed || !secondaryViewer.contains(selection.anchorNode)) return;
+  const text = selection.toString().trim();
+  if (!text) return;
+  state.selectionMirror = { text, source: 'preview' };
+  reflectSelectionToRaw(text);
+}
+
 function renderOutlinePane(target, doc) {
   target.className = 'viewer';
   target.innerHTML = renderOutlineHtml(doc.isMarkdown ? extractHeadings(doc.workingContent) : []);
@@ -847,7 +917,7 @@ function renderRawPane(target) {
   target.innerHTML = `
     <div class="raw-editor-wrap">
       <pre data-role="line-numbers" class="raw-line-numbers"></pre>
-      <textarea data-role="raw-editor" class="raw-editor"></textarea>
+      <textarea data-role="raw-editor" class="raw-editor" wrap="off" spellcheck="false"></textarea>
     </div>`;
 }
 
@@ -859,6 +929,9 @@ async function renderPreviewPane(target, doc) {
     await renderMermaid(target);
   } else {
     target.innerHTML = `<pre><code>${escapeHtml(doc.workingContent)}</code></pre>`;
+  }
+  if (state.selectionMirror.source === 'raw') {
+    highlightPreviewSelection(target, state.selectionMirror.text);
   }
 }
 
@@ -952,6 +1025,8 @@ async function renderCurrentFile() {
     state.lastScrollRatio.right = getScrollRatio(secondaryViewer);
     syncPaneScroll('right', 'preview');
   };
+  secondaryViewer.onmouseup = () => handlePreviewSelectionSync();
+  secondaryViewer.onkeyup = () => handlePreviewSelectionSync();
   renderPreviewControls('text');
   setEditorMode(true);
   updateSummary();

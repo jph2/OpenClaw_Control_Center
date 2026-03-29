@@ -525,6 +525,11 @@ button:hover { border-color: var(--accent); }
 .outline-list li { margin-bottom: 8px; }
 .outline-list a { color: var(--muted); text-decoration: none; display: block; }
 .outline-list a:hover { color: var(--accent); }
+.mirror-highlight {
+  background: rgba(255, 221, 87, 0.45);
+  color: var(--text);
+  border-radius: 3px;
+}
 .empty-state { display: grid; place-items: center; color: var(--muted); }
 .raw-editor-wrap {
   display: grid;
@@ -566,6 +571,10 @@ button:hover { border-color: var(--accent); }
   tab-size: 2;
   white-space: pre;
   overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
+  word-break: normal;
+  overflow-wrap: normal;
   field-sizing: content;
 }
 .raw-editor:focus { outline: none; }
