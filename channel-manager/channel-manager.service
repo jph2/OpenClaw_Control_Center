@@ -1,0 +1,15 @@
+[Unit]
+Description=OpenClaw Channel Manager
+After=network.target
+
+[Service]
+Type=simple
+User=%I
+WorkingDirectory=/home/claw-agentbox/.openclaw/workspace/channel-manager
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+Environment="CHANNEL_MANAGER_PORT=3401"
+
+[Install]
+WantedBy=multi-user.target

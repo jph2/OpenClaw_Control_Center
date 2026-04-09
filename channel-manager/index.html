@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenClaw Channel Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-surface: #111111;
+            --bg-elevated: #1a1a1a;
+            --border-color: #2a2a2a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #888888;
+            --accent: #50e3c2;
+            --accent-hover: #3bc9a8;
+            --danger: #e35050;
+            --warning: #e3c450;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        header {
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        h1 {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo {
+            width: 32px;
+            height: 32px;
+            background: var(--accent);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        button {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        button:hover {
+            background: var(--border-color);
+            border-color: var(--accent);
+        }
+        
+        button.primary {
+            background: var(--accent);
+            color: #000;
+            border-color: var(--accent);
+            font-weight: 500;
+        }
+        
+        button.primary:hover {
+            background: var(--accent-hover);
+        }
+        
+        .tabs {
+            display: flex;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 24px;
+        }
+        
+        .tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+        
+        .tab:hover {
+            color: var(--text-primary);
+        }
+        
+        .tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+        
+        main {
+            flex: 1;
+            padding: 24px;
+            overflow: auto;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Channel List Styles */
+        .channel-grid {
+            display: grid;
+            gap: 16px;
+            max-width: 1200px;
+        }
+        
+        .channel-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.2s;
+        }
+        
+        .channel-card:hover {
+            border-color: var(--accent);
+        }
+        
+        .channel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        
+        .channel-info h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .channel-id {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-family: monospace;
+        }
+        
+        .channel-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        
+        select, input[type="text"] {
+            width: 100%;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        .skills-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .skill-tag {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .skill-tag button {
+            padding: 0;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1;
+        }
+        
+        .skill-tag button:hover {
+            color: var(--danger);
+        }
+        
+        .add-skill-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .add-skill-row select {
+            flex: 1;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+        
+        /* Skill Tree Canvas */
+        #skillTreeCanvas {
+            width: 100%;
+            height: calc(100vh - 200px);
+            background: var(--bg-surface);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .skill-tree-controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        /* Detail Panel */
+        .detail-panel {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100vh;
+            background: var(--bg-surface);
+            border-left: 1px solid var(--border-color);
+            padding: 24px;
+            overflow-y: auto;
+            transition: right 0.3s ease;
+            z-index: 100;
+        }
+        
+        .detail-panel.open {
+            right: 0;
+        }
+        
+        .detail-panel.wide {
+            width: 560px;
+        }
+        
+        .panel-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--text-secondary);
+            padding: 4px;
+        }
+        
+        .panel-close:hover {
+            color: var(--text-primary);
+        }
+        
+        .panel-content {
+            margin-top: 40px;
+        }
+        
+        .panel-content h2 {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+        
+        .panel-content .meta {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        
+        .panel-section {
+            margin-bottom: 24px;
+        }
+        
+        .panel-section h4 {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+        
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            padding: 16px 20px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 200;
+        }
+        
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .toast.success {
+            border-color: var(--accent);
+        }
+        
+        .toast.error {
+            border-color: var(--danger);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>
+            <div class="logo">🦞</div>
+            OpenClaw Channel Manager
+        </h1>
+        <div class="header-actions">
+            <button onclick="loadConfig()">🔄 Reload</button>
+            <button class="primary" onclick="saveConfig()">💾 Save Config</button>
+        </div>
+    </header>
+    
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('channels')">Channels</div>
+        <div class="tab" onclick="switchTab('skilltree')">Skill Tree</div>
+    </div>
+    
+    <main>
+        <!-- Channels Tab -->
+        <div id="channelsTab" class="tab-content active">
+            <div class="channel-grid" id="channelList"></div>
+        </div>
+        
+        <!-- Skill Tree Tab -->
+        <div id="skillTreeTab" class="tab-content">
+            <div class="skill-tree-controls">
+                <button onclick="resetSkillTree()">⟲ Reset View</button>
+                <button onclick="togglePhysics()">⏸ Pause Physics</button>
+            </div>
+            <canvas id="skillTreeCanvas"></canvas>
+        </div>
+    </main>
+    
+    <!-- Detail Panel -->
+    <div class="detail-panel" id="detailPanel">
+        <button class="panel-close" onclick="closePanel()">×</button>
+        <div class="panel-content" id="panelContent"></div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG_PATH = './channel_config.json';
+        let config = { channels: [] };
+        let availableSkills = [];
+        let availableModels = [
+            'local-pc/google/gemma-4-26b-a4b',
+            'moonshot/kimi-k2.5',
+            'kimi/kimi-code',
+            'openai-codex/gpt-5.4'
+        ];
+        
+        // Skill Tree State
+        let canvas, ctx;
+        let nodes = [];
+        let edges = [];
+        let animationId;
+        let draggedNode = null;
+        let hoveredNode = null;
+        let physicsEnabled = true;
+        let selectedNode = null;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadConfig();
+            initSkillTree();
+        });
+        
+        // Tab Switching
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tab + 'Tab').classList.add('active');
+            
+            if (tab === 'skilltree') {
+                resizeCanvas();
+            }
+        }
+        
+        // Load Configuration
+        async function loadConfig() {
+            try {
+                const response = await fetch(CONFIG_PATH);
+                if (response.ok) {
+                    config = await response.json();
+                }
+            } catch (e) {
+                // Use default config
+                config = {
+                    channels: [
+                        {
+                            id: "-5207805052",
+                            name: "TL000 General Chat",
+                            model: "local-pc/google/gemma-4-26b-a4b",
+                            skills: ["weather", "web_search"],
+                            require_mention: false
+                        },
+                        {
+                            id: "-5272630186",
+                            name: "TL500 OpenClaw Governance",
+                            model: "local-pc/google/gemma-4-26b-a4b",
+                            skills: ["healthcheck", "node-connect"],
+                            require_mention: false
+                        },
+                        {
+                            id: "-3510007915",
+                            name: "TL020 omniUSD",
+                            model: "moonshot/kimi-k2.5",
+                            skills: ["omniverse-extension-development", "usd-development"],
+                            require_mention: false
+                        }
+                    ]
+                };
+            }
+            
+            // Load available skills
+            await loadSkills();
+            
+            renderChannels();
+            showToast('Configuration loaded', 'success');
+        }
+        
+        async function loadSkills() {
+            try {
+                // Try to fetch from OpenClaw skills endpoint
+                const response = await fetch('/api/skills');
+                if (response.ok) {
+                    availableSkills = await response.json();
+                } else {
+                    throw new Error('Failed to fetch skills');
+                }
+            } catch (e) {
+                // Fallback: scan local skills directory
+                availableSkills = [
+                    { name: 'weather', description: 'Get weather information' },
+                    { name: 'web_search', description: 'Search the web' },
+                    { name: 'healthcheck', description: 'System health monitoring' },
+                    { name: 'node-connect', description: 'Node connection diagnostics' },
+                    { name: 'omniverse-extension-development', description: 'Omniverse extension development' },
+                    { name: 'usd-development', description: 'USD development tools' },
+                    { name: 'notion', description: 'Notion API integration' },
+                    { name: 'clawflow', description: 'ClawFlow workflow management' }
+                ];
+            }
+        }
+        
+        // Render Channels
+        function renderChannels() {
+            const container = document.getElementById('channelList');
+            container.innerHTML = config.channels.map((channel, index) => `
+                <div class="channel-card" data-index="${index}">
+                    <div class="channel-header">
+                        <div class="channel-info">
+                            <h3>${channel.name}</h3>
+                            <div class="channel-id">ID: ${channel.id}</div>
+                        </div>
+                        <div class="channel-actions">
+                            <button onclick="removeChannel(${index})">🗑</button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Model</label>
+                        <select onchange="updateChannel(${index}, 'model', this.value)">
+                            ${availableModels.map(m => `
+                                <option value="${m}" ${channel.model === m ? 'selected' : ''}>${m}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Skills</label>
+                        <div class="skills-container">
+                            ${(channel.skills || []).map((skill, skillIndex) => `
+                                <div class="skill-tag">
+                                    ${skill}
+                                    <button onclick="removeSkill(${index}, ${skillIndex})">×</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="add-skill-row">
+                            <select id="skillSelect-${index}">
+                                <option value="">Add skill...</option>
+                                ${availableSkills
+                                    .filter(s => !(channel.skills || []).includes(s.name))
+                                    .map(s => `<option value="${s.name}">${s.name}</option>`)
+                                    .join('')}
+                            </select>
+                            <button onclick="addSkill(${index})">+ Add</button>
+                        </div>
+                    </div>
+                    
+                    <div class="checkbox-group">
+                        <input type="checkbox" 
+                               id="mention-${index}"
+                               ${channel.require_mention ? 'checked' : ''}
+                               onchange="updateChannel(${index}, 'require_mention', this.checked)">
+                        <label for="mention-${index}">Require mention</label>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Channel Operations
+        function updateChannel(index, field, value) {
+            config.channels[index][field] = value;
+        }
+        
+        function addSkill(channelIndex) {
+            const select = document.getElementById(`skillSelect-${channelIndex}`);
+            const skill = select.value;
+            if (!skill) return;
+            
+            if (!config.channels[channelIndex].skills) {
+                config.channels[channelIndex].skills = [];
+            }
+            
+            if (!config.channels[channelIndex].skills.includes(skill)) {
+                config.channels[channelIndex].skills.push(skill);
+                renderChannels();
+            }
+        }
+        
+        function removeSkill(channelIndex, skillIndex) {
+            config.channels[channelIndex].skills.splice(skillIndex, 1);
+            renderChannels();
+        }
+        
+        function removeChannel(index) {
+            if (confirm('Delete this channel configuration?')) {
+                config.channels.splice(index, 1);
+                renderChannels();
+            }
+        }
+        
+        // Save Configuration
+        async function saveConfig() {
+            try {
+                const response = await fetch('/api/save-config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                
+                if (response.ok) {
+                    showToast('Configuration saved successfully', 'success');
+                } else {
+                    throw new Error('Failed to save');
+                }
+            } catch (e) {
+                // Fallback: download as file
+                const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'channel_config.json';
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast('Configuration downloaded (server save not available)', 'success');
+            }
+        }
+        
+        // Toast Notification
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            toastMessage.textContent = message;
+            toast.className = `toast ${type} show`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+        
+        // ==================== SKILL TREE ====================
+        
+        function initSkillTree() {
+            canvas = document.getElementById('skillTreeCanvas');
+            ctx = canvas.getContext('2d');
+            
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Mouse events
+            canvas.addEventListener('mousedown', onMouseDown);
+            canvas.addEventListener('mousemove', onMouseMove);
+            canvas.addEventListener('mouseup', onMouseUp);
+            canvas.addEventListener('click', onClick);
+            
+            // Initialize nodes from config
+            buildSkillTree();
+            
+            // Start animation
+            animate();
+        }
+        
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+        
+        function buildSkillTree() {
+            nodes = [];
+            edges = [];
+            
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            // Create channel nodes (as agents)
+            config.channels.forEach((channel, i) => {
+                const angle = (i / config.channels.length) * Math.PI * 2;
+                const radius = 150;
+                
+                const node = {
+                    id: channel.id,
+                    type: 'channel',
+                    name: channel.name,
+                    x: centerX + Math.cos(angle) * radius,
+                    y: centerY + Math.sin(angle) * radius,
+                    vx: 0,
+                    vy: 0,
+                    radius: 32,
+                    color: getColor(i),
+                    data: channel
+                };
+                
+                nodes.push(node);
+                
+                // Create skill nodes and edges
+                (channel.skills || []).forEach(skillName => {
+                    let skillNode = nodes.find(n => n.type === 'skill' && n.name === skillName);
+                    
+                    if (!skillNode) {
+                        skillNode = {
+                            id: `skill-${skillName}`,
+                            type: 'skill',
+                            name: skillName,
+                            x: centerX + (Math.random() - 0.5) * 300,
+                            y: centerY + (Math.random() - 0.5) * 300,
+                            vx: 0,
+                            vy: 0,
+                            radius: 10,
+                            color: '#e0e0e0',
+                            agents: [channel.id]
+                        };
+                        nodes.push(skillNode);
+                    } else {
+                        skillNode.agents.push(channel.id);
+                        skillNode.radius = 13; // Larger if shared
+                    }
+                    
+                    edges.push({
+                        source: node,
+                        target: skillNode,
+                        color: node.color
+                    });
+                });
+            });
+        }
+        
+        function getColor(index) {
+            const colors = ['#50e3c2', '#e35050', '#e3c450', '#5080e3', '#e350a8', '#50e350', '#c450e3', '#50c8e3'];
+            return colors[index % colors.length];
+        }
+        
+        function animate() {
+            if (physicsEnabled) {
+                updatePhysics();
+            }
+            render();
+            animationId = requestAnimationFrame(animate);
+        }
+        
+        function updatePhysics() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            // Apply forces
+            for (let i = 0; i < nodes.length; i++) {
+                const node = nodes[i];
+                let fx = 0, fy = 0;
+                
+                // Repulsion between all nodes
+                for (let j = 0; j < nodes.length; j++) {
+                    if (i === j) continue;
+                    const other = nodes[j];
+                    const dx = node.x - other.x;
+                    const dy = node.y - other.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                    
+                    if (dist < 200) {
+                        const force = 2000 / (dist * dist);
+                        fx += (dx / dist) * force;
+                        fy += (dy / dist) * force;
+                    }
+                }
+                
+                // Center gravity
+                fx += (centerX - node.x) * 0.005;
+                fy += (centerY - node.y) * 0.005;
+                
+                // Apply velocity
+                node.vx = (node.vx + fx) * 0.6;
+                node.vy = (node.vy + fy) * 0.6;
+                
+                // Update position
+                if (node !== draggedNode) {
+                    node.x += node.vx;
+                    node.y += node.vy;
+                }
+                
+                // Keep in bounds
+                node.x = Math.max(node.radius, Math.min(canvas.width - node.radius, node.x));
+                node.y = Math.max(node.radius, Math.min(canvas.height - node.radius, node.y));
+            }
+            
+            // Attraction along edges
+            edges.forEach(edge => {
+                const dx = edge.target.x - edge.source.x;
+                const dy = edge.target.y - edge.source.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                const force = (dist - 160) * 0.003;
+                
+                const fx = (dx / dist) * force;
+                const fy = (dy / dist) * force;
+                
+                if (edge.source !== draggedNode) {
+                    edge.source.vx += fx;
+                    edge.source.vy += fy;
+                }
+                if (edge.target !== draggedNode) {
+                    edge.target.vx -= fx;
+                    edge.target.vy -= fy;
+                }
+            });
+        }
+        
+        function render() {
+            ctx.fillStyle = '#111111';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw edges
+            edges.forEach(edge => {
+                const isHovered = hoveredNode && (edge.source === hoveredNode || edge.target === hoveredNode);
+                const isDimmed = hoveredNode && !isHovered;
+                
+                ctx.beginPath();
+                ctx.moveTo(edge.source.x, edge.source.y);
+                ctx.lineTo(edge.target.x, edge.target.y);
+                ctx.strokeStyle = isDimmed ? '#1a1a1a' : edge.color + (isHovered ? 'ff' : '66');
+                ctx.lineWidth = isHovered ? 1.5 : 0.8;
+                ctx.stroke();
+            });
+            
+            // Draw nodes
+            nodes.forEach(node => {
+                const isHovered = node === hoveredNode;
+                const isDimmed = hoveredNode && !isHovered && !isConnected(node, hoveredNode);
+                
+                if (node.type === 'channel') {
+                    // Draw channel node (bot icon)
+                    drawBotNode(node, isHovered, isDimmed);
+                } else {
+                    // Draw skill node
+                    ctx.beginPath();
+                    ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = isDimmed ? '#1a1a1a' : node.color + '1a';
+                    ctx.fill();
+                    ctx.strokeStyle = isDimmed ? '#333' : node.color + '4d';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+                
+                // Draw label on hover
+                if (isHovered) {
+                    ctx.fillStyle = '#e0e0e0';
+                    ctx.font = '12px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(node.name, node.x, node.y + node.radius + 16);
+                }
+            });
+        }
+        
+        function drawBotNode(node, isHovered, isDimmed) {
+            const x = node.x, y = node.y, r = node.radius;
+            
+            // Glow on hover
+            if (isHovered) {
+                ctx.beginPath();
+                ctx.arc(x, y, r + 6, 0, Math.PI * 2);
+                ctx.fillStyle = node.color + '26';
+                ctx.fill();
+            }
+            
+            // Circle container
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fillStyle = isDimmed ? '#0a0a0a' : '#0a0a0a';
+            ctx.fill();
+            ctx.strokeStyle = isDimmed ? '#333' : node.color + '66';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            
+            // Bot body (simplified)
+            ctx.fillStyle = isDimmed ? '#333' : node.color;
+            ctx.beginPath();
+            ctx.arc(x, y - 2, r * 0.5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Eyes
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(x - 5, y - 4, 2, 0, Math.PI * 2);
+            ctx.arc(x + 5, y - 4, 2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Name label
+            ctx.fillStyle = isDimmed ? '#666' : '#e0e0e0';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(node.name.substring(0, 15), x, y + r + 14);
+        }
+        
+        function isConnected(node1, node2) {
+            return edges.some(e => 
+                (e.source === node1 && e.target === node2) ||
+                (e.source === node2 && e.target === node1)
+            );
+        }
+        
+        // Mouse Handlers
+        function onMouseDown(e) {
+            const pos = getMousePos(e);
+            draggedNode = nodes.find(n => {
+                const dx = pos.x - n.x;
+                const dy = pos.y - n.y;
+                return Math.sqrt(dx * dx + dy * dy) < n.radius;
+            });
+        }
+        
+        function onMouseMove(e) {
+            const pos = getMousePos(e);
+            
+            if (draggedNode) {
+                draggedNode.x = pos.x;
+                draggedNode.y = pos.y;
+                draggedNode.vx = 0;
+                draggedNode.vy = 0;
+            } else {
+                hoveredNode = nodes.find(n => {
+                    const dx = pos.x - n.x;
+                    const dy = pos.y - n.y;
+                    return Math.sqrt(dx * dx + dy * dy) < n.radius;
+                });
+                canvas.style.cursor = hoveredNode ? 'pointer' : 'default';
+            }
+        }
+        
+        function onMouseUp() {
+            draggedNode = null;
+        }
+        
+        function onClick(e) {
+            if (hoveredNode) {
+                selectedNode = hoveredNode;
+                showDetailPanel(hoveredNode);
+            }
+        }
+        
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+        
+        // Detail Panel
+        function showDetailPanel(node) {
+            const panel = document.getElementById('detailPanel');
+            const content = document.getElementById('panelContent');
+            
+            if (node.type === 'channel') {
+                content.innerHTML = `
+                    <h2>${node.data.name}</h2>
+                    <div class="meta">Channel ID: ${node.data.id}</div>
+                    
+                    <div class="panel-section">
+                        <h4>Model</h4>
+                        <div>${node.data.model}</div>
+                    </div>
+                    
+                    <div class="panel-section">
+                        <h4>Skills</h4>
+                        <div class="skills-container">
+                            ${(node.data.skills || []).map(s => `
+                                <div class="skill-tag">${s}</div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="panel-section">
+                        <h4>Settings</h4>
+                        <div>Require mention: ${node.data.require_mention ? 'Yes' : 'No'}</div>
+                    </div>
+                `;
+            } else {
+                const skillInfo = availableSkills.find(s => s.name === node.name);
+                content.innerHTML = `
+                    <h2>${node.name}</h2>
+                    <div class="meta">Skill</div>
+                    
+                    <div class="panel-section">
+                        <h4>Description</h4>
+                        <div>${skillInfo?.description || 'No description available'}</div>
+                    </div>
+                    
+                    <div class="panel-section">
+                        <h4>Used by Channels</h4>
+                        <div>${node.agents.length} channel(s)</div>
+                    </div>
+                `;
+            }
+            
+            panel.classList.add('open');
+        }
+        
+        function closePanel() {
+            document.getElementById('detailPanel').classList.remove('open');
+            selectedNode = null;
+        }
+        
+        // Controls
+        function resetSkillTree() {
+            buildSkillTree();
+        }
+        
+        function togglePhysics() {
+            physicsEnabled = !physicsEnabled;
+            event.target.textContent = physicsEnabled ? '⏸ Pause Physics' : '▶ Resume Physics';
+        }
+    </script>
+</body>
+</html>

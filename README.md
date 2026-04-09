@@ -2,7 +2,13 @@
 
 Read-only workbench MVP for browsing laptop-hosted OpenClaw-related repositories from a browser.
 
-## Current MVP
+## Components
+
+- **Workbench** (`workbench/`) - Classic folder tree document browser
+- **Channel Manager** (`channel-manager/`) - Telegram channel config UI with Skill Tree visualization
+- **Workbench Mobile** (`workbench/mobile/`) - React Native iOS/Android app
+
+## Workbench Features
 
 - approved root selection:
   - workspace
@@ -23,6 +29,24 @@ Read-only workbench MVP for browsing laptop-hosted OpenClaw-related repositories
 - PDF preview
 - resizable sidebar and outline pane
 - markdown heading outline panel
+
+## Channel Manager
+
+Web UI for managing OpenClaw Telegram channels with persistent model and skill assignments.
+
+```bash
+cd channel-manager
+./channel-manager.sh start  # Start server on port 3401
+./channel-manager.sh open   # Open browser
+```
+
+Features:
+- Channel list with model dropdown
+- Per-channel skill assignment
+- Interactive Skill Tree visualization (force-directed graph)
+- Persistent configuration
+
+See [channel-manager/README.md](channel-manager/README.md) for details.
 
 ## Why this exists
 
