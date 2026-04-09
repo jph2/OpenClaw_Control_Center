@@ -523,13 +523,14 @@
             </div>
         </div>
         <div class="header-actions">
+            <span id="saveStatus" style="font-size: 12px; color: var(--text-secondary); margin-right: 10px;"></span>
             <button onclick="exportConfig()">📥 Export</button>
             <label style="cursor: pointer;">
                 <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importConfig(this)">
                 <span style="background: var(--bg-elevated); border: 1px solid var(--border-color); color: var(--text-primary); padding: 8px 16px; border-radius: 6px; font-size: 14px;">📤 Import</span>
             </label>
             <button onclick="loadConfig()">🔄 Reload</button>
-            <button class="primary" onclick="saveConfig()">💾 Save</button>
+            <button class="primary" onclick="saveConfig()" id="saveBtn">💾 Save</button>
         </div>
     </header>
     
@@ -832,33 +833,34 @@
         function applyBulkModel() {
             const modelId = document.getElementById('bulkModelSelect').value;
             if (!modelId) return;
-            
+
             const selected = getSelectedChannels();
             if (selected.length === 0) {
                 showToast('No channels selected');
                 return;
             }
-            
+
             selected.forEach(channelId => {
                 const channel = config.channels.find(c => c.id === channelId);
                 if (channel) channel.model = modelId;
             });
-            
+
             renderTable();
             filterChannels();
+            checkModified();
             showToast(`Applied model to ${selected.length} channels`);
         }
-        
+
         function applyBulkSkill() {
             const skill = document.getElementById('bulkSkillSelect').value;
             if (!skill) return;
-            
+
             const selected = getSelectedChannels();
             if (selected.length === 0) {
                 showToast('No channels selected');
                 return;
             }
-            
+
             selected.forEach(channelId => {
                 const channel = config.channels.find(c => c.id === channelId);
                 if (channel) {
@@ -866,9 +868,10 @@
                     if (!channel.skills.includes(skill)) channel.skills.push(skill);
                 }
             });
-            
+
             renderTable();
             filterChannels();
+            checkModified();
             showToast(`Added ${skill} to ${selected.length} channels`);
         }
         
@@ -1075,22 +1078,26 @@
             const select = document.getElementById(`skill-select-${channelId}`);
             const skill = select.value;
             if (!skill) return;
-            
+
             const channel = config.channels.find(c => c.id === channelId);
             if (!channel.skills) channel.skills = [];
-            
+
             if (!channel.skills.includes(skill)) {
                 channel.skills.push(skill);
                 renderTable();
+                filterChannels();
+                checkModified();
                 showToast(`Added ${skill}`);
             }
         }
-        
+
         function removeSkill(channelId, skill) {
             const channel = config.channels.find(c => c.id === channelId);
             if (channel && channel.skills) {
                 channel.skills = channel.skills.filter(s => s !== skill);
                 renderTable();
+                filterChannels();
+                checkModified();
                 showToast(`Removed ${skill}`);
             }
         }
@@ -1106,6 +1113,8 @@
             if (channel) {
                 channel.model = modelId;
                 renderTable();
+                filterChannels();
+                checkModified();
                 showToast(`Model updated`);
             }
         }
@@ -1193,18 +1202,46 @@
             input.value = '';
         }
         
+        function updateSaveStatus(status, message) {
+            const statusEl = document.getElementById('saveStatus');
+            const btn = document.getElementById('saveBtn');
+            
+            if (status === 'saving') {
+                statusEl.textContent = '💾 Saving...';
+                statusEl.style.color = 'var(--accent)';
+                btn.disabled = true;
+            } else if (status === 'saved') {
+                statusEl.textContent = '✅ Saved';
+                statusEl.style.color = '#50e3c2';
+                btn.disabled = false;
+                setTimeout(() => { statusEl.textContent = ''; }, 3000);
+            } else if (status === 'error') {
+                statusEl.textContent = '❌ ' + message;
+                statusEl.style.color = '#e35050';
+                btn.disabled = false;
+            } else if (status === 'modified') {
+                statusEl.textContent = '⚠️ Unsaved changes';
+                statusEl.style.color = '#e3c450';
+            }
+        }
+        
         async function saveConfig() {
+            updateSaveStatus('saving');
+            
             // Validate before saving
             const { errors, warnings } = validateConfig();
             
             if (errors.length > 0) {
-                showToast(`Errors: ${errors.join(', ')}`);
+                updateSaveStatus('error', errors.join(', '));
                 return;
             }
             
             if (warnings.length > 0) {
                 const proceed = confirm(`Warnings:\n${warnings.join('\n')}\n\nProceed with save?`);
-                if (!proceed) return;
+                if (!proceed) {
+                    updateSaveStatus('modified');
+                    return;
+                }
             }
             
             try {
@@ -1217,21 +1254,32 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    showToast(`Saved to ${data.path}`);
+                    updateSaveStatus('saved');
+                    showToast(`✅ Saved ${config.channels.length} channels to server`);
                 } else {
                     throw new Error(data.error || 'Failed to save');
                 }
             } catch (e) {
                 console.error('Save failed:', e);
+                updateSaveStatus('error', 'Server save failed');
+                
                 // Fallback: download as file
                 const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'channel_config.json';
+                a.download = `channel-config-${new Date().toISOString().split('T')[0]}.json`;
                 a.click();
                 URL.revokeObjectURL(url);
-                showToast('Downloaded (server save failed)');
+                showToast('📥 Downloaded as file (server unavailable)');
+            }
+        }
+        
+        // Track modifications
+        let originalConfig = JSON.stringify(config);
+        function checkModified() {
+            if (JSON.stringify(config) !== originalConfig) {
+                updateSaveStatus('modified');
             }
         }
         
@@ -1369,6 +1417,9 @@
         populateFilterSkills();
         populateBulkSkills();
         init();
+        
+        // Set initial config state for modification tracking
+        setTimeout(() => { originalConfig = JSON.stringify(config); }, 100);
     </script>
 </body>
 </html>
