@@ -735,7 +735,47 @@
             showToast(`Applied ${AVAILABLE_MODELS.find(m => m.id === modelId)?.name || modelId} to all channels`);
         }
         
+        function validateConfig() {
+            const errors = [];
+            const warnings = [];
+            
+            config.channels.forEach(channel => {
+                // Check for missing model
+                if (!channel.model) {
+                    errors.push(`${channel.name}: No model selected`);
+                }
+                
+                // Check for cloud model without skills (might be expensive)
+                if (channel.model && !channel.model.includes('local') && (!channel.skills || channel.skills.length === 0)) {
+                    warnings.push(`${channel.name}: Cloud model with no skills (may incur costs)`);
+                }
+                
+                // Check for duplicate skills
+                if (channel.skills) {
+                    const unique = new Set(channel.skills);
+                    if (unique.size !== channel.skills.length) {
+                        errors.push(`${channel.name}: Duplicate skills detected`);
+                    }
+                }
+            });
+            
+            return { errors, warnings };
+        }
+        
         async function saveConfig() {
+            // Validate before saving
+            const { errors, warnings } = validateConfig();
+            
+            if (errors.length > 0) {
+                showToast(`Errors: ${errors.join(', ')}`);
+                return;
+            }
+            
+            if (warnings.length > 0) {
+                const proceed = confirm(`Warnings:\n${warnings.join('\n')}\n\nProceed with save?`);
+                if (!proceed) return;
+            }
+            
             try {
                 const response = await fetch('./api/save-config', {
                     method: 'POST',
