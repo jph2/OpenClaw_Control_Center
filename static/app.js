@@ -84,8 +84,6 @@ const pathInput = document.getElementById('pathInput');
 const absolutePathInput = document.getElementById('absolutePathInput');
 const openPathBtn = document.getElementById('openPathBtn');
 const openAbsoluteBtn = document.getElementById('openAbsoluteBtn');
-const workspacePathSelect = document.getElementById('workspacePathSelect');
-const copyWorkspacePathBtn = document.getElementById('copyWorkspacePathBtn');
 const openFolderBtn = document.getElementById('openFolderBtn');
 const newFolderBtn = document.getElementById('newFolderBtn');
 const newFileBtn = document.getElementById('newFileBtn');
@@ -1839,26 +1837,6 @@ window.addEventListener('keydown', (event) => {
 window.addEventListener('resize', () => {
   requestAnimationFrame(() => alignPanesFromSavedRatio());
 });
-
-// Workspace path dropdown handlers
-if (workspacePathSelect) {
-  workspacePathSelect.addEventListener('change', () => {
-    if (workspacePathSelect.value) {
-      absolutePathInput.value = workspacePathSelect.value;
-    }
-  });
-}
-
-if (copyWorkspacePathBtn) {
-  copyWorkspacePathBtn.onclick = async () => {
-    const path = workspacePathSelect.value || absolutePathInput.value;
-    if (path) {
-      await navigator.clipboard.writeText(path);
-      copyWorkspacePathBtn.textContent = 'Copied!';
-      setTimeout(() => { copyWorkspacePathBtn.textContent = 'Copy'; }, 1500);
-    }
-  };
-}
 
 window.addEventListener('beforeunload', (event) => {
   syncDocumentFromEditor();
