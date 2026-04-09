@@ -15,6 +15,68 @@ const SKILLS_DIRS = [
     '/usr/lib/node_modules/openclaw/skills'
 ];
 
+// Hardcoded workspace paths (Laptop + PC always connected)
+const WORKSPACES = [
+    {
+        name: 'OpenClaw Workspace',
+        path: '/home/claw-agentbox/.openclaw/workspace',
+        host: '100.89.176.89',
+        type: 'local'
+    },
+    {
+        name: 'Studio Framework',
+        path: '/media/claw-agentbox/data/9999_LocalRepo/Studio_Framework',
+        host: '100.89.176.89',
+        type: 'local'
+    },
+    {
+        name: 'UI Extensions',
+        path: '/media/claw-agentbox/data/9999_LocalRepo/Openclaw-OpenUSDGoodtstart-Extension',
+        host: '100.89.176.89',
+        type: 'local'
+    },
+    {
+        name: 'Windows PC Workhorse',
+        path: 'C:\\Users\\jan\\workspace',
+        host: '100.104.23.43',
+        type: 'remote'
+    }
+];
+
+// Scan for available workspaces
+function scanWorkspaces() {
+    const available = [];
+    
+    for (const ws of WORKSPACES) {
+        try {
+            if (ws.type === 'local') {
+                // Check if path exists locally
+                if (fs.existsSync(ws.path)) {
+                    const stat = fs.statSync(ws.path);
+                    if (stat.isDirectory()) {
+                        available.push({
+                            ...ws,
+                            status: 'available',
+                            url: `http://${ws.host}:4260?root=${encodeURIComponent(ws.name)}&path=${encodeURIComponent(ws.path)}`
+                        });
+                    }
+                }
+            } else {
+                // Remote workspace - assume available if host responds
+                available.push({
+                    ...ws,
+                    status: 'remote',
+                    url: `http://${ws.host}:4260`
+                });
+            }
+        } catch (e) {
+            console.log(`Workspace ${ws.name} not available: ${e.message}`);
+        }
+    }
+    
+    return available;
+}
+
 // MIME types
 const MIME_TYPES = {
     '.html': 'text/html',
@@ -239,6 +301,13 @@ const server = http.createServer((req, res) => {
         const tree = buildSkillTree();
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(tree));
+        return;
+    }
+    
+    if (pathname === '/api/workspaces') {
+        const workspaces = scanWorkspaces();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(workspaces));
         return;
     }
     

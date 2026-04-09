@@ -261,6 +261,16 @@
             </a>
         </div>
         
+        <!-- Workspaces Section -->
+        <div class="section-title" style="text-align: left; margin: 40px 0 20px; color: var(--text-secondary); font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">
+            Available Workspaces
+        </div>
+        <div class="workspaces-grid" id="workspacesGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-bottom: 40px;">
+            <div class="workspace-card loading" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; text-align: center; color: var(--text-secondary);">
+                Scanning workspaces...
+            </div>
+        </div>
+        
         <div class="actions">
             <button class="primary" onclick="startAll()">
                 <span>▶</span> Start All Services
@@ -365,8 +375,54 @@
             setTimeout(checkStatus, 1000);
         }
         
+        // Load and display workspaces
+        async function loadWorkspaces() {
+            const grid = document.getElementById('workspacesGrid');
+            
+            try {
+                // Try to fetch from Channel Manager API
+                const response = await fetch('http://localhost:3401/api/workspaces');
+                const workspaces = await response.json();
+                
+                if (workspaces.length === 0) {
+                    grid.innerHTML = '<div class="workspace-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; text-align: center; color: var(--text-secondary);">No workspaces found</div>';
+                    return;
+                }
+                
+                grid.innerHTML = workspaces.map(ws => `
+                    <a href="${ws.url}" target="_blank" class="workspace-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; text-decoration: none; color: inherit; transition: all 0.2s;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                            <span style="font-size: 20px;">${ws.type === 'local' ? '💻' : '🖥️'}</span>
+                            <div style="font-weight: 600;">${ws.name}</div>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">${ws.path}</div>
+                        <div style="font-size: 11px; color: var(--accent);">${ws.host}</div>
+                    </a>
+                `).join('');
+                
+            } catch (e) {
+                // Fallback: show hardcoded workspaces
+                const fallbackWorkspaces = [
+                    { name: 'OpenClaw Workspace', path: '~/.openclaw/workspace', host: '100.89.176.89', type: 'local', url: 'http://100.89.176.89:4260?root=workspace' },
+                    { name: 'Studio Framework', path: '~/Studio_Framework', host: '100.89.176.89', type: 'local', url: 'http://100.89.176.89:4260?root=studio' },
+                    { name: 'UI Extensions', path: '~/Openclaw-OpenUSDGoodtstart-Extension', host: '100.89.176.89', type: 'local', url: 'http://100.89.176.89:4260?root=extensions' }
+                ];
+                
+                grid.innerHTML = fallbackWorkspaces.map(ws => `
+                    <a href="${ws.url}" target="_blank" class="workspace-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; text-decoration: none; color: inherit; transition: all 0.2s;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                            <span style="font-size: 20px;">💻</span>
+                            <div style="font-weight: 600;">${ws.name}</div>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">${ws.path}</div>
+                    </a>
+                `).join('');
+            }
+        }
+        
         // Check status on load
         checkStatus();
+        loadWorkspaces();
         
         // Auto-refresh every 10 seconds
         setInterval(checkStatus, 10000);
