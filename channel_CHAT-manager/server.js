@@ -275,15 +275,17 @@ const server = http.createServer((req, res) => {
         } else if (req.method === 'POST') {
             let body = '';
             req.on('data', chunk => body += chunk);
-            req.on('end', () => {
+            req.on('end', async () => {
                 try {
                     const config = JSON.parse(body);
-                    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+                    await fs.promises.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2));
+                    console.log('Config saved to:', CONFIG_PATH);
                     res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ success: true }));
+                    res.end(JSON.stringify({ success: true, path: CONFIG_PATH }));
                 } catch (e) {
-                    res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: e.message }));
+                    console.error('Failed to save config:', e);
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: e.message, path: CONFIG_PATH }));
                 }
             });
         }

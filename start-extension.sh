@@ -45,12 +45,12 @@ start_channel_manager() {
     fi
     
     log "Starting Channel Manager..."
-    cd "$SCRIPT_DIR/channel-manager" && node server.js > /tmp/channel-manager.log 2>&1 &
+    cd "$SCRIPT_DIR/channel_CHAT-manager" && CHANNEL_MANAGER_PORT=3402 node server.js > /tmp/channel-manager.log 2>&1 &
     echo $! > "$pidfile"
     
     for i in {1..30}; do
-        if curl -s http://localhost:3401 > /dev/null 2>&1; then
-            log "✅ Channel Manager ready on http://localhost:3401"
+        if curl -s http://localhost:3402 > /dev/null 2>&1; then
+            log "✅ Channel Manager ready on http://localhost:3402"
             return 0
         fi
         sleep 1
@@ -123,7 +123,7 @@ status() {
     
     declare -A ports=(
         [workbench]=4260
-        [channel-manager]=3401
+        [channel-manager]=3402
         [landing]=8080
     )
     
@@ -150,7 +150,7 @@ case "${1:-start}" in
         log ""
         log "🌐 Landing Page:   http://localhost:8080"
         log "📁 Workbench:      http://localhost:4260"
-        log "📺 Channel Manager: http://localhost:3401"
+        log "📺 Channel Manager: http://localhost:3402"
         log ""
         open_browser
         ;;

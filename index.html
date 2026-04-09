@@ -256,7 +256,7 @@
                 <p>Manage Telegram channel configurations with persistent model assignments and interactive Skill Tree visualization.</p>
                 <div class="app-meta">
                     <span class="status-badge" id="channel-status">Checking...</span>
-                    <span>Port 3401</span>
+                    <span>Port 3402</span>
                 </div>
             </a>
         </div>
@@ -294,7 +294,7 @@
         
         const SERVICES = {
             workbench: { port: 4260, name: 'Workbench', host: HOST },
-            channel: { port: 3401, name: 'Channel Manager', host: HOST },
+            channel: { port: 3402, name: 'Channel Manager', host: HOST },
             landing: { port: 8080, name: 'Landing Page', host: HOST }
         };
         
@@ -344,7 +344,7 @@
                 log('Starting Channel Manager...');
                 await fetch('/api/start/channel', { method: 'POST' });
                 updateStatus('channel', 'running');
-                log('Channel Manager started on port 3401', 'success');
+                log('Channel Manager started on port 3402', 'success');
             } catch (e) {
                 log('Failed to start Channel Manager. Try: ./channel-manager.sh start', 'error');
             }
@@ -367,7 +367,7 @@
         
         // Update links based on host
         document.getElementById('workbench-link').href = `http://${HOST}:4260`;
-        document.getElementById('channel-link').href = `http://${HOST}:3401`;
+        document.getElementById('channel-link').href = `http://${HOST}:3402`;
         
         // Check status on load
         checkStatus();

@@ -8,7 +8,9 @@
         "weather",
         "web_search"
       ],
-      "require_mention": false
+      "require_mention": false,
+      "assignedAgent": "tars",
+      "inactiveSubAgents": []
     },
     {
       "id": "-5272630186",
@@ -119,6 +121,92 @@
       "model": "local-pc/google/gemma-4-26b-a4b",
       "skills": [],
       "require_mention": false
+    }
+  ],
+  "agents": [
+    {
+      "id": "tars",
+      "name": "TARS",
+      "role": "Planner",
+      "description": "Constructive builder in artifact system",
+      "color": "#50e3c2",
+      "defaultSkills": [
+        "clawflow",
+        "skill-creator",
+        "clawhub"
+      ],
+      "soul": "Direct, honest, useful. No fake certainty. Builds with architecture and rigor."
+    },
+    {
+      "id": "marvin",
+      "name": "MARVIN",
+      "role": "Critic",
+      "description": "Adversarial audit and QA",
+      "color": "#e35050",
+      "defaultSkills": [
+        "healthcheck",
+        "node-connect"
+      ],
+      "soul": "Zero-trust reviewer. Assumes everything is broken. Finds failures before they find you."
+    },
+    {
+      "id": "sonic",
+      "name": "SONIC",
+      "role": "Executor",
+      "description": "Fast implementation mode",
+      "color": "#e3c450",
+      "defaultSkills": [
+        "web_search",
+        "web_fetch"
+      ],
+      "soul": "Fast execution inside scope. Moves quick when plan is solid. Stops when reality diverges."
+    }
+  ],
+  "subAgents": [
+    {
+      "id": "researcher",
+      "name": "Researcher",
+      "parent": "tars",
+      "description": "Web search and information gathering",
+      "additionalSkills": [
+        "web_search",
+        "web_fetch"
+      ]
+    },
+    {
+      "id": "coder",
+      "name": "Coder",
+      "parent": "sonic",
+      "description": "Code implementation and debugging",
+      "additionalSkills": [
+        "omniverse-extension-development",
+        "usd-development"
+      ]
+    },
+    {
+      "id": "reviewer",
+      "name": "Reviewer",
+      "parent": "marvin",
+      "description": "Code review and quality checks",
+      "additionalSkills": []
+    },
+    {
+      "id": "documenter",
+      "name": "Documenter",
+      "parent": "tars",
+      "description": "Documentation and knowledge management",
+      "additionalSkills": [
+        "notion"
+      ]
+    },
+    {
+      "id": "tester",
+      "name": "Tester",
+      "parent": "marvin",
+      "description": "Testing and validation",
+      "additionalSkills": [
+        "healthcheck"
+      ]
     }
   ]
 }
