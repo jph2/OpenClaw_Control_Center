@@ -533,7 +533,8 @@
         </div>
     </header>
     
-    <div class="toolbar">
+    <!-- Filters - Only visible on Channels tab -->
+    <div id="channel-filters" class="toolbar">
         <input type="text" id="searchInput" placeholder="Search channels..." oninput="filterChannels()">
         <select id="filterModel" onchange="filterChannels()">
             <option value="">All models</option>
@@ -675,20 +676,108 @@
             { id: "openai-codex/gpt-5.4", name: "Codex", type: "cloud" }
         ];
         
-        const SKILL_DESCRIPTIONS = {
-            "weather": "Get current weather and forecasts for any location",
-            "web_search": "Search the web using Google Search grounding",
-            "web_fetch": "Fetch and extract content from URLs",
-            "healthcheck": "System security hardening and risk assessment",
-            "node-connect": "Diagnose OpenClaw node connection failures",
-            "notion": "Create and manage Notion pages and databases",
-            "clawflow": "ClawFlow workflow orchestration and job management",
-            "skill-creator": "Create, edit and audit AgentSkills",
-            "omniverse-extension-development": "Develop Omniverse extensions and tools",
-            "usd-development": "OpenUSD scene development and manipulation",
-            "clawhub": "Search, install and publish agent skills",
-            "mcporter": "Configure and call MCP servers and tools"
+        const SKILL_METADATA = {
+            "weather": {
+                description: "Get current weather and forecasts for any location",
+                source: "bundled",
+                origin: "openclaw/skills",
+                modified: false,
+                default: true,
+                category: "utility"
+            },
+            "web_search": {
+                description: "Search the web using Google Search grounding",
+                source: "bundled",
+                origin: "openclaw/skills",
+                modified: false,
+                default: true,
+                category: "research"
+            },
+            "web_fetch": {
+                description: "Fetch and extract content from URLs",
+                source: "bundled",
+                origin: "openclaw/skills",
+                modified: false,
+                default: true,
+                category: "research"
+            },
+            "healthcheck": {
+                description: "System security hardening and risk assessment",
+                source: "bundled",
+                origin: "openclaw/skills",
+                modified: false,
+                default: false,
+                category: "system"
+            },
+            "node-connect": {
+                description: "Diagnose OpenClaw node connection failures",
+                source: "bundled",
+                origin: "openclaw/skills",
+                modified: false,
+                default: false,
+                category: "system"
+            },
+            "notion": {
+                description: "Create and manage Notion pages and databases",
+                source: "managed",
+                origin: "clawhub",
+                modified: false,
+                default: false,
+                category: "integration"
+            },
+            "clawflow": {
+                description: "ClawFlow workflow orchestration and job management",
+                source: "bundled",
+                origin: "openclaw/skills",
+                modified: false,
+                default: true,
+                category: "orchestration"
+            },
+            "skill-creator": {
+                description: "Create, edit and audit AgentSkills",
+                source: "bundled",
+                origin: "openclaw/skills",
+                modified: false,
+                default: false,
+                category: "development"
+            },
+            "omniverse-extension-development": {
+                description: "Develop Omniverse extensions and tools",
+                source: "custom",
+                origin: "studio-framework",
+                modified: true,
+                default: false,
+                category: "development"
+            },
+            "usd-development": {
+                description: "OpenUSD scene development and manipulation",
+                source: "custom",
+                origin: "studio-framework",
+                modified: true,
+                default: false,
+                category: "development"
+            },
+            "clawhub": {
+                description: "Search, install and publish agent skills",
+                source: "bundled",
+                origin: "openclaw/skills",
+                modified: false,
+                default: false,
+                category: "utility"
+            },
+            "mcporter": {
+                description: "Configure and call MCP servers and tools",
+                source: "managed",
+                origin: "clawhub",
+                modified: false,
+                default: false,
+                category: "integration"
+            }
         };
+
+        const SKILL_DESCRIPTIONS = Object.fromEntries(
+            Object.entries(SKILL_METADATA).map(([k, v]) => [k, v.description])
+        );
         
         const AVAILABLE_SKILLS = Object.keys(SKILL_DESCRIPTIONS);
         
@@ -1160,11 +1249,17 @@
         function switchTab(tab) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.getElementById(`tab-${tab}`).classList.add('active');
-            
+
             document.querySelectorAll('.tab-content, .skill-overview').forEach(el => {
                 el.classList.remove('active');
             });
-            
+
+            // Show/hide channel filters
+            const channelFilters = document.getElementById('channel-filters');
+            if (channelFilters) {
+                channelFilters.style.display = tab === 'channels' ? 'flex' : 'none';
+            }
+
             if (tab === 'channels') {
                 document.getElementById('channels-tab').classList.add('active');
             } else if (tab === 'skills') {
@@ -1239,12 +1334,35 @@
         
         function renderSkillOverview() {
             const container = document.getElementById('skillList');
-            container.innerHTML = AVAILABLE_SKILLS.map(skill => `
-                <div class="skill-card">
-                    <h3>${skill}</h3>
-                    <p>${SKILL_DESCRIPTIONS[skill]}</p>
-                </div>
-            `).join('');
+            container.innerHTML = AVAILABLE_SKILLS.map(skill => {
+                const meta = SKILL_METADATA[skill];
+                const sourceColors = {
+                    'bundled': '#50e3c2',
+                    'managed': '#e3c450',
+                    'custom': '#e35050'
+                };
+                const color = sourceColors[meta.source] || '#888';
+
+                return `
+                    <div class="skill-card" style="border-left: 3px solid ${color}">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <h3 style="color: ${color}">${skill}</h3>
+                            <div style="display: flex; gap: 6px;">
+                                <span style="font-size: 10px; padding: 2px 6px; background: ${color}20; color: ${color}; border-radius: 3px; text-transform: uppercase;">${meta.source}</span>
+                                ${meta.modified ? '<span style="font-size: 10px; padding: 2px 6px; background: #e3505020; color: #e35050; border-radius: 3px;">MODIFIED</span>' : ''}
+                                ${meta.default ? '<span style="font-size: 10px; padding: 2px 6px; background: #50e3c220; color: #50e3c2; border-radius: 3px;">DEFAULT</span>' : ''}
+                            </div>
+                        </div>
+                        <div style="margin: 8px 0; font-size: 13px; color: var(--text-primary);">
+                            ${meta.description}
+                        </div>
+                        <div style="display: flex; gap: 16px; font-size: 11px; color: var(--text-secondary); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-color);">
+                            <span><strong>Origin:</strong> ${meta.origin}</span>
+                            <span><strong>Category:</strong> ${meta.category}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
         
         // Initialize
