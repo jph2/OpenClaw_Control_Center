@@ -955,10 +955,17 @@
             tbody.innerHTML = '';
             
             TELEGRAM_GROUPS.forEach(group => {
-                const channel = config.channels.find(c => c.id === group.id) || {
-                    model: AVAILABLE_MODELS[0].id,
-                    skills: []
-                };
+                let channel = config.channels.find(c => c.id === group.id);
+                if (!channel) {
+                    channel = {
+                        id: group.id,
+                        name: group.name,
+                        model: 'local-pc/google/gemma-4-26b-a4b',
+                        skills: [],
+                        require_mention: false
+                    };
+                    config.channels.push(channel);
+                }
                 
                 const row = document.createElement('tr');
                 row.dataset.channelId = group.id;
