@@ -1,7 +1,11 @@
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+import http from 'http';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const PORT = process.env.CHANNEL_MANAGER_PORT || 3401;
 const CONFIG_PATH = path.join(__dirname, 'channel_config.json');
@@ -292,7 +296,7 @@ const server = http.createServer((req, res) => {
     });
 });
 
-server.listen(PORT, '127.0.0.1', () => {
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`Channel Manager running at http://127.0.0.1:${PORT}`);
     console.log(`Config path: ${CONFIG_PATH}`);
     
