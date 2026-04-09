@@ -391,7 +391,8 @@ function updateUrl() {
   } else {
     params.set('dir', state.currentFolder);
   }
-  history.replaceState({}, '', `${appBase()}/?${params.toString()}`);
+  const newUrl = `${window.location.origin}${appBase()}/?${params.toString()}`;
+  history.replaceState({}, '', newUrl);
 }
 
 function currentAbsolutePath() {
