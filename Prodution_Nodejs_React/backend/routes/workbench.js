@@ -28,10 +28,13 @@ const WriteFileSchema = z.object({
 /**
  * Utility: File kind determination
  */
-const TEXT_EXTENSIONS = new Set(['.md', '.txt', '.json', '.js', '.mjs', '.cjs', '.ts', '.css', '.html', '.yml', '.yaml', '.sh']);
+const TEXT_EXTENSIONS = new Set(['.md', '.txt', '.json', '.js', '.mjs', '.cjs', '.ts', '.jsx', '.tsx', '.css', '.html', '.yml', '.yaml', '.sh', '.env', '.gitignore', '.csv', '.xml']);
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg']);
 
 function getFileKind(filePath) {
+    const filename = path.basename(filePath).toLowerCase();
+    if (filename === '.env' || filename.startsWith('.env.')) return 'text';
+    
     const ext = path.extname(filePath).toLowerCase();
     if (TEXT_EXTENSIONS.has(ext)) return 'text';
     if (IMAGE_EXTENSIONS.has(ext)) return 'image';

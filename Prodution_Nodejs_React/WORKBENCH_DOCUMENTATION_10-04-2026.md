@@ -8,6 +8,9 @@ Dieses Dokument protokolliert alle tiefgreifenden architektonischen Anpassungen,
 
 ## 1. Implementierte System-Upgrades & Features
 
+### 1.7 Known Bugs (Deferred)
+- **Address Bar & Up-Button Navigation**: Es gibt einen persistenten Bug in der Pfadanzeige. Das Eingabefeld (`<input>`) ist teilweise unsichtbar oder der Pfad löst unerwartete `403 Forbidden` Server-Fehler beim Navigieren hinaus bis zum Workspace-Speicherlimit (z.B. `/`) aus. Das Layout dehnt sich teils nicht korrekt (`minWidth` Collapse) wodurch Icons verrutschen. Reparatur vorübergehend zurückgestellt, um Channel Manager & Telegram Backend fortzusetzen.
+
 ### 1.1 Backend: Filesystem Hardening & Absolute Access
 - **Global Volume Access (`WORKSPACE_ROOT=//`)**: Um den Zugriff über den eigenen Docker/Repro-Root hinaus auf sämtliche Host-Volumes (wie `/media/claw-agentbox/data` oder `/home/...`) zu garantieren, läuft der Server fortan auf Root-Level `/`.
 - **EACCES Permission Catching**: Ein fataler 500/502 Error beim Aufruf des `GET /api/workbench/tree` Endpoints wurde behoben. Ursache war, dass rekursive `fs.readdir()`-Aufrufe unweigerlich in Root-Level Systemordner rannten (z. B. `/etc/credstore` oder `/lost+found`), die dem Linux-User EACCES-Sperren auferlegten. Unhandled Rejections rissen zuvor das gesamte Backend mit in den Tod. **Lösung:** Strikte Isolierung _jedes_ Datei-Reads in `try/catch`-Blöcken. Unlesbare Dateien/Verzeichnisse werden leise übergangen statt den Baum-Scan zu beenden.
@@ -25,6 +28,14 @@ Dieses Dokument protokolliert alle tiefgreifenden architektonischen Anpassungen,
 - **Breadcrumb Location & Copying**:  Der File-Directory Header enthält eine Click-2-Copy absolute Pfad-Anzeige. Die Ordner-Iconographie (📁) ist `userSelect: 'none'` via CSS gestylt, um das versehentliche Mit-Kopieren von Emojis zu verhindern.
 - **String Sanitization Input-Trim**: Das "Custom Workspace" Feld besitzt strikte `.trim()` Middleware on-Submit, um Leading/Trailing Spaces (die sonst zu `ENOENT - '/ /home/...'` Crashlogs auf OSI-Layer führen) rigoros zu annulieren.
 - **Raw Editor Horizontal Scrolling**: Die `<textarea>` des Raw Editors nutzt striktes `overflowX: 'auto'` und `whiteSpace: 'pre'` Patterning, um breite Arrays, Code-Blöcke oder unformatierte Textstrukturen barrierefrei horizontal ohne automatische Wort-Umbrüche zu scrollen.
+
+### 1.5 Frontend: Latest Docs & Folders (Split Columns)
+- **Local History Expansion**: Die Workbench "Latest Docs Across Roots" Sektion wurde refactored. Es existieren nun zwei saubere Columns (`display: flex` + `flex: 1`): "Latest Docs" (für ausgewählte Files) und "Latest Folders" (für aufgerufene Directories). Dies beschleunigt die Kontext-Navigation bei großen Root-Wechseln drastisch.
+- **Zustand Directory Persistence**: Ein neues Array `recentDirs` und der Action Dispatch `addRecentDir` speichern Ordner-Historien nun synchron im `localStorage` parallel zu den Dateihistorien.
+
+### 1.6 Frontend: Navigatable Address Bar
+- **Editable File Directory Path**: Der zuvor read-only "Click to copy" Pfad in der File Directory Header-Leiste wurde durch eine interaktive, breite Input-Box (`input`) ersetzt.
+- **Root Quick-Jumping**: User können nun über die Input-Box direkt absolute Pfade tippen und per `Enter` (oder Button-Klick auf "Go") sofort das Root-Directory der Workbench dorthin verschieben (`setCurrentRoot()`). Der State `addressBarValue` fängt dabei den lokalen Component-Zustand live ein, ohne direkt beim Tippen (onChange) den kompletten Verzeichnisbaum teuer und hakelig neu rendern zu müssen.
 
 ---
 

@@ -97,6 +97,12 @@ const useWorkbenchStore = create(persist((set) => ({
         const newDocs = [file, ...state.recentDocs.filter(d => d !== file)].slice(0, 10);
         return { recentDocs: newDocs };
     }),
+    recentDirs: [],
+    addRecentDir: (dir) => set((state) => {
+        if (!dir) return state;
+        const newDirs = [dir, ...state.recentDirs.filter(d => d !== dir)].slice(0, 10);
+        return { recentDirs: newDirs };
+    }),
     scrollSync: true,
     setScrollSync: (val) => set({ scrollSync: val }),
     outlineMode: 'list', // 'list' | 'minimap'
@@ -329,7 +335,7 @@ function EditorWorkspace({ path, mainKey }) {
 
 // --- File Tree Node Component ---
 function TreeNode({ node, level = 0, forceOpen, selectedNode, setSelectedNode }) {
-    const { activeFile, setActiveFile } = useWorkbenchStore();
+    const { activeFile, setActiveFile, addRecentDir } = useWorkbenchStore();
     const [isOpen, setIsOpen] = useState(false);
     
     const actuallyOpen = forceOpen || isOpen;
@@ -355,6 +361,7 @@ function TreeNode({ node, level = 0, forceOpen, selectedNode, setSelectedNode })
                         setActiveFile(node.path || node.name);
                     } else if (node.type === 'dir') {
                         setIsOpen(!isOpen);
+                        addRecentDir(node.path || node.name);
                     }
                 }}
                 style={{ 
@@ -400,7 +407,7 @@ export default function Workbench() {
     const { 
         viewMode, setViewMode, activeFile, setActiveFile, autosave, setAutosave, 
         localContent, setLocalContent, scrollSync, setScrollSync, outlineMode, setOutlineMode, 
-        recentDocs, currentRoot, setCurrentRoot, workspaces, addWorkspace, removeWorkspace 
+        recentDocs, recentDirs, addRecentDir, currentRoot, setCurrentRoot, workspaces, addWorkspace, removeWorkspace 
     } = useWorkbenchStore();
     
     const queryClient = useQueryClient();
@@ -431,6 +438,16 @@ export default function Workbench() {
 
     // Active Node Selection for actions
     const [selectedNode, setSelectedNode] = useState(null);
+
+    // Address Bar State
+    const [addressBarValue, setAddressBarValue] = useState(currentRoot);
+    useEffect(() => {
+        if (selectedNode) {
+            setAddressBarValue(selectedNode.path);
+        } else {
+            setAddressBarValue(currentRoot);
+        }
+    }, [selectedNode, currentRoot]);
 
     const handleNavAction = async (action) => {
         const invokeAPI = async (endpoint, payload) => {
@@ -479,9 +496,22 @@ export default function Workbench() {
     const { data: treeData, isLoading: treeLoading } = useQuery({
         queryKey: ['workbench-tree', currentRoot],
         queryFn: async () => {
-            const res = await fetch(`/api/workbench/tree?path=${encodeURIComponent(currentRoot==='workspace'?'':currentRoot)}`);
-            if (!res.ok) throw new Error('Tree fetch failed');
-            return res.json();
+            try {
+                const res = await fetch(`/api/workbench/tree?path=${encodeURIComponent(currentRoot==='workspace'?'':currentRoot)}`);
+                if (res.status === 403) {
+                    console.warn("Hit workspace boundary or forbidden path:", currentRoot);
+                    setCurrentRoot('workspace');
+                    return { tree: [] };
+                }
+                if (!res.ok) throw new Error('Tree fetch failed');
+                return res.json();
+            } catch (err) {
+                console.error(err);
+                if (currentRoot !== 'workspace') {
+                    setCurrentRoot('workspace');
+                }
+                return { tree: [] };
+            }
         }
     });
 
@@ -561,6 +591,18 @@ export default function Workbench() {
     const triggerSave = () => {
         saveMutation.mutate(localContent);
     };
+
+    // Autosave implementation
+    useEffect(() => {
+        if (!autosave || !activeFile) return;
+        if (localContent === originalContent) return;
+
+        const handler = setTimeout(() => {
+            saveMutation.mutate(localContent);
+        }, 1500);
+
+        return () => clearTimeout(handler);
+    }, [localContent, autosave, activeFile, originalContent]);
 
     return (
         <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
@@ -756,25 +798,40 @@ export default function Workbench() {
 
                         {/* File Tree Render */}
                         <Panel defaultSize={35} minSize={15} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', background: '#1a1b23', borderBottom: '1px solid var(--border-color)', gap: '16px' }}>
-                                <PaneHeader title="File Directory" />
-                                {selectedNode && (
-                                    <div 
+                            <div style={{ display: 'flex', alignItems: 'center', background: '#1a1b23', borderBottom: '1px solid var(--border-color)', padding: '6px 16px', gap: '8px', minHeight: '32px', justifyContent: 'space-between' }}>
+                                <div style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                                    File Directory
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', background: 'var(--bg-elevated)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '2px 8px', gap: '8px', margin: '0 8px' }}>
+                                    <input 
+                                        value={addressBarValue || currentRoot || ''}
+                                        onChange={e => setAddressBarValue(e.target.value)}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter' && addressBarValue) setCurrentRoot(addressBarValue);
+                                        }}
+                                        placeholder="Absolute path..."
+                                        spellCheck={false}
                                         style={{
-                                            fontSize: '11px', color: '#ffffff', background: 'rgba(255,255,255,0.15)',
-                                            border: '1px solid rgba(255,255,255,0.3)', fontWeight: '500',
-                                            padding: '4px 8px', borderRadius: '4px', cursor: 'copy', 
-                                            maxWidth: '350px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                                            flex: 1, minWidth: 0, width: '100%',
+                                            fontSize: '11px', color: '#ffffff', background: 'transparent',
+                                            border: 'none', outline: 'none', fontFamily: 'monospace'
                                         }}
-                                        onClick={() => {
-                                            navigator.clipboard.writeText(selectedNode.path);
-                                        }}
-                                        title="Click to copy path"
-                                    >
-                                        <span style={{ userSelect: 'none', marginRight: '4px' }}>📁</span>
-                                        {selectedNode.path} 
-                                    </div>
-                                )}
+                                    />
+                                    <button onClick={() => navigator.clipboard.writeText(addressBarValue || currentRoot)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px', color: 'var(--text-secondary)' }} title="Copy Path">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                    </button>
+                                </div>
+                                <button 
+                                    onClick={() => {
+                                        if (!currentRoot || currentRoot === 'workspace' || currentRoot === '/') return;
+                                        const parentDir = currentRoot.substring(0, currentRoot.lastIndexOf('/')) || '/';
+                                        if (parentDir !== currentRoot) setCurrentRoot(parentDir);
+                                    }} 
+                                    style={{ padding: '4px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                                    title="Go Up One Level"
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                                </button>
                             </div>
                             <div style={{ display: 'flex', padding: '4px 8px', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-elevated)' }}>
                                 <div style={{ flex: '1 1 auto', minWidth: '40px', paddingLeft: '8px', overflow: 'hidden' }}>Name</div>
@@ -799,16 +856,37 @@ export default function Workbench() {
                         </Panel>
                         <ResizeHandle direction="vertical" />
 
-                        {/* Latest Docs Index */}
-                        <Panel defaultSize={10} minSize={5} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                            <PaneHeader title="Latest Docs Across Roots" />
-                            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', background: 'var(--bg-surface)', minHeight: '60px' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {recentDocs.length > 0 ? recentDocs.map(doc => (
-                                        <div key={doc} onClick={() => setActiveFile(doc)} title={doc} style={{ fontSize: '11px', color: 'var(--text-secondary)', padding: '4px 8px', background: 'var(--bg-elevated)', borderRadius: '4px', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            📄 {doc.split('/').pop()}
-                                        </div>
-                                    )) : <div style={{color:'var(--text-muted)', fontSize:'11px'}}>No recent docs</div>}
+                        {/* Latest Index */}
+                        <Panel defaultSize={15} minSize={10} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                            <PaneHeader title="Local History" />
+                            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', background: 'var(--bg-surface)', minHeight: '60px', display: 'flex', gap: '16px' }}>
+                                {/* Docs Column */}
+                                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '1px', flexShrink: 0 }}>Latest Docs</div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        {recentDocs.length > 0 ? recentDocs.map(doc => (
+                                            <div key={doc} onClick={() => setActiveFile(doc)} title={doc} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)', padding: '4px 8px', background: 'var(--bg-elevated)', borderRadius: '4px', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                                                <span style={{ color: 'var(--text-primary)' }}>📄 {doc.split('/').pop()}</span>
+                                                <span style={{ color: 'var(--text-muted)', opacity: 0.6, fontSize: '10px', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                                    {doc.substring(0, doc.lastIndexOf('/')) || '/'}
+                                                </span>
+                                            </div>
+                                        )) : <div style={{color:'var(--text-muted)', fontSize:'11px'}}>No recent docs</div>}
+                                    </div>
+                                </div>
+                                {/* Folders Column */}
+                                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '1px', flexShrink: 0 }}>Latest Folders</div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        {recentDirs.length > 0 ? recentDirs.map(dir => (
+                                            <div key={dir} onClick={() => setCurrentRoot(dir)} title={dir} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)', padding: '4px 8px', background: 'var(--bg-elevated)', borderRadius: '4px', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                                                <span style={{ color: 'var(--text-primary)' }}>📁 {dir.split('/').pop()}</span>
+                                                <span style={{ color: 'var(--text-muted)', opacity: 0.6, fontSize: '10px', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                                    {dir.substring(0, dir.lastIndexOf('/')) || '/'}
+                                                </span>
+                                            </div>
+                                        )) : <div style={{color:'var(--text-muted)', fontSize:'11px'}}>No recent folders</div>}
+                                    </div>
                                 </div>
                             </div>
                         </Panel>

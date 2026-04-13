@@ -1,0 +1,49 @@
+
+--- STARTING TELEGRAM CHANNEL VALIDATION ---
+
+[VALID] ID: -1003752539559
+        Title: TG000_General_Chat
+        Type:  supergroup
+-------------------------------------------
+[INVALID] ID: -3899450316
+          Error: 400: Bad Request: chat not found
+-------------------------------------------
+[INVALID] ID: -3566334093
+          Error: 400: Bad Request: chat not found
+-------------------------------------------
+[INVALID] ID: -3510007915
+          Error: 400: Bad Request: chat not found
+-------------------------------------------
+[INVALID] ID: -3810099676
+          Error: 400: Bad Request: chat not found
+-------------------------------------------
+[INVALID] ID: -3712027527
+          Error: 400: Bad Request: chat not found
+-------------------------------------------
+[INVALID] ID: -3405434502
+          Error: 400: Bad Request: chat not found
+-------------------------------------------
+[INVALID] ID: -3694376257
+          Error: 400: Bad Request: chat not found
+-------------------------------------------
+[INVALID] ID: -3767415414
+          Error: 400: Bad Request: chat not found
+-------------------------------------------
+[INVALID] ID: -3623807053
+          Error: 400: Bad Request: chat not found
+-------------------------------------------
+[INVALID] ID: -3818611026
+          Error: 400: Bad Request: chat not found
+-------------------------------------------
+[INVALID] ID: -3774069691
+          Error: 400: Bad Request: chat not found
+-------------------------------------------
+[INVALID] ID: -3740675097
+          Error: 400: Bad Request: chat not found
+-------------------------------------------
+[INVALID] ID: -3550469958
+          Error: 400: Bad Request: chat not found
+-------------------------------------------
+[INVALID] ID: -3713595381
+          Error: 400: Bad Request: chat not found
+-------------------------------------------

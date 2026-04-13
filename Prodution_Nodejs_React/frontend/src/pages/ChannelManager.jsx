@@ -1,43 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Download, Upload, RefreshCw, Save, Check } from 'lucide-react';
+import TelegramChat from '../components/TelegramChat';
 
-const AVAILABLE_MODELS = [
-    { id: "local-pc/google/gemma-4-26b-a4b", name: "Gemma 4 26B", desc: "Fast local inference, primary model" },
-    { id: "moonshot/kimi-k2.5", name: "Kimi K2.5", desc: "Strong reasoning, good for complex tasks" },
-    { id: "kimi/kimi-code", name: "Kimi Code", desc: "Optimized for coding tasks" },
-    { id: "openai-codex/gpt-5.4", name: "Codex", desc: "Latest OpenAI model, high capability" }
-];
+// Constants have been moved to the Node.js backend.
+// The UI acts purely as a consumer of configurations.
 
-const MAIN_AGENTS = {
-    tars: { name: "TARS", role: "Planner", color: "#50e3c2", defaultSkills: ["clawflow", "skill-creator", "clawhub"], quote: "Direct, honest, useful. No fake certainty. Builds with architecture and rigor." },
-    marvin: { name: "MARVIN", role: "Critic", color: "#e35050", defaultSkills: ["healthcheck", "node-connect"], quote: "Zero-trust reviewer. Assumes everything is broken. Finds failures before they find you." },
-    sonic: { name: "SONIC", role: "Executor", color: "#e3c450", defaultSkills: ["web_search", "web_fetch"], quote: "Fast execution inside scope. Moves quick when plan is solid. Stops when reality diverges." }
-};
+const ActiveBotsList = ({ chatId }) => {
+    const { data: bots, isLoading } = useQuery({
+        queryKey: ['activeBots', chatId],
+        queryFn: async () => {
+            const res = await fetch(`/api/telegram/bots/${chatId}`);
+            if (!res.ok) return [];
+            const data = await res.json();
+            return data.bots || [];
+        },
+        staleTime: 60000
+    });
 
-const SUB_AGENTS = {
-    researcher: { name: "Researcher", parent: "tars", additionalSkills: ["web_search", "web_fetch"] },
-    coder: { name: "Coder", parent: "sonic", additionalSkills: ["omniverse-extension-development", "usd-development"] },
-    reviewer: { name: "Reviewer", parent: "marvin", additionalSkills: [] },
-    documenter: { name: "Documenter", parent: "tars", additionalSkills: ["notion"] },
-    tester: { name: "Tester", parent: "marvin", additionalSkills: ["healthcheck"] }
-};
-
-const SKILL_METADATA = {
-    "weather": { desc: "Get current weather and forecasts for any location", origin: "openclaw/skills", cat: "utility", src: "bundled", def: true },
-    "web_search": { desc: "Search the web using Google Search grounding", origin: "openclaw/skills", cat: "research", src: "bundled", def: true },
-    "web_fetch": { desc: "Fetch and extract content from URLs", origin: "openclaw/skills", cat: "research", src: "bundled", def: true },
-    "healthcheck": { desc: "System security hardening and risk assessment", origin: "openclaw/skills", cat: "system", src: "bundled", def: false },
-    "node-connect": { desc: "Diagnose OpenClaw node connection failures", origin: "openclaw/skills", cat: "system", src: "bundled", def: false },
-    "notion": { desc: "Create and manage Notion pages and databases", origin: "clawhub", cat: "integration", src: "managed", def: false },
-    "clawflow": { desc: "ClawFlow workflow orchestration and job management", origin: "openclaw/skills", cat: "orchestration", src: "bundled", def: true },
-    "skill-creator": { desc: "Create, edit and audit AgentSkills", origin: "openclaw/skills", cat: "development", src: "bundled", def: false },
-    "clawhub": { desc: "Search, install and publish agent skills", origin: "openclaw/skills", cat: "utility", src: "bundled", def: false }
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            {isLoading && <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Checking bots...</div>}
+            
+            {bots && bots.map(bot => (
+                <div key={bot.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#50e3c2' }}></div>
+                    <span>{bot.first_name} {bot.username && `(@${bot.username})`}</span>
+                </div>
+            ))}
+        </div>
+    );
 };
 
 export default function ChannelManager() {
     const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState('channels');
+    
+    // Sub-Task 1.4: Hot-Reloading via SSE from Backend
+    useEffect(() => {
+        const eventSource = new EventSource('/api/channels/events');
+        eventSource.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'CONFIG_UPDATED') {
+                    console.log('[SSE] Config cluster updated, invalidating React Query cache...');
+                    queryClient.invalidateQueries({ queryKey: ['channels'] });
+                }
+            } catch (err) {}
+        };
+        return () => eventSource.close();
+    }, [queryClient]);
     
     // Manage Channels Tab State
     const [rowSubtabs, setRowSubtabs] = useState({}); // { channelId: 'config' | 'chat' }
@@ -45,11 +57,22 @@ export default function ChannelManager() {
     // Bulk Selection State
     const [selectedChannels, setSelectedChannels] = useState([]);
     const [bulkModel, setBulkModel] = useState('');
+    const [modelsLoaded, setModelsLoaded] = useState(false);
+    
+    // Custom height state for resizable rows
+    const [rowHeights, setRowHeights] = useState(() => {
+        const saved = localStorage.getItem('ag-channel-row-heights');
+        return saved ? JSON.parse(saved) : {};
+    });
+
+    useEffect(() => {
+        localStorage.setItem('ag-channel-row-heights', JSON.stringify(rowHeights));
+    }, [rowHeights]);
+
     const [bulkSkill, setBulkSkill] = useState('');
 
-
     // Fetch live backend channels
-    const { data: configData, isLoading } = useQuery({
+    const { data: configData, isLoading, refetch } = useQuery({
         queryKey: ['channels'],
         queryFn: async () => {
             const res = await fetch('/api/channels');
@@ -60,6 +83,8 @@ export default function ChannelManager() {
 
     const mutation = useMutation({
         mutationFn: async (payload) => {
+            // Anti-Pattern 1 Fix: Ensure assignedAgent is undefined, not null
+            if (payload.assignedAgent === null) payload.assignedAgent = undefined;
             const res = await fetch('/api/channels/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -122,7 +147,25 @@ export default function ChannelManager() {
 
     const backendAgents = configData?.data?.agents || [];
     const backendSubAgents = configData?.data?.subAgents || [];
+    
+    // Dynamic Metadata (Data Integrity Phase 1)
+    const activeMetadata = configData?.data?.metadata || { models: [], mainAgents: {}, subAgentsDict: {}, skills: {} };
+    const AVAILABLE_MODELS = activeMetadata.models || [];
+    const MAIN_AGENTS = activeMetadata.mainAgents || {};
+    const SUB_AGENTS = activeMetadata.subAgentsDict || {};
+    const SKILL_METADATA = activeMetadata.skills || {};
 
+    const navigateToAgent = (agentId) => {
+        setActiveTab('agents');
+        setTimeout(() => {
+            const el = document.getElementById(`agent-card-${agentId}`);
+            if(el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.style.boxShadow = '0 0 0 2px #fff';
+                setTimeout(() => el.style.boxShadow = 'none', 1500);
+            }
+        }, 100);
+    };
 
     const handleUpdateChannel = (channelId, field, value) => {
         let channel = backendChannels.find(c => c.id === channelId) || { id: channelId };
@@ -236,6 +279,54 @@ export default function ChannelManager() {
         handleUpdateChannel(channelId, 'inactiveSubAgents', newInactive);
     };
 
+    // Header Actions
+    const handleExport = () => {
+        window.location.href = '/api/channels/export';
+    };
+
+    const handleReload = async () => {
+        await fetch('/api/channels/reload', { method: 'POST' });
+        refetch();
+    };
+
+    const handleImport = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'application/json';
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const json = JSON.parse(event.target.result);
+                    const res = await fetch('/api/channels/import', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(json)
+                    });
+                    if (res.ok) {
+                        alert('Configuration imported successfully!');
+                        handleReload();
+                    } else {
+                        const err = await res.json();
+                        alert(`Import failed: ${err.message || 'Validation error'}`);
+                    }
+                } catch (err) {
+                    alert('Invalid JSON file');
+                }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
+    };
+
+    const handleSave = () => {
+        // Since mutations auto-save to disk, this acts as a final sync check
+        handleReload();
+        alert('All configurations are persisted to sovereign storage.');
+    };
+
     const renderManageChannels = () => (
         <>
             <div 
@@ -338,27 +429,56 @@ export default function ChannelManager() {
                                             <option value="marvin">MARVIN</option>
                                             <option value="sonic">SONIC</option>
                                         </select>
-                                        
-                                        {Object.entries(SUB_AGENTS).filter(([_, sub]) => sub.parent === assignedAgentKey).map(([subId, sub]) => {
-                                            const isSubActive = !(channelState.inactiveSubAgents || []).includes(subId);
-                                            return (
-                                                <label key={subId} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', marginBottom: '4px' }}>
-                                                    <input 
-                                                        type="checkbox" 
-                                                        checked={isSubActive}
-                                                        onChange={() => handleSubAgentToggle(tg.id, subId, channelState.inactiveSubAgents || [])}
-                                                        style={{ cursor: 'pointer' }}
-                                                    /> {sub.name}
-                                                    <span style={{ marginLeft: 'auto', color: 'var(--text-secondary)' }}>+{sub.additionalSkills.length} skills</span>
-                                                </label>
-                                            );
-                                        })}
+                                        {channelState.assignedAgent && (
+                                            <div 
+                                                onClick={() => navigateToAgent(channelState.assignedAgent)}
+                                                style={{ fontSize: '10px', color: agentDetails.color, cursor: 'pointer', textDecoration: 'underline', marginBottom: '16px', display: 'inline-block' }}
+                                            >
+                                                Configure {agentDetails.name} ➔
+                                            </div>
+                                        )}
+
+                                        <div style={{ marginTop: '8px', marginBottom: '8px', fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                                            ACTIVE MEMBERS
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-primary)' }}>
+                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: channelState.assignedAgent ? agentDetails.color : 'red' }}></div>
+                                                <span>{channelState.assignedAgent ? `${agentDetails.name} (Engine)` : 'No Agent (Dormant)'}</span>
+                                            </div>
+                                            
+                                            {/* Sub-Agents properly nested under the Engine */}
+                                            {Object.entries(SUB_AGENTS).filter(([_, sub]) => sub.parent === assignedAgentKey).map(([subId, sub]) => {
+                                                const isSubActive = !(channelState.inactiveSubAgents || []).includes(subId);
+                                                return (
+                                                    <div key={subId} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', marginLeft: '14px', marginTop: '2px' }}>
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={isSubActive}
+                                                            onChange={() => handleSubAgentToggle(tg.id, subId, channelState.inactiveSubAgents || [])}
+                                                            style={{ cursor: 'pointer', margin: 0 }}
+                                                        /> 
+                                                        <span 
+                                                            onClick={(e) => { e.preventDefault(); navigateToAgent(subId); }}
+                                                            style={{ cursor: 'pointer', color: 'var(--text-secondary)' }}
+                                                        >
+                                                            {sub.name}
+                                                        </span>
+                                                        <span style={{ marginLeft: 'auto', color: 'var(--text-secondary)', opacity: 0.6 }}>+{sub.additionalSkills.length} skills</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Dynamic Bots via Telegram API */}
+                                        <ActiveBotsList chatId={tg.id} />
                                     </div>
                                 </td>
+
                                 
                                 <td style={{ padding: 0 }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', borderLeft: '1px solid var(--border-color)' }}>
-                                        <div className="row-tabs">
+                                    <div style={{ display: 'flex', flexDirection: 'column', height: `${rowHeights[tg.id] || 450}px`, borderLeft: '1px solid var(--border-color)', overflow: 'hidden' }}>
+                                        <div className="row-tabs" style={{ flexShrink: 0 }}>
                                             <button 
                                                 className={`row-tab ${subTab === 'config' ? 'active' : ''}`}
                                                 onClick={() => setRowSubtabs({...rowSubtabs, [tg.id]: 'config'})}
@@ -441,7 +561,9 @@ export default function ChannelManager() {
                                                 
                                                 {/* Model Radio List */}
                                                 <div className="model-cell" style={{ width: '250px' }}>
-                                                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>MODEL</div>
+                                                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>MODEL SETTINGS</div>
+
+
                                                     <div className="model-list">
                                                         {AVAILABLE_MODELS.map(model => (
                                                             <label key={model.id} className={`model-item ${channelState.model === model.id ? 'active' : ''}`}>
@@ -464,15 +586,32 @@ export default function ChannelManager() {
                                             </div>
                                         )}
                                         {subTab === 'chat' && (
-                                            <div style={{ height: '400px', width: '100%', overflow: 'hidden' }}>
-                                                <iframe 
-                                                    src={`https://claw-agentbox-laptop.taild99bcd.ts.net/chat?session=agent%3Amain%3Atelegram%3Agroup%3A${tg.id}`}
-                                                    style={{ width: '100%', height: '100%', border: 'none', backgroundColor: '#1e1e1e' }}
-                                                    title={`Chat Simulation - ${tg.name}`}
-                                                    allow="clipboard-read; clipboard-write"
-                                                />
+                                            <div style={{ flex: 1, width: '100%', overflow: 'hidden' }}>
+                                                <TelegramChat channelId={tg.id} channelName={tg.name} />
                                             </div>
                                         )}
+                                    </div>
+                                    <div 
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            const startY = e.clientY;
+                                            const startH = rowHeights[tg.id] || 450;
+                                            const onMove = (me) => setRowHeights(prev => ({...prev, [tg.id]: Math.max(200, startH + (me.clientY - startY))}));
+                                            const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+                                            document.addEventListener('mousemove', onMove);
+                                            document.addEventListener('mouseup', onUp);
+                                        }}
+                                        style={{ 
+                                            width: '100%', height: '8px', cursor: 'row-resize', 
+                                            background: 'var(--border-color)', 
+                                            borderBottom: '1px solid #111',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                                            transition: 'background 0.2s'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = '#444'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'var(--border-color)'}
+                                    >
+                                        <div style={{ width: '30px', height: '4px', background: 'var(--text-secondary)', borderRadius: '2px' }} />
                                     </div>
                                 </td>
                             </tr>
@@ -546,7 +685,7 @@ export default function ChannelManager() {
             <h2 style={{ marginBottom: '24px' }}>Main Agents</h2>
             <div style={{ display: 'grid', gap: '16px', marginBottom: '40px' }}>
                 {backendAgents.map(agent => (
-                    <div key={agent.id} className="agent-card main" style={{ borderColor: agent.color }}>
+                    <div key={agent.id} id={`agent-card-${agent.id}`} className="agent-card main" style={{ borderColor: agent.color, transition: 'box-shadow 0.3s' }}>
                         <h3 style={{ color: agent.color }}>{agent.name}</h3>
                         <div className="agent-role" style={{ color: agent.color, marginBottom: '8px' }}>{agent.role}</div>
                         
@@ -591,7 +730,7 @@ export default function ChannelManager() {
                 {backendSubAgents.map(sub => {
                     const parentColor = backendAgents.find(a => a.id === sub.parent)?.color || '#50e3c2';
                     return (
-                        <div key={sub.id} className="agent-card main" style={{ borderColor: parentColor }}>
+                        <div key={sub.id} id={`agent-card-${sub.id}`} className="agent-card main" style={{ borderColor: parentColor, transition: 'box-shadow 0.3s' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <h3 style={{ color: parentColor, margin: 0 }}>{sub.name}</h3>
                                 <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
@@ -664,10 +803,10 @@ export default function ChannelManager() {
                 </div>
 
                 <div className="header-actions">
-                    <button><Download size={14} style={{ marginRight: '6px', verticalAlign: 'text-bottom' }} /> Export</button>
-                    <button><Upload size={14} style={{ marginRight: '6px', verticalAlign: 'text-bottom' }} /> Import</button>
-                    <button><RefreshCw size={14} style={{ marginRight: '6px', verticalAlign: 'text-bottom' }} /> Reload</button>
-                    <button className="primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button onClick={handleExport}><Download size={14} style={{ marginRight: '6px', verticalAlign: 'text-bottom' }} /> Export</button>
+                    <button onClick={handleImport}><Upload size={14} style={{ marginRight: '6px', verticalAlign: 'text-bottom' }} /> Import</button>
+                    <button onClick={handleReload}><RefreshCw size={14} style={{ marginRight: '6px', verticalAlign: 'text-bottom' }} /> Reload</button>
+                    <button className="primary" onClick={handleSave} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Save size={16} /> Save
                     </button>
                 </div>

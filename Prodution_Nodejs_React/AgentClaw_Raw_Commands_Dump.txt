@@ -1,0 +1,219 @@
+AgentClaw — OpenClaw for Antigravity | Telegram Discord WhatsApp Slack Signal
+
+Commands
+ID	Title	Keyboard Shortcuts	Menu Contexts
+antigravityPro.addWorkspace	AGPRO: Add Workspace Folder	commandPalette
+antigravityPro.agents	CLAW: Multi-Agent Router	commandPalette
+antigravityPro.agignore.reload	AGPRO: Reload .agignore	commandPalette
+antigravityPro.analytics.export	AGPRO: Export Analytics	commandPalette
+antigravityPro.api.info	CLAW: API Documentation & Key	commandPalette
+antigravityPro.api.start	CLAW: Start REST API Server	commandPalette
+antigravityPro.api.stop	CLAW: Stop REST API Server	commandPalette
+antigravityPro.apitest	CLAW: API Tester (HTTP Client)	commandPalette
+antigravityPro.archdiagram	CLAW: Architecture Diagram	commandPalette
+antigravityPro.attachFiles	AGPRO: Attach Files to Chat	commandPalette
+antigravityPro.audit	AGPRO: Dependency Audit	commandPalette
+antigravityPro.auditTrail	AGPRO: View Audit Trail	commandPalette
+antigravityPro.autocommit.start	CLAW: Start Auto-Commit	commandPalette
+antigravityPro.autocommit.stop	CLAW: Stop Auto-Commit	commandPalette
+antigravityPro.autoTest	AGPRO: Auto-Generate Tests	commandPalette
+antigravityPro.backup	CLAW: Full Workspace Backup	commandPalette
+antigravityPro.backup.full	AGPRO: Full Backup	commandPalette
+antigravityPro.backup.incremental	AGPRO: Incremental Backup	commandPalette
+antigravityPro.backup.restore	AGPRO: Restore Backup	commandPalette
+antigravityPro.backup.search	AGPRO: Search Backups	commandPalette
+antigravityPro.base64	CLAW: Base64 Encode/Decode	commandPalette
+antigravityPro.batch	CLAW: Batch Process Files	commandPalette
+antigravityPro.billing	AGPRO: Cost Estimate	commandPalette
+antigravityPro.bisect	CLAW: Git Bisect Helper	commandPalette
+antigravityPro.blocklist	AGPRO: Edit Command Blocklist	commandPalette
+antigravityPro.branch	AGPRO: Branch Conversation	commandPalette
+antigravityPro.branchclean	CLAW: Branch Cleanup	commandPalette
+antigravityPro.briefing	CLAW: Send Daily Briefing Now	commandPalette
+antigravityPro.calendar	CLAW: Calendar Scheduler	commandPalette
+antigravityPro.changelog	CLAW: Changelog Generator	commandPalette
+antigravityPro.changelog.view	AGPRO: View Agent Changelog	commandPalette
+antigravityPro.changelogGen	AGPRO: Generate CHANGELOG.md	commandPalette
+antigravityPro.clipboard	CLAW: Clipboard History	commandPalette
+antigravityPro.codegen	CLAW: Code Generation Templates	commandPalette
+antigravityPro.codeGenStats	AGPRO: Code Gen Statistics	commandPalette
+antigravityPro.commitlint	CLAW: Commit Message Linter	commandPalette
+antigravityPro.compact	AGPRO: Compact Context	commandPalette
+antigravityPro.complexity	CLAW: Code Complexity Analyzer	commandPalette
+antigravityPro.conflicts	CLAW: Merge Conflict Resolver	commandPalette
+antigravityPro.context	CLAW: Context Window Optimizer	commandPalette
+antigravityPro.context.inject	AGPRO: Smart Context Inject	Ctrl+Shift+Alt+I	commandPalette
+antigravityPro.conv.forceReload	AGPRO: Force-Reload Conversations	Ctrl+Shift+Alt+C	commandPalette
+antigravityPro.conv.list	AGPRO: List All Conversations	commandPalette
+antigravityPro.conv.recover	AGPRO: Full Conversation Recovery	commandPalette
+antigravityPro.costs	CLAW: Cost Tracker	commandPalette
+antigravityPro.cron.add	AGPRO: Add Cron Job	Ctrl+Shift+Alt+J	commandPalette
+antigravityPro.cron.clearHistory	AGPRO: Clear Cron History	commandPalette
+antigravityPro.cron.dashboard	AGPRO: Cron Dashboard (OpenClaw Mode)	commandPalette
+antigravityPro.cron.edit	AGPRO: Edit/Manage Cron Jobs	commandPalette
+antigravityPro.cron.export	CLAW: Export Cron Jobs	commandPalette
+antigravityPro.cron.import	AGPRO: Import Cron Jobs	commandPalette
+antigravityPro.cron.natural	CLAW: Schedule with Natural Language	commandPalette
+antigravityPro.cronexplain	CLAW: Explain Cron Expression	commandPalette
+antigravityPro.csvjson	CLAW: CSV ↔ JSON Converter	commandPalette
+antigravityPro.daemon	CLAW: Background Daemon	commandPalette
+antigravityPro.dashboard	AGPRO: Open Dashboard	Ctrl+Shift+Alt+L	commandPalette
+antigravityPro.deadcode	CLAW: Dead Code Finder	commandPalette
+antigravityPro.delegate	CLAW: Agent Delegation	commandPalette
+antigravityPro.depaudit	CLAW: Deep Dependency Audit	commandPalette
+antigravityPro.depgraph	CLAW: Dependency Graph	commandPalette
+antigravityPro.deploy	CLAW: Deployment Manager	commandPalette
+antigravityPro.diff	CLAW: Git Diff Viewer	commandPalette
+antigravityPro.diff.highlight	AGPRO: Highlight Recent Changes	commandPalette
+antigravityPro.diff.summary	AGPRO: Workspace Diff Summary	commandPalette
+antigravityPro.diffOutputs	AGPRO: Diff Agent Outputs	commandPalette
+antigravityPro.digest	CLAW: Daily Digest	commandPalette
+antigravityPro.dns	CLAW: DNS Lookup	commandPalette
+antigravityPro.docker	CLAW: Docker Helper	commandPalette
+antigravityPro.dupes	CLAW: Duplicate Code Finder	commandPalette
+antigravityPro.email.configure	CLAW: Configure Email (SMTP)	commandPalette
+antigravityPro.email.send	CLAW: Send Email	commandPalette
+antigravityPro.env	CLAW: Environment Variables	commandPalette
+antigravityPro.envdiff	CLAW: Env Diff	commandPalette
+antigravityPro.evolve	CLAW: Capability Evolver	commandPalette
+antigravityPro.explainError	AGPRO: Explain Errors	commandPalette
+antigravityPro.export	AGPRO: Export Conversation	commandPalette
+antigravityPro.export	CLAW: Export Session Report	commandPalette
+antigravityPro.filesize	CLAW: File Size Analyzer	commandPalette
+antigravityPro.flags	CLAW: Feature Flags	commandPalette
+antigravityPro.focus	CLAW: Toggle Focus Mode	commandPalette
+antigravityPro.focusGuard.toggle	AGPRO: Toggle Focus Guard	commandPalette
+antigravityPro.format.toggle	AGPRO: Toggle Auto-Format	commandPalette
+antigravityPro.git.checkpoint	AGPRO: Git Checkpoint	Ctrl+Shift+Alt+G	commandPalette
+antigravityPro.git.rollback	AGPRO: Git Rollback	commandPalette
+antigravityPro.gitanalytics	CLAW: Git Analytics	commandPalette
+antigravityPro.github	CLAW: GitHub Integration	commandPalette
+antigravityPro.gpuInfo	AGPRO: GPU Rendering Info	commandPalette
+antigravityPro.handoff	CLAW: Agent Handoff	commandPalette
+antigravityPro.hash	CLAW: Hash Generator (MD5/SHA)	commandPalette
+antigravityPro.headers	CLAW: HTTP Header Inspector	commandPalette
+antigravityPro.health	AGPRO: Workspace Health Check	commandPalette
+antigravityPro.healthcheck	CLAW: Health Check Dashboard	commandPalette
+antigravityPro.heatmap	AGPRO: Activity Heatmap	commandPalette
+antigravityPro.inbox	CLAW: Inbox Zero Agent	commandPalette
+antigravityPro.incident	CLAW: Incident Tracker	commandPalette
+antigravityPro.inlineReview	AGPRO: Inline Code Review	commandPalette
+antigravityPro.isolate	CLAW: Isolated Workspace	commandPalette
+antigravityPro.json	CLAW: JSON Formatter	commandPalette
+antigravityPro.kanban	CLAW: Kanban Board	commandPalette
+antigravityPro.keepalive	CLAW: Toggle KeepAlive Heartbeat	commandPalette
+antigravityPro.learn	CLAW: Learning Log	commandPalette
+antigravityPro.loganalyzer	CLAW: Log Pattern Analyzer	commandPalette
+antigravityPro.logs	CLAW: Live Log Viewer	commandPalette
+antigravityPro.lorem	CLAW: Lorem Ipsum Generator	commandPalette
+antigravityPro.macro.play	AGPRO: Play Macro	commandPalette
+antigravityPro.macro.record	AGPRO: Toggle Macro Recording	commandPalette
+antigravityPro.mdstats	CLAW: Markdown Stats	commandPalette
+antigravityPro.memory.add	AGPRO: Add Agent Memory	commandPalette
+antigravityPro.memory.clear	AGPRO: Clear Agent Memory	commandPalette
+antigravityPro.memory.view	AGPRO: View Agent Memory	commandPalette
+antigravityPro.metrics	CLAW: Code Metrics Dashboard	commandPalette
+antigravityPro.mockdata	CLAW: Mock Data Generator	commandPalette
+antigravityPro.mode.switch	AGPRO: Switch Mode (Ask/Code/Architect/Debug)	Ctrl+Shift+Alt+M	commandPalette
+antigravityPro.modelInfo	AGPRO: Model Fallback Info	commandPalette
+antigravityPro.monitor	CLAW: Add Proactive Monitor	commandPalette
+antigravityPro.msg.broadcast	CLAW: Broadcast to All Channels	commandPalette
+antigravityPro.msg.configure	CLAW: Configure Messaging (Telegram/Discord/Slack/WhatsApp/Signal)	commandPalette
+antigravityPro.msg.discord.start	CLAW: Start Discord Bot	commandPalette
+antigravityPro.msg.discord.stop	CLAW: Stop Discord Bot	commandPalette
+antigravityPro.msg.signal.start	CLAW: Start Signal Bridge	commandPalette
+antigravityPro.msg.signal.stop	CLAW: Stop Signal Bridge	commandPalette
+antigravityPro.msg.slack.start	CLAW: Start Slack Bot	commandPalette
+antigravityPro.msg.slack.stop	CLAW: Stop Slack Bot	commandPalette
+antigravityPro.msg.status	CLAW: Messaging Status Dashboard	commandPalette
+antigravityPro.msg.telegram.start	CLAW: Start Telegram Bot	commandPalette
+antigravityPro.msg.telegram.stop	CLAW: Stop Telegram Bot	commandPalette
+antigravityPro.msg.whatsapp.start	CLAW: Start WhatsApp Bridge	commandPalette
+antigravityPro.msg.whatsapp.stop	CLAW: Stop WhatsApp Bridge	commandPalette
+antigravityPro.n8n	CLAW: n8n Workflow Trigger	commandPalette
+antigravityPro.network	CLAW: Network Info	commandPalette
+antigravityPro.notes	CLAW: Quick Notes	commandPalette
+antigravityPro.notifications	CLAW: Notification Center	commandPalette
+antigravityPro.pair	CLAW: Pair Programming Mode	commandPalette
+antigravityPro.pause	AGPRO: Pause/Resume Agent	Ctrl+Shift+Alt+P	commandPalette
+antigravityPro.perf	CLAW: Performance Profiler	commandPalette
+antigravityPro.persona	CLAW: Switch Agent Persona	commandPalette
+antigravityPro.personality	AGPRO: Set Agent Personality	commandPalette
+antigravityPro.pin	CLAW: Pin Context for Agent	commandPalette
+antigravityPro.pin.inject	CLAW: Inject Pinned Context	commandPalette
+antigravityPro.pipeline.create	CLAW: Create Agent Pipeline	commandPalette
+antigravityPro.pipeline.run	CLAW: Run Agent Pipeline	commandPalette
+antigravityPro.pomodoro.start	CLAW: Start Pomodoro Timer	commandPalette
+antigravityPro.pomodoro.stop	CLAW: Stop Pomodoro Timer	commandPalette
+antigravityPro.ports	CLAW: Port Scanner	commandPalette
+antigravityPro.postmortem	CLAW: Post-Mortem Generator	commandPalette
+antigravityPro.prdesc	CLAW: Auto PR Description	commandPalette
+antigravityPro.prGen	AGPRO: Generate PR Description	commandPalette
+antigravityPro.processes	CLAW: Process Manager	commandPalette
+antigravityPro.prompts	CLAW: Prompt Library	commandPalette
+antigravityPro.prompts.add	AGPRO: Add Prompt Template	commandPalette
+antigravityPro.prompts.insert	AGPRO: Insert Prompt Template	commandPalette
+antigravityPro.puppeteer.forceInject	AGPRO: Force-Inject browser_subagent Rule	commandPalette
+antigravityPro.puppeteer.toggle	AGPRO: Toggle Puppeteer Blocker (Force browser_subagent)	Ctrl+Shift+Alt+B	commandPalette
+antigravityPro.queue	CLAW: Message Queue	commandPalette
+antigravityPro.quickActions	CLAW: ⚡ Quick Actions	commandPalette
+antigravityPro.quota	AGPRO: Show Quota Usage	commandPalette
+antigravityPro.ralphLoop.configure	AGPRO: Add Ralph Message	commandPalette
+antigravityPro.ralphLoop.start	AGPRO: Start Ralph Loop	Ctrl+Shift+Alt+R	commandPalette
+antigravityPro.ralphLoop.stop	AGPRO: Stop Ralph Loop	commandPalette
+antigravityPro.refactor	CLAW: Refactor Suggestions	commandPalette
+antigravityPro.regex	CLAW: Regex Tester	commandPalette
+antigravityPro.releasenotes	CLAW: Auto Release Notes	commandPalette
+antigravityPro.replay	AGPRO: Replay Session	commandPalette
+antigravityPro.responselog	CLAW: Log Agent Response	commandPalette
+antigravityPro.retro	CLAW: Retrospective Facilitator	commandPalette
+antigravityPro.review	AGPRO: Code Review Mode	commandPalette
+antigravityPro.rules.inject	AGPRO: Inject Coding Rules	commandPalette
+antigravityPro.runbook	CLAW: Runbook Manager	commandPalette
+antigravityPro.sandboxInfo	AGPRO: Sandbox Info	commandPalette
+antigravityPro.scaffold	CLAW: Scaffold New Project	commandPalette
+antigravityPro.schedule	AGPRO: Schedule Task	commandPalette
+antigravityPro.scrape	CLAW: Web Scraping Agent	commandPalette
+antigravityPro.search	CLAW: Smart Search Everything	commandPalette
+antigravityPro.secaudit	CLAW: Security Audit	commandPalette
+antigravityPro.selfHeal	AGPRO: Self-Heal Errors	Ctrl+Shift+Alt+H	commandPalette
+antigravityPro.session.reset	AGPRO: Reset Session	commandPalette
+antigravityPro.sessionCompare	AGPRO: Compare Sessions	commandPalette
+antigravityPro.settings.export	AGPRO: Export Settings	commandPalette
+antigravityPro.settings.import	AGPRO: Import Settings	commandPalette
+antigravityPro.skills	AGPRO: Skill Marketplace	commandPalette
+antigravityPro.skills	CLAW: Skills Marketplace	Ctrl+Shift+Alt+K	commandPalette
+antigravityPro.snapshot.create	AGPRO: Create Snapshot	commandPalette
+antigravityPro.snapshot.rollback	AGPRO: Rollback Snapshot	commandPalette
+antigravityPro.snippets	CLAW: Snippet Manager	commandPalette
+antigravityPro.sounds.toggle	AGPRO: Toggle Sounds	commandPalette
+antigravityPro.ssl	CLAW: SSL Certificate Checker	commandPalette
+antigravityPro.standup	CLAW: Standup Generator	commandPalette
+antigravityPro.stash	CLAW: Git Stash Manager	commandPalette
+antigravityPro.steer	AGPRO: Steer Agent (Real-time)	Ctrl+Shift+Alt+S	commandPalette
+antigravityPro.sysmon	CLAW: System Resource Monitor	commandPalette
+antigravityPro.taskQueue.add	AGPRO: Add to Task Queue	commandPalette
+antigravityPro.taskQueue.clear	AGPRO: Clear Task Queue	commandPalette
+antigravityPro.taskQueue.run	AGPRO: Run Task Queue	commandPalette
+antigravityPro.teamShare	AGPRO: Share Macros to Team	commandPalette
+antigravityPro.techdebt	CLAW: Tech Debt Tracker	commandPalette
+antigravityPro.telemetry	AGPRO: Telemetry Info	commandPalette
+antigravityPro.temporal.start	AGPRO: Start Temporal Snapshots	commandPalette
+antigravityPro.temporal.stop	AGPRO: Stop Temporal Snapshots	commandPalette
+antigravityPro.terminal	CLAW: Capture Terminal Output	commandPalette
+antigravityPro.timestamp	CLAW: Timestamp Converter	commandPalette
+antigravityPro.todo	AGPRO: Implement TODO Comment	commandPalette
+antigravityPro.todos	CLAW: TODO Scanner	commandPalette
+antigravityPro.toggle	CLAW: Toggle Auto-Accept	Ctrl+Shift+Alt+A	commandPalette
+antigravityPro.tokens	CLAW: Token Counter	commandPalette
+antigravityPro.tokens.show	AGPRO: Show Token Usage	commandPalette
+antigravityPro.uptime	CLAW: Uptime Monitor	commandPalette
+antigravityPro.uuid	CLAW: UUID Generator	commandPalette
+antigravityPro.vault	CLAW: Credential Vault	commandPalette
+antigravityPro.versionInfo	AGPRO: Version Info	commandPalette
+antigravityPro.voice	AGPRO: Voice Command	commandPalette
+antigravityPro.voice	CLAW: Voice Command	commandPalette
+antigravityPro.watch	CLAW: Add File Watcher	commandPalette
+antigravityPro.webhook.add	CLAW: Add Webhook Endpoint	commandPalette
+antigravityPro.workspace.switch	CLAW: Switch Workspace	commandPalette
+antigravityPro.zombies	AGPRO: Cleanup Zombie Processes	commandPalette

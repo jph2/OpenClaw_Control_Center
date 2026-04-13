@@ -1,164 +1,126 @@
 {
   "channels": [
     {
-      "id": "-5207805052",
-      "name": "TL000 General Chat",
-      "model": "local-pc/google/gemma-4-26b-a4b",
+      "id": "-1003752539559",
+      "name": "TG000_General_Chat",
+      "model": "moonshot/kimi-k2.5",
       "skills": [
         "weather",
         "web_search"
       ],
-      "require_mention": false,
       "assignedAgent": "tars",
-      "inactiveSubAgents": []
+      "ideOverride": false,
+      "inactiveSubAgents": [],
+      "inactiveSkills": []
     },
     {
-      "id": "-5272630186",
-      "name": "TL500 OpenClaw Governance",
+      "id": "-5168034995",
+      "name": "TG001_Idea_Capture",
       "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [
-        "healthcheck",
-        "node-connect"
-      ],
-      "require_mention": false
+      "skills": [],
+      "assignedAgent": "tars"
     },
     {
-      "id": "-3510007915",
-      "name": "TL020 omniUSD",
+      "id": "-5116743354",
+      "name": "TG010_General_Discovery_Plus_Research",
+      "model": "local-pc/google/gemma-4-26b-a4b",
+      "skills": [],
+      "assignedAgent": "tars"
+    },
+    {
+      "id": "-5024908938",
+      "name": "TG020_omniUSD",
       "model": "moonshot/kimi-k2.5",
       "skills": [
         "omniverse-extension-development",
         "usd-development"
       ],
-      "require_mention": false
+      "assignedAgent": "sonic"
+    },
+    {
+      "id": "-5275137502",
+      "name": "TG030_DCC_CAD",
+      "model": "local-pc/google/gemma-4-26b-a4b",
+      "skills": [
+        "usd-development"
+      ],
+      "assignedAgent": "sonic"
+    },
+    {
+      "id": "-5034730971",
+      "name": "TG040_WebDev_Backend",
+      "model": "local-pc/google/gemma-4-26b-a4b",
+      "skills": [],
+      "assignedAgent": "sonic"
+    },
+    {
+      "id": "-5159996212",
+      "name": "TG050_WebDev_Frontend",
+      "model": "local-pc/google/gemma-4-26b-a4b",
+      "skills": [],
+      "assignedAgent": "sonic"
+    },
+    {
+      "id": "-1003968061817",
+      "name": "TG060_Social_Media",
+      "model": "local-pc/google/gemma-4-26b-a4b",
+      "skills": [],
+      "assignedAgent": "tars"
+    },
+    {
+      "id": "-5103615103",
+      "name": "TG070_QA_Plus_Security",
+      "model": "local-pc/google/gemma-4-26b-a4b",
+      "skills": [
+        "healthcheck"
+      ],
+      "assignedAgent": "marvin"
+    },
+    {
+      "id": "-5272630186",
+      "name": "TG500_OpenClaw_Governance",
+      "model": "local-pc/google/gemma-4-26b-a4b",
+      "skills": [
+        "node-connect"
+      ],
+      "assignedAgent": "marvin"
+    },
+    {
+      "id": "-5169316413",
+      "name": "TG510_Upcoming_Skills",
+      "model": "local-pc/google/gemma-4-26b-a4b",
+      "skills": [],
+      "assignedAgent": "tars"
+    },
+    {
+      "id": "-5155708359",
+      "name": "TG520_Agentic_Intelligence",
+      "model": "local-pc/google/gemma-4-26b-a4b",
+      "skills": [],
+      "assignedAgent": "tars"
+    },
+    {
+      "id": "-5197370693",
+      "name": "TG700_Studio_Framework",
+      "model": "local-pc/google/gemma-4-26b-a4b",
+      "skills": [],
+      "assignedAgent": "tars"
     },
     {
       "id": "-5012559503",
-      "name": "TL800 Experimental Box",
+      "name": "TG800_Experimental_Box",
       "model": "local-pc/google/gemma-4-26b-a4b",
       "skills": [
-        "clawflow",
-        "skill-creator"
+        "clawflow"
       ],
-      "require_mention": false
+      "assignedAgent": "sonic"
     },
     {
-      "id": "-5272630187",
-      "name": "TG010_General_Discovery_Research",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "require_mention": false
-    },
-    {
-      "id": "-5272630188",
-      "name": "TG030_dcc_cad",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [
-        "usd-development",
-        "omniverse-extension-development"
-      ],
-      "require_mention": false
-    },
-    {
-      "id": "-5272630189",
-      "name": "TG040_webdev_backend",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "require_mention": false
-    },
-    {
-      "id": "-5272630190",
-      "name": "TG050_webdev_frontend",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "require_mention": false
-    },
-    {
-      "id": "-5272630191",
-      "name": "TG060_social_media",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "require_mention": false
-    },
-    {
-      "id": "-5272630192",
-      "name": "TG070_qa_security",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "require_mention": false
-    },
-    {
-      "id": "-5272630193",
-      "name": "TG500_openclaw_governance",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "require_mention": false
-    },
-    {
-      "id": "-5272630194",
-      "name": "TG510_upcoming_skills",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "require_mention": false
-    },
-    {
-      "id": "-5272630195",
-      "name": "TG520_agentic_intelligence",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "require_mention": false
-    },
-    {
-      "id": "-5272630196",
-      "name": "TG700_studio_framework",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "require_mention": false
-    },
-    {
-      "id": "-5272630197",
+      "id": "-5228979198",
       "name": "TG900_troubleshooting",
       "model": "local-pc/google/gemma-4-26b-a4b",
       "skills": [],
-      "require_mention": false
-    },
-    {
-      "id": "-3736210177",
-      "name": "New Channel -3736210177",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [
-        "web_fetch"
-      ],
-      "assignedAgent": "",
-      "inactiveSubAgents": [
-        "researcher",
-        "documenter"
-      ],
-      "inactiveSkills": [
-        "web_search"
-      ]
-    },
-    {
-      "id": "-3899450316",
-      "name": "New Channel -3899450316",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "assignedAgent": "tars",
-      "inactiveSubAgents": [
-        "researcher",
-        "documenter"
-      ]
-    },
-    {
-      "id": "-3566334093",
-      "name": "New Channel -3566334093",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "assignedAgent": "tars",
-      "inactiveSubAgents": [
-        "researcher",
-        "documenter"
-      ]
+      "assignedAgent": "marvin"
     }
   ],
   "agents": [
@@ -166,13 +128,9 @@
       "id": "tars",
       "name": "TARS",
       "role": "Planner",
-      "description": "Constructive builder in artifact system",
       "color": "#50e3c2",
       "defaultSkills": [
         "clawflow",
-        "web_search"
-      ],
-      "inactiveSkills": [
         "web_search"
       ]
     },
@@ -180,71 +138,19 @@
       "id": "marvin",
       "name": "MARVIN",
       "role": "Critic",
-      "description": "Adversarial audit and QA",
       "color": "#e35050",
       "defaultSkills": [
-        "healthcheck",
-        "node-connect"
+        "healthcheck"
       ]
     },
     {
       "id": "sonic",
       "name": "SONIC",
       "role": "Executor",
-      "description": "Fast implementation mode",
       "color": "#e3c450",
       "defaultSkills": [
         "web_search",
         "web_fetch"
-      ]
-    }
-  ],
-  "subAgents": [
-    {
-      "id": "researcher",
-      "name": "Researcher",
-      "parent": "tars",
-      "description": "Web search and information gathering",
-      "additionalSkills": [
-        "web_search",
-        "web_fetch"
-      ]
-    },
-    {
-      "id": "coder",
-      "name": "Coder",
-      "parent": "sonic",
-      "description": "Code implementation and debugging",
-      "additionalSkills": [
-        "omniverse-extension-development",
-        "usd-development"
-      ]
-    },
-    {
-      "id": "reviewer",
-      "name": "Reviewer",
-      "parent": "marvin",
-      "description": "Code review and quality checks",
-      "additionalSkills": [
-        "web_fetch"
-      ]
-    },
-    {
-      "id": "documenter",
-      "name": "Documenter",
-      "parent": "tars",
-      "description": "Documentation and knowledge management",
-      "additionalSkills": [
-        "notion"
-      ]
-    },
-    {
-      "id": "tester",
-      "name": "Tester",
-      "parent": "marvin",
-      "description": "Testing and validation",
-      "additionalSkills": [
-        "healthcheck"
       ]
     }
   ]

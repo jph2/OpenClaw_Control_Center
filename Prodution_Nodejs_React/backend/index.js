@@ -41,9 +41,15 @@ app.get('/api/health', (req, res) => {
 // G5: Global Sanitized Error Handler (Mask Stack Traces in Production)
 import channelRoutes from './routes/channels.js';
 import workbenchRoutes from './routes/workbench.js';
+import telegramRoutes from './routes/telegram.js';
+import { initTelegramService } from './services/telegramService.js';
 
 app.use('/api/channels', channelRoutes);
 app.use('/api/workbench', workbenchRoutes);
+app.use('/api/telegram', telegramRoutes);
+
+// Sub-Task 3.1: Initialize Telegram Event Stream
+initTelegramService();
 
 app.use((err, req, res, next) => {
     console.error(`[ERROR] ${err.name}: ${err.message}`);
