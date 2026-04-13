@@ -24,7 +24,8 @@ tags: [implementation, channel_manager, telegram-hub, zod, private-ecosystem]
 
 # Implementierungsplan: Centralized Channel Manager (V1.3)
 
-**Version**: 1.3.0 | **Date**: 13.04.2026 | **Time**: 20:50 | **GlobalID**: 20260413_2050_IMPLEMENTATION_v1.3
+**Release**: V1.4 | **Status**: Research-Complete / Phase 5 In-Progress | **Focus**: Rosetta-Sync & Context Continuity
+**GlobalID**: 20260413_2050_IMPLEMENTATION_v1.3
 
 **Last Updated:** 13.04.2026 20:50  
 **Framework:** Horizon Studio Framework  
@@ -57,10 +58,14 @@ tags: [implementation, channel_manager, telegram-hub, zod, private-ecosystem]
 ## 5. Phase: UI-Polishing, Persistence & Unified Brain (AKTIVE PHASE 🏗️)
 Ziel: Bedienkomfort verbessern, Architektur-Lecks schließen und Wissens-Kontinuität sicherstellen.
 
-- [ ] **Sub-Task 5.1**: **Zod Normalization Layer**: Refactoring der Zod-Schemas zur Vermeidung des crashes bei `undefined` (Härtung der Validierung).
-- [ ] **Sub-Task 5.2**: **History Hydration**: Implementierung eines Memory-Scanners, der Markdown-Logs in `/workspace/memory` parst, um die Chat-History 1:1 zu befüllen.
-- [ ] **Sub-Task 5.3**: **Unified Brain Policy**: Konfiguration sicherstellen, dass TARS und CASE denselben Workspace nutzen.
-- [ ] **Sub-Task 5.4**: **Atomic Persistence**: Implementierung des POST-Handlers für `openclaw.json` (Save/Export/Import).
+- [ ] **Phase 5.1: Zod Normalization Layer** (Härtung der Pipeline gegen undefined/null-Crashes).
+- [ ] **Phase 5.2: Memory History Hydration (Rosetta Stone)**
+  - Implementierung eines Scanners für `/home/claw-agentbox/.openclaw/workspace/memory/*.md`.
+  - Abgleich der `agent:main:telegram:group:<ID>` Keys mit den Markdown-Metadaten.
+- [ ] **Phase 5.3: TARS Hub Deep-Link Integration**
+  - Einbau der direkten Sprungmarken (`:18789/chat?session=...`) in die UI-Kanal-Karten.
+- [ ] **Phase 5.4: Atomic Config Persistence (Härtung)**
+  - Implementierung des `POST /api/channels/config` Handlers mit automatischem Chokidar-Signal.
 - [ ] **Sub-Task 5.5**: **Session Visibility**: Anzeige der `sessionKey` oder eines Parity-Indikators in der UI.
 - [x] **Sub-Task 5.6**: Agent Quick-Navigation (Scroll-Into-View).
 - [x] **Sub-Task 5.7**: IDE Override Toggle.

@@ -24,7 +24,8 @@ tags: [specification, channel_manager, requirements, private-ecosystem, zod-hard
 
 # Spezifikation & Kernanforderungen: Sovereign Channel Management (V1.5)
 
-**Version**: 1.5.0 | **Date**: 13.04.2026 | **Time**: 20:55 | **GlobalID**: 20260413_2055_SPECIFICATION_v1.5
+**Version**: 1.6.0 | **Date**: 13.04.2026 | **Status**: Hardened | **Context**: Rosetta Stone / TARS Hub Continuity
+20260413_2055_SPECIFICATION_v1.5
 
 **Status:** active | **Master Source:** Horizon Studio Framework
 
@@ -131,6 +132,18 @@ graph LR
 
 ### 5.1 Technischer Datenfluss (Sequence)
 
+### 5.4 Rosetta Stone: Session Mapping Logic
+To ensure **Context Continuity** between the Channel Manager, Anti-Gravity IDE, and the Telegram surface, the system MUST enforce **Session Key Parity**:
+
+1. **Mapping Pattern**: `agent:main:telegram:group:<ID>`
+2. **Physical Storage**: Matches the `Session ID` metadata in `/workspace/memory/*.md`.
+3. **Deep Links**: Direct navigation to `http://<HOST>:18789/chat?session=<KEY>`.
+
+Any channel configuration change in `openclaw.json` must preserve these keys to prevent "Context Amnesia".
+
+---
+
+## 6. Sequence Diagrams
 ```mermaid
 sequenceDiagram
     participant User as User
