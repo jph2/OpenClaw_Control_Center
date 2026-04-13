@@ -90,6 +90,18 @@ Real-time Feedback im Web darf nicht auf Telegram-Edits warten.
 [Frontend: Save Button] → [Zod Validation (Relaxed)] → [Backend: Normalizer] → [FS: Atomic Write to openclaw.json] → [Chokidar Signal] → [UI Reload]
 ```
 
+### ⚠️ Der Rosetta-Stein (Verified Mapping)
+- **Live-URL:** `http://127.0.0.1:18789/chat?session=agent:main:main`
+- **Memory-File:** `/home/claw-agentbox/.openclaw/workspace/memory/2026-04-13-telegram-test.md` (identifizierte Session ID: `0de07b2b...`)
+- **Erkenntnis:** Die Synchronisation erfolgt über den Abgleich des Session-Keys mit den Metadaten-Blöcken im Markdown-Header.
+
+---
+
+## 7. Nächste Schritte & Marschbefehl
+
+- **Immediate Action:** Refactor `backend/routes/channels.js` to handle `undefined` values explicitly before Zod takes over.
+- **Continuity Design:** Sicherstellen, dass TARS und CASE auf denselben Workspace-Vektor zeigen, um Wissensverlust beim Wechsel zwischen IDE und Chat zu vermeiden.
+
 ---
 
 ## 4. Evidence & Recommendations
