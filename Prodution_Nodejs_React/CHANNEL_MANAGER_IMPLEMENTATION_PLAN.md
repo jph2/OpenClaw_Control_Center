@@ -13,7 +13,7 @@ agent_index:
     phase5: "#5-phase-ui-polishing-persistence--unified-brain"
     phase6: "#6-phase-native-ide-telegram-integration-anti-gravity"
 created: "2026-04-12T01:07:00Z"
-last_modified: "2026-04-13T20:50:00Z"
+last_modified: "2026-04-14T17:15:00Z"
 author: "AntiGravity"
 provenance:
   git_repo: "Openclaw-OpenUSDGoodtstart-Extension"
@@ -27,7 +27,7 @@ tags: [implementation, channel_manager, telegram-hub, zod, private-ecosystem]
 **Release**: V1.4 | **Status**: Research-Complete / Phase 5 In-Progress | **Focus**: Rosetta-Sync & Context Continuity
 **GlobalID**: 20260413_2050_IMPLEMENTATION_v1.3
 
-**Last Updated:** 13.04.2026 20:50  
+**Last Updated:** 14.04.2026 17:15  
 **Framework:** Horizon Studio Framework  
 **Status:** active
 
@@ -96,20 +96,44 @@ Ziel: Anbindung von AntiGravity an den Channel Manager über einen lokalen MCP S
   - Tool: `change_agent_mode(tars|marvin|sonic)`. CASE kann temporär an eine andere Engine übergeben, wenn in der IDE ein anderer Fokus geboten ist.
 - [x] **Sub-Task 7.4: Integration in AntiGravity (`.gemini/antigravity/` config)**
   - Registrierung des MCP Servers in der IDE-Umgebung ("mcp_servers" JSON).
----
 
-## 8. Phase: MCP Governance & Whitelisting 🔮
+## 8. Phase: Gateway & MCP Port-Stabilisierung (AKTIVE PHASE 🛠️)
+Ziel: Behebung von Port-Konflikten (EADDRINUSE) und Stabilisierung der Port-Forwarding Architektur zwischen IDE, Backend und Frontend.
+
+- [ ] **Sub-Task 8.1: Port-Standardisierung (Contract Fix)**
+  - Festlegen fester Ports: **3000** für das Backend (wie vom User präferiert), **5173** für Vite, **4260** für die Workbench.
+  - Update der `MCP-ChannelManager.mjs` auf den finalen Backend-Port.
+- [ ] **Sub-Task 8.2: Deep-Clean Zombie-Prozesse**
+  - Bereinigen aller verwaisten Node/Vite Prozesse auf 13.04/14.04-Basis.
+  - Skript-basierte Prüfung der Port-Belegung vor dem Start.
+- [ ] **Sub-Task 8.3: Validierung Test 4**
+  - Durchführung des Sovereign MCP-Bridge Tests (Send Telegram Reply) nach IDE-Reload.
+
+## 9. Phase: MCP Governance & Whitelisting 🔮
 Ziel: Granulare Steuerung (Whitelisting), auf welche in der IDE lokal installierten MCP-Server (z. B. `firecrawl`, `obsidian`, `lexware`) der CASE Agent in einem spezifischen Channel Zugriff hat.
 
-- [ ] **Sub-Task 8.1: Schema-Erweiterung für MCP-Whitelists**
+- [ ] **Sub-Task 9.1: Schema-Erweiterung für MCP-Whitelists**
   - Erweiterung des `ChannelConfigSchema` im Backend um ein Feld `allowedMCPs` (z. B. Array of Strings).
-- [ ] **Sub-Task 8.2: UI-Integration im Channel Manager**
+- [ ] **Sub-Task 9.2: UI-Integration im Channel Manager**
   - Hinzufügen eines gelb akzentuierten "+ Add MCP" Dropdowns auf Kanalebene (neben oder unter den "Skills").
   - Dynamisches Parsen der lokal in der IDE definierten MCP-Server, um diese im Dropdown zur Verfügung zu stellen.
   - Visuelle Unterscheidung (Farbe, Labeling z. B. "INHERITED BY IDE") der aktivierten MCPs im Channel-Graphen.
-- [ ] **Sub-Task 8.3: Policy-Injection via System Prompt**
+- [ ] **Sub-Task 9.3: Policy-Injection via System Prompt**
   - Erweiterung der in Sub-Task 7.2 geschaffenen `config://{telegram_id}` Ressource.
   - Das Backend übergibt der IDE künftig das definierte `allowedMCPs`-Array, wodurch der System Prompt von CASE instruiert wird, in diesem Channel nur dedizierte Server anzusprechen.
 
+## 10. Phase: OpenClaw Control Center Integration 🌌
+Ziel: Schaffung eines "Single Point of Entry" zum Starten des Control Centers (Workbench + Channel Manager) und Dokumentation im Studio Framework.
+
+- [x] **Sub-Task 10.1: Zentrale Steuerung (`occ-ctl.mjs`)**
+  - Implementierung eines Controller-Scripts im Root der Extension.
+  - Funktionen: Port-Check (3000, 4260, 5173), automatische Bereinigung von Zombies, verwalteter Start von Backend/Frontend/Workbench.
+- [x] **Sub-Task 10.2: Dokumentation im Studio Framework**
+  - Erstellung der [README_OpenClaw_Control_Center.md](file:///media/claw-agentbox/data/9999_LocalRepo/Studio_Framework/100_Framework_Reports_Dokus/README_OpenClaw_Control_Center.md).
+  - Definition des Port-Contracts und der Start-Prozedur für TARS/AntiGravity/User.
+- [x] **Sub-Task 10.3: Control Center Maintenance Skill**
+  - Erstellung des [SKILL_Control_Center_Maintenance.md](file:///media/claw-agentbox/data/9999_LocalRepo/Studio_Framework/015_AgentSkills_Dev/20_Domain_Skills/SKILL_Control_Center_Maintenance.md).
+  - Befähigung des Agenten, den Status des Control Centers autonom zu prüfen und ggf. Neustarts anzubieten.
+
 ---
-*Status: Phasen 1-7 (inkl. MCP Bridge) abgeschlossen. Zukünftiger Fokus: Phase 8.*
+*Status: Phasen 1-7 abgeschlossen. Phase 8 (Stabilisierung) und Phase 10 (OpenClaw Control Center) aktuell in Arbeit.*

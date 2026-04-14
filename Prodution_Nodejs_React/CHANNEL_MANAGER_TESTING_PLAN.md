@@ -40,5 +40,15 @@ Da wir die Architektur radikal auf das **Gateway-First** Pattern (FS-Chokidar-Li
 - [x] **Schritt 3:** Die Nachricht erscheint in deiner Chat-App und wird, da TARS dort zuhört, wieder im OpenClaw-Netzwerk registriert.
 - [x] **Schritt 4:** Der Scanner bringt die End-Nachricht zurück ins UI.
 
+## 4. Der Sovereign MCP-Bridge Test (Phase 7)
+**Ziel:** Verifizieren, dass die IDE (AntiGravity) die Channel Manager Umgebung als "Sovereign Context" via stdio adaptiert, Memory abrufen und Tools bedienen kann.
+
+- [ ] **Schritt 1:** AntiGravity Neustart. Prüfen, ob der Server `sovereign-channel-bridge` von der IDE via `mcp_config.json` erfolgreich geladen wird (grüner Status in IDE).
+- [ ] **Schritt 2 (Resource Hydration):** In AntiGravity ("als CASE") eine Prompt eingeben wie: *"Lies den Context von config://channels und sage mir, welche Agenten aktiv sind."*
+- [ ] **Schritt 3 (Per-Channel Permissions):** Die Ressource `config://{telegram_id}` (z. B. `config://-1003752539559`) von AntiGravity ansteuern lassen. Verifizieren, ob CASE korrekt die Whitelist seiner `caseSkills` erkennt.
+- [ ] **Schritt 4 (Tool Execution):** AntiGravity instruieren: *"Schicke eine Telegram Reply über dein Tool `send_telegram_reply` in den Channel -1003752539559 mit dem Text: 'Sovereign Bridge online!'."*
+- [ ] **Schritt 5:** Die Nachricht muss vom lokalen Node.js Webserver empfangen und sicher per Telegram API in den Chat injiziert werden, ohne dass AntiGravity den Bot-Token kennt.
+
 ---
-✅ **ALLE TESTS ERFOLGREICH ABGESCHLOSSEN:** Die "Gateway-First" Brücke ist vollständig verifiziert und performant in das React UI (Channel Manager) integriert.
+✅ **TESTS 1 BIS 3 ERFOLGREICH ABGESCHLOSSEN:** Die "Gateway-First" Brücke ist vollständig verifiziert und performant in das React UI (Channel Manager) integriert.
+⏳ **TEST 4 STEHT AUS**

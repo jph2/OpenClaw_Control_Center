@@ -11,7 +11,9 @@
       "assignedAgent": "tars",
       "ideOverride": false,
       "inactiveSubAgents": [],
-      "inactiveSkills": []
+      "inactiveSkills": [],
+      "caseSkills": [],
+      "inactiveCaseSkills": []
     },
     {
       "id": "-5168034995",
@@ -152,6 +154,43 @@
         "web_search",
         "web_fetch"
       ]
+    },
+    {
+      "id": "case",
+      "name": "CASE (@CASE_JanBot)",
+      "role": "IDE Relay / DevBot",
+      "color": "#3b82f6",
+      "defaultSkills": [
+        "clawflow",
+        "web_search"
+      ]
+    }
+  ],
+  "subAgents": [
+    {
+      "id": "researcher",
+      "name": "Researcher",
+      "parent": "tars"
+    },
+    {
+      "id": "documenter",
+      "name": "Documenter",
+      "parent": "tars"
+    },
+    {
+      "id": "coder",
+      "name": "Coder",
+      "parent": "sonic"
+    },
+    {
+      "id": "reviewer",
+      "name": "Reviewer",
+      "parent": "marvin"
+    },
+    {
+      "id": "tester",
+      "name": "Tester",
+      "parent": "marvin"
     }
   ]
 }
