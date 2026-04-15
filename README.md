@@ -112,6 +112,20 @@ Default URL:
 - raw mode:
   - `http://localhost:4260/?root=workspace&path=docs/openclaw-four-repo-strategy-v1.md&mode=raw`
 
+## Repository (Git remote)
+
+Canonical GitHub repository (current name: **OpenClaw_Control_Center**):
+
+- **SSH:** `git@github.com:jph2/OpenClaw_Control_Center.git`
+- **HTTPS:** `https://github.com/jph2/OpenClaw_Control_Center.git`
+
+If a clone still uses the legacy remote (`Openclaw-OpenUSDGoodstart-UI_Extensions` or similar), Git may print GitHub’s *repository moved* hint. Point `origin` at the URL above to clear it:
+
+```bash
+git remote set-url origin git@github.com:jph2/OpenClaw_Control_Center.git
+git remote -v
+```
+
 ## Safety notes
 
 This MVP is intentionally read-only and restricts file access to approved root directories.
