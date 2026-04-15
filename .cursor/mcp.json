@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "openclaw-channel-manager": {
+      "command": "/usr/bin/node",
+      "args": [
+        "/media/claw-agentbox/data/9999_LocalRepo/OpenClaw_Control_Center/Backend_MCP/MCP-ChannelManager.mjs"
+      ],
+      "env": {
+        "API_BASE_URL": "http://localhost:3000/api"
+      }
+    }
+  }
+}
