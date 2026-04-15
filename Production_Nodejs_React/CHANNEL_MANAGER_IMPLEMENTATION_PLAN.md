@@ -13,7 +13,7 @@ agent_index:
     phase5: "#5-phase-ui-polishing-persistence--unified-brain"
     phase6: "#6-phase-native-ide-telegram-integration-anti-gravity"
 created: "2026-04-12T01:07:00Z"
-last_modified: "2026-04-14T17:15:00Z"
+last_modified: "2026-04-15T12:00:00Z"
 author: "AntiGravity"
 provenance:
   git_repo: "OpenClaw_Control_Center"
@@ -24,10 +24,10 @@ tags: [implementation, channel_manager, telegram-hub, zod, private-ecosystem]
 
 # Implementierungsplan: Centralized Channel Manager (V1.3)
 
-**Release**: V1.4 | **Status**: Phase 6 & 8 In-Progress | **Focus**: Rosetta-Sync & Context Continuity
-**GlobalID**: 20260413_2050_IMPLEMENTATION_v1.3
+**Release**: V1.5 | **Status**: Phase 6 & 8 (teilweise), MCP/Cursor operational | **Focus**: Rosetta-Sync, Gateway-Delivery & IDE-MCP
+**GlobalID**: 20260415_1200_IMPLEMENTATION_v1.5
 
-**Last Updated:** 14.04.2026 17:15  
+**Last Updated:** 15.04.2026 12:00  
 **Framework:** Horizon Studio Framework  
 **Status:** active
 
@@ -58,6 +58,7 @@ tags: [implementation, channel_manager, telegram-hub, zod, private-ecosystem]
 **Status: Blueprint umgesetzt (14.04.2026)**
 - [x] **Sub-Task 5.1 Abschaltung des Telegram Syncs**: Entferne `bot.launch()` und `getUpdates` aus dem lokalen Node.js Backend.
 - [x] **Sub-Task 5.2 Gateway-Listener**: Verwende "Chokidar" (lokaler File-Scanner) um die Session-Transcript-Historie an das React-Frontend durchzuschleifen (SSE/GraphQL Bypass).
+- [x] **Sub-Task 5.3 Outbound-CLI mit Zustellung (15.04.2026):** `telegramService.sendMessageToChat` nutzt `openclaw agent --channel telegram --to … --message … --deliver` (CLI-Default `--deliver` ist `false`). Message-Buffer wird immer für den Kanal-Key angelegt (SSE).
 
 ## 6. Phase: UI-Polishing, Persistence & Unified Brain (AKTIVE PHASE 🏗️)
 Ziel: Bedienkomfort verbessern, Architektur-Lecks schließen und Wissens-Kontinuität sicherstellen.
@@ -82,12 +83,13 @@ Ziel: Bedienkomfort verbessern, Architektur-Lecks schließen und Wissens-Kontinu
 - [x] **Sub-Task 6.7**: Agent Quick-Navigation (Scroll-Into-View).
 - [x] **Sub-Task 6.8**: IDE Override Toggle.
 
-## 7. Phase: Model Context Protocol (MCP) Server Integration (Anti-Gravity Bridge) 🚀
-Ziel: Anbindung von AntiGravity an den Channel Manager über einen lokalen MCP Server, sodass CASE (AntiGravity) vollkommen autonom und ohne eigene Tokens in den Telegram-Gruppen agieren kann.
+## 7. Phase: Model Context Protocol (MCP) Server Integration (IDE Bridge) 🚀
+Ziel: Anbindung der IDE (AntiGravity / **Cursor**) an den Channel Manager über einen MCP-Server (stdio), sodass CASE ohne Bot-Tokens in der IDE in den Telegram-Kontext injizieren kann.
 
 - [x] **Sub-Task 7.1: MCP Server Setup (Node.js)**
   - Initialisierung eines dedizierten MCP Servers (`@modelcontextprotocol/sdk`).
-  - Integration als Modul im bestehenden `backend/`-Verzeichnis oder standalone Prozess.
+  - Standalone **`Backend_MCP/`** mit `package.json`, `npm install`, **`run-mcp.sh`** (SSH-Start von Windows).
+  - Tool **`send_telegram_reply`** proxied an **`POST /api/telegram/send`** (body: `chatId`, `text`).
 - [x] **Sub-Task 7.2: MCP Resources Injection (Context Hydration)**
   - Erstellen einer Ressource `memory://{telegram_id}`, die das physische Transkript aus `/workspace/memory/*.md` ausliest und AntiGravity zur Verfügung stellt.
   - Erstellen einer Ressource `config://{telegram_id}`, die die erlaubten CASE SKILLS aus dem Channel Manager als YAML/JSON für den System Prompt anbietet.
@@ -96,6 +98,14 @@ Ziel: Anbindung von AntiGravity an den Channel Manager über einen lokalen MCP S
   - Tool: `change_agent_mode(tars|marvin|sonic)`. CASE kann temporär an eine andere Engine übergeben, wenn in der IDE ein anderer Fokus geboten ist.
 - [x] **Sub-Task 7.4: Integration in AntiGravity (`.gemini/antigravity/` config)**
   - Registrierung des MCP Servers in der IDE-Umgebung ("mcp_servers" JSON).
+- [x] **Sub-Task 7.5: Cursor & Remote-SSH (Stand 15.04.2026)**
+  - **`C:\Users\<User>\.cursor\mcp.json` (Windows):** `openclaw-channel-manager` via `ssh -T laptop … run-mcp.sh`.
+  - **`~/.cursor/mcp.json` (Laptop):** gleicher Server-ID mit direktem `/usr/bin/node …/MCP-ChannelManager.mjs` (kein `E:\`).
+  - **Projekt**-`.cursor/mcp.json` mit identischer Server-ID entfernt (Doppel-Einträge vermieden).
+- [x] **Sub-Task 7.6: CASE-Identität in Cursor (Stand 15.04.2026)**
+  - **`~/.openclaw/workspace/.cursor/rules/case-cursor-identity.mdc`** (`alwaysApply: true`) — Session-Start: CASE lesen (`CASE_SOUL.md`), nicht TARS-Stimme für IDE-Aufgaben.
+  - **`AGENTS.md`:** Agent-Tabelle CASE → **Cursor IDE**.
+  - **`Studio_Framework/.cursor/rules/openclaw-channel-gems-context.mdc`** — Kontext für Edits unter `A075_Channel_Gems/`.
 
 ## 8. Phase: Gateway & MCP Port-Stabilisierung (AKTIVE PHASE 🛠️)
 Ziel: Behebung von Port-Konflikten (EADDRINUSE) und Stabilisierung der Port-Forwarding Architektur zwischen IDE, Backend und Frontend.
@@ -140,6 +150,7 @@ Ziel: Umbenennung des Repositories in `OpenClaw_Control_Center` und Ablösung ha
 - [ ] **Sub-Task 11.3: ARYS/GILD Metadata Sync**
   - Massen-Update der `git_path` Einträge in den YAML-Headern aller Dokumente im Studio Framework und Extension-Repo.
 - [x] **Sub-Task 11.4: Final Execution (Rename & Deployment)** (Directory renamed to `OpenClaw_Control_Center` ✅).
+- [x] **Sub-Task 11.5: Ordner `Production_Nodejs_React` (15.04.2026):** Tippfehler `Prodution_Nodejs_React` → **`Production_Nodejs_React`** im Repo bereinigt.
 
 ---
-*Status: Phasen 1-8 (Teilweise 8), Phase 10 & 11 (Teilweise 11) abgeschlossen.*
+*Status: Phasen 1–5 erweitert (5.3 Outbound), Phase 6–8 teilweise, Phase 7 inkl. Cursor/SSH, Phase 10/11 teilweise. Letzte Sync-Doku: 15.04.2026.*

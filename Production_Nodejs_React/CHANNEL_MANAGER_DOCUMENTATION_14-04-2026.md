@@ -13,7 +13,7 @@ agent_index:
     stabilization: "#2-stabilisierungs-meilensteine-14042026"
     anti_patterns: "#anti-patterns--architektonische-fallstricke"
 created: "2026-04-13T20:45:00Z"
-last_modified: "2026-04-14T12:00:00Z"
+last_modified: "2026-04-15T12:00:00Z"
 author: "AntiGravity"
 provenance:
   git_repo: "OpenClaw_Control_Center"
@@ -24,9 +24,9 @@ tags: [master-docs, architecture, zod, telegram-hub, private-ecosystem, anti-pat
 
 # OpenClaw Channel Manager: Master Documentation
 
-**Version**: 2.1.0 | **Date**: 14.04.2026 | **Time**: 12:30 | **GlobalID**: 20260414_1230_MASTER_DOC_v2
+**Version**: 2.2.0 | **Date**: 15.04.2026 | **Time**: 12:00 | **GlobalID**: 20260415_1200_MASTER_DOC_v2
 
-**Status:** active | **Source Registry:** Consolidated from Docs 10.04. & 14.04.
+**Status:** active | **Source Registry:** Consolidated from Docs 10.04., 14.04. & **15.04.2026** (Gateway-Delivery, MCP/Cursor).
 
 ---
 
@@ -77,6 +77,28 @@ Um CASE als First-Class-Citizen abzubilden, wurde das Channel Manager UI refacto
 Es wurde final beschlossen, den Channel Manager um einen **Sovereign MCP Server** zu erweitern, anstatt auf ACP (Agent Communication Protocol) zu setzen.
 - **Begründung:** MCP ist präzise darauf ausgelegt, IDEs (wie AntiGravity) direkten Kontext und freigegebene Tools zur Verfügung zu stellen. 
 - **Nutzen:** AntiGravity (als Frontend-Model) kann den MCP Server kontaktieren, liest über ihn das Memory-Transcript aus `/workspace/memory/` sowie die erlaubten Channel-Skills, und hydratisiert so den System-Prompt von CASE komplett autonom.
+
+### 2.6 Gateway-Zustellung & MCP-Betrieb (15.04.2026)
+
+**Outbound (Channel Manager → OpenClaw → Telegram):**  
+`sendMessageToChat` nutzt `openclaw agent --channel telegram --to "<id>" --message "…" --deliver`. Ohne **`--deliver`** liefert die CLI zwar oft Exit 0, die **Antwort** wird aber nicht zuverlässig an den Kanal zurückgespielt (Default in der OpenClaw-CLI: `deliver false`). Zusätzlich: Message-Buffer im Backend wird für den Kanal-Key angelegt, damit SSE nicht „stumm“ bleibt.
+
+**MCP `Backend_MCP/`:**  
+- `package.json` + `@modelcontextprotocol/sdk`, **`run-mcp.sh`** für stdio-Stable-Start unter SSH.  
+- Tool **`send_telegram_reply`** → **`POST /api/telegram/send`** (Felder `chatId`, `text`).
+
+**Cursor: Windows vs. Remote-SSH:**  
+- **Windows-User:** `C:\Users\<User>\.cursor\mcp.json` — `openclaw-channel-manager` z. B. `ssh -T laptop … run-mcp.sh`.  
+- **Laptop (SSH):** `~/.cursor/mcp.json` — derselbe Server mit **Linux-Pfaden** (`/usr/bin/node`, `/media/.../MCP-ChannelManager.mjs`). **Nicht** die Windows-`mcp.json` 1:1 kopieren (`E:\`, `cmd` funktionieren auf dem Remote nicht).  
+- **Doppel-Einträge:** Projekt-`.cursor/mcp.json` im Repo mit gleicher Server-ID wie User-Datei entfernt (nur eine Quelle pro ID).
+
+**Repo:** Verzeichnis **`Production_Nodejs_React/`** (Schreibweise korrigiert; früher `Prodution_*`).
+
+### 2.7 CASE-Identität in Cursor (15.04.2026)
+
+- **`AGENTS.md`** im OpenClaw-Workspace listet **CASE** explizit unter **Cursor IDE** (nicht nur Anti-Gravity).
+- **Cursor Rule (immer aktiv):** `~/.openclaw/workspace/.cursor/rules/case-cursor-identity.mdc` (`alwaysApply: true`) — weist den Agenten an, bei Arbeit in diesem Workspace **`CASE_SOUL.md`** zu lesen und sich von **TARS**-Ton zu unterscheiden.
+- **Studio_Framework:** `Studio_Framework/.cursor/rules/openclaw-channel-gems-context.mdc` — bei Edits in **`A075_Channel_Gems/**` Alignment mit Control-Center-Specs und CASE-/Soul-Kontext.
 
 ---
 
@@ -135,6 +157,9 @@ Die Verwendung von inkonsistenten IDs zwischen `models.json` (Provider) und `ope
 ### AP-16: Ignoring Live Session Keys
 Das Erfinden neuer Session-Keys für bestehende Kanäle zerstört den Zugriff auf historische Memory-Logs. Nutze IMMER die `agent:main:telegram:group:<ID>` Parity, um den "Rosetta-Sync" zu erhalten.
 
+### AP-17: MCP-Konfiguration OS-übergreifend kopieren
+Die Windows-`mcp.json` (`E:\`, `cmd /c`, `.exe`) in **Remote-SSH** nach `~/.cursor/mcp.json` zu kopieren, führt zu rotem Status: Pfade und Shell existieren auf Linux nicht. **Remote:** eigene JSON mit Linux-Pfaden und ggf. **venv**-Python (`python3 -m venv`, `pip install httpx` o. ä.).
+
 ---
 
 ## Best Practices für Sovereign Engineering
@@ -149,5 +174,18 @@ Das Erfinden neuer Session-Keys für bestehende Kanäle zerstört den Zugriff au
 
 ---
 
+## Summary (Stand 15.04.2026) — für Management / Onboarding
+
+| Thema | Kurz |
+|-------|------|
+| **Gateway-First** | Inbound: Chokidar → Session-JSONL → SSE zum React-Chat. Kein `getUpdates`-Polling im Node-Backend. |
+| **Outbound CM** | `openclaw agent --channel telegram --to … --message … --deliver` (Zustellung explizit). |
+| **MCP Channel Manager** | `Backend_MCP/` mit stdio; Windows: SSH zum Laptop; Remote-SSH: `node` + Pfad auf dem Laptop. |
+| **IDE** | Cursor und AntiGravity parallel denkbar; MCP-Config ist **pro Host** (Windows vs. Linux) zu pflegen. |
+| **CASE in Cursor** | Rule `~/.openclaw/workspace/.cursor/rules/case-cursor-identity.mdc` + `AGENTS.md` / `CASE_SOUL.md`. |
+| **Repo-Pfad** | `Production_Nodejs_React/` unter `OpenClaw_Control_Center`. |
+
+---
+
 **Ende der konsolidierten Master-Dokumentation.**
-*Zusammengeführt am 14.04.2026 durch AntiGravity.*
+*Zusammengeführt 14.04.2026 (AntiGravity); Abschnitt 2.6, AP-17 und Summary 15.04.2026 ergänzt.*

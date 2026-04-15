@@ -13,7 +13,7 @@ agent_index:
     logic: "#6-datenfluss--design-entscheidungen"
     risks: "#8-architektur-risiken--audit-härtung"
 created: "2026-04-12T01:07:00Z"
-last_modified: "2026-04-13T20:55:00Z"
+last_modified: "2026-04-15T12:00:00Z"
 author: "AntiGravity"
 provenance:
   git_repo: "OpenClaw_Control_Center"
@@ -24,8 +24,8 @@ tags: [specification, channel_manager, requirements, private-ecosystem, zod-hard
 
 # Spezifikation & Kernanforderungen: Sovereign Channel Management (V1.5)
 
-**Version**: 1.7.0 | **Date**: 13.04.2026 | **Status**: Sovereign | **Context**: IDE Agnosticism (Cursor/AntiGravity Parity)
-20260413_2055_SPECIFICATION_v1.5
+**Version**: 1.8.0 | **Date**: 15.04.2026 | **Status**: Sovereign | **Context**: IDE Agnosticism (Cursor / AntiGravity Parity)
+20260415_1200_SPECIFICATION_v1.8
 
 **Status:** active | **Master Source:** Horizon Studio Framework
 
@@ -35,7 +35,8 @@ tags: [specification, channel_manager, requirements, private-ecosystem, zod-hard
 
 Die Architektur wird konsequent als **geschlossenes, privates Ökosystem** definiert. Ziel ist die maximale Wissens-Kontinuität für den Nutzer (Jan).
 
-*   **Unified Brain Policy:** TARS (Chat-Interface) und CASE (IDE-Interface) nutzen zwingend denselben Agent-Workspace und dieselbe `MEMORY.md`. 
+*   **Unified Brain Policy:** TARS (Chat-Interface) und CASE (IDE-Interface) nutzen zwingend denselben Agent-Workspace und dieselbe `MEMORY.md`.
+*   **CASE in Cursor (Operational):** Für IDE-Sitzungen in **Cursor** ist die Verhaltensquelle **`CASE_SOUL.md`** im OpenClaw-Workspace; **`AGENTS.md`** benennt CASE explizit für Cursor. Eine **Cursor Rule** (`~/.openclaw/workspace/.cursor/rules/case-cursor-identity.mdc`, `alwaysApply: true`) stellt sicher, dass der Agent nicht versehentlich die TARS-Stimme für IDE-Aufgaben übernimmt. 
 *   **Wissen ohne Grenzen:** Informationen bluten gewollt zwischen den Sessions, um einen nahtlosen Wechsel zwischen Code-Entwicklung und Chat-Reflektion zu ermöglichen.
 *   **Mirroring vs. Bridging:** Während Telegram als **Bridge** (punktueller Kontext) fungiert, operiert dieses System als **Mirror** (Zustands-Replikation) des OpenClaw Gateways. [[DISCOVERY.md]](file:///media/claw-agentbox/data/9999_LocalRepo/OpenClaw_Control_Center/Production_Nodejs_React/CHANNEL_MANAGER_TelegramSync_DISCOVERY.md)
 
@@ -59,7 +60,7 @@ graph TD
 
     %% 2. Die unabhängigen Clients
     UI["Channel Manager UI"]
-    IDE["IDE (Anti-Gravity)"]
+    IDE["IDE (Cursor / AntiGravity)"]
 
     %% 3. Das Unified Brain
     subgraph Brain ["Unified Agent Brain"]
@@ -216,5 +217,22 @@ sequenceDiagram
     *   **Finding (14.04.2026):** Wenn Cloud-TARS und lokales Web-Backend (oder IDE AgentClaw) physisch dasselbe Bot-Token nutzen, entzieht Telegram der schwächeren Instanz die Leserechte. Die lokale UI bleibt schwarz ("Waiting for messages").
     *   **Decision (Gateway-First Architecture):** Wir verwerfen den Ansatz, Telegram als primäre Datenquelle (Source of Truth) über die Bot-API abzufragen. OpenClaw bzw. das Gateway/Web-Interface ist die eigentliche "Source of Truth". Unser lokales Backend deaktiviert jegliches `.getUpdates()`-Polling zu Telegram und lauscht stattdessen passiv auf die Gateway-Session-Files (Transcripts im Filesystem) und überträgt diese per SSE ans UI.
 
+### 6.1 Outbound vom Channel Manager (OpenClaw CLI, Stand 15.04.2026)
+
+Senden aus dem Channel Manager erfolgt über **`openclaw agent`** (Gateway), nicht über die Telegram Bot API im Node-Backend. Die offizielle CLI setzt **`--deliver` standardmäßig auf `false`** — ohne **`--deliver`** kann ein erfolgreicher Exit ohne sichtbare Zustellung der Antwort nach Telegram erfolgen.
+
+**Parameter:** `--channel telegram --to "<chat_id>" --message "..." --deliver` (siehe [OpenClaw CLI agent](https://docs.openclaw.ai/cli/agent)). Zusätzlich: Message-Buffer im Backend initialisiert den Kanal-Key vor lokalem SSE-Update.
+
+### 6.2 MCP & IDE-Host (Cursor vs. Remote-SSH)
+
+Der Channel-Manager-MCP (`Backend_MCP/MCP-ChannelManager.mjs`) nutzt **stdio**. **Zwei Konfigurationen** sind üblich:
+
+| Kontext | MCP-Konfiguration |
+|---------|-------------------|
+| **Cursor auf Windows** (lokaler Workspace) | `C:\Users\<User>\.cursor\mcp.json` — OpenClaw oft via `ssh <host> … run-mcp.sh` zum Linux-Backend |
+| **Cursor Remote-SSH** (Laptop) | `~/.cursor/mcp.json` auf dem Laptop — direkt `node` + absoluter Pfad zu `MCP-ChannelManager.mjs` (kein `E:\`, kein Windows-`python.exe`) |
+
+Eine **Projekt**-`.cursor/mcp.json` mit derselben **Server-ID** wie die User-Datei erzeugt **doppelte** MCP-Einträge — pro Server-ID nur eine Quelle.
+
 ---
-*Status: V1.5 Finalisiert. Alle technischen Skelette wurden aus ARCHITECTURE.md übernommen.*
+*Status: V1.8 — ergänzt um Outbound-CLI (`--deliver`), MCP-Dual-Config und Cursor-Remote-SSH.*

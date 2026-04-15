@@ -5,6 +5,9 @@
 		},
 		{
 			"path": ".."
+		},
+		{
+			"path": "../../../../../../home/claw-agentbox/.openclaw/workspace"
 		}
 	],
 	"settings": {}
