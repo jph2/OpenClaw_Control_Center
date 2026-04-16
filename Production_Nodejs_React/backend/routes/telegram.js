@@ -1,6 +1,13 @@
 import express from 'express';
 import { z } from 'zod';
-import { telegramEvents, getMessagesForChat, sendMessageToChat, getChatBots, normalizeChatIdForBuffer } from '../services/telegramService.js';
+import {
+    telegramEvents,
+    getMessagesForChat,
+    sendMessageToChat,
+    getChatBots,
+    normalizeChatIdForBuffer,
+    refreshChatMirrorFromCanonicalSession
+} from '../services/telegramService.js';
 import { apiLimiter } from '../utils/rateLimiter.js';
 
 const router = express.Router();
@@ -16,6 +23,9 @@ const SendMessageSchema = z.object({
  */
 router.get('/stream/:chatId', (req, res) => {
     const normalized = normalizeChatIdForBuffer(req.params.chatId);
+
+    /** Re-resolve sessions.json → canonical sessionFile (Variant A); refill buffer from that JSONL. */
+    refreshChatMirrorFromCanonicalSession(normalized);
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -37,11 +47,26 @@ router.get('/stream/:chatId', (req, res) => {
 
     telegramEvents.on('newMessage', onNewMessage);
 
+    const onSessionRebound = (payload) => {
+        if (normalizeChatIdForBuffer(String(payload.chatId)) !== normalized) return;
+        const msgs = getMessagesForChat(normalized);
+        res.write(
+            `data: ${JSON.stringify({
+                type: 'SESSION_REBOUND',
+                chatId: normalized,
+                sessionFile: payload.sessionFile || null,
+                messages: msgs
+            })}\n\n`
+        );
+    };
+    telegramEvents.on('sessionRebound', onSessionRebound);
+
     // Keep alive to prevent proxies from closing
     const keepAlive = setInterval(() => res.write(':ping\n\n'), 30000);
 
     req.on('close', () => {
         telegramEvents.off('newMessage', onNewMessage);
+        telegramEvents.off('sessionRebound', onSessionRebound);
         clearInterval(keepAlive);
     });
 });

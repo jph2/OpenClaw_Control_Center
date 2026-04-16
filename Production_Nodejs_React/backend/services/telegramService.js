@@ -35,11 +35,18 @@ const sessionToCanonicalChat = new Map();
  */
 const sessionUuidToTelegramGroupId = new Map();
 
+/** Telegram group id (string) → absolute path to canonical `sessionFile` (current OpenClaw transcript). */
+const telegramGroupIdToSessionFile = new Map();
+
+/** Previous sessionFile per group — detect rebind and refresh buffer. */
+let previousGroupIdToSessionFile = new Map();
+
 const DEFAULT_SESSIONS_JSON = () =>
     path.join(process.env.HOME || '/home/claw-agentbox', '.openclaw/agents/main/sessions/sessions.json');
 
 /**
  * Re-read OpenClaw session index so gateway lines can resolve group id without per-line metadata.
+ * Also tracks canonical sessionFile per Telegram group (OpenClaw UI parity).
  */
 function hydrateOpenclawSessionIndex() {
     const sessionsPath = process.env.OPENCLAW_SESSIONS_JSON_PATH || DEFAULT_SESSIONS_JSON();
@@ -52,19 +59,124 @@ function hydrateOpenclawSessionIndex() {
         const parsed = JSON.parse(raw);
         let n = 0;
         sessionUuidToTelegramGroupId.clear();
+        telegramGroupIdToSessionFile.clear();
+
+        const nextGroupFile = new Map();
         for (const [sessionKey, entry] of Object.entries(parsed)) {
             if (!entry || typeof entry !== 'object') continue;
             const m = sessionKey.match(/^agent:main:telegram:group:(-?\d+)$/);
             if (!m) continue;
+            const gid = m[1];
             const sid = entry.sessionId;
-            if (!sid || typeof sid !== 'string') continue;
-            sessionUuidToTelegramGroupId.set(sid.toLowerCase(), m[1]);
-            n++;
+            if (sid && typeof sid === 'string') {
+                sessionUuidToTelegramGroupId.set(sid.toLowerCase(), gid);
+                n++;
+            }
+            if (entry.sessionFile && typeof entry.sessionFile === 'string') {
+                const abs = path.resolve(entry.sessionFile);
+                nextGroupFile.set(gid, abs);
+                telegramGroupIdToSessionFile.set(gid, abs);
+            }
         }
-        console.log(`[TelegramService] Hydrated OpenClaw session→Telegram group map: ${n} sessions (${sessionsPath}).`);
+
+        for (const [gid, newPath] of nextGroupFile) {
+            const oldPath = previousGroupIdToSessionFile.get(gid);
+            if (oldPath !== undefined && oldPath !== newPath) {
+                console.log(`[TelegramService] Session file rebind for group ${gid}: ${oldPath} → ${newPath}`);
+                replaceBufferFromSessionFile(gid, newPath);
+                telegramEvents.emit('sessionRebound', { chatId: gid, sessionFile: newPath });
+            }
+        }
+        previousGroupIdToSessionFile = nextGroupFile;
+
+        console.log(
+            `[TelegramService] Hydrated OpenClaw session index: ${n} session UUIDs, ${telegramGroupIdToSessionFile.size} sessionFile paths (${sessionsPath}).`
+        );
     } catch (e) {
         console.warn('[TelegramService] Failed to hydrate sessions.json:', e.message);
     }
+}
+
+/**
+ * Replace in-memory backlog for a group from the canonical session JSONL (same file OpenClaw UI uses).
+ */
+function replaceBufferFromSessionFile(groupId, sessionFilePath) {
+    const key = normalizeChatIdForBuffer(String(groupId));
+    if (!sessionFilePath || !fs.existsSync(sessionFilePath)) {
+        messageBuffer.set(key, []);
+        return;
+    }
+    const msgs = loadMessageHistoryFromSessionJsonl(sessionFilePath, key);
+    messageBuffer.set(key, msgs);
+}
+
+/**
+ * Parse message lines from a session JSONL into UI message objects (fixed group; no per-line routing).
+ */
+function loadMessageHistoryFromSessionJsonl(sessionFilePath, _chatIdKey, maxLines = 800) {
+    try {
+        const raw = fs.readFileSync(sessionFilePath, 'utf8');
+        const lines = raw.split('\n').filter((l) => l.trim() !== '');
+        const slice = lines.slice(-maxLines);
+        const out = [];
+        for (const line of slice) {
+            try {
+                const parsed = JSON.parse(line);
+                const msgObj = buildMsgObjFromGatewayLine(parsed);
+                if (msgObj && !out.find((m) => m.id === msgObj.id)) out.push(msgObj);
+            } catch {
+                /* skip bad line */
+            }
+        }
+        out.sort((a, b) => a.date - b.date);
+        if (out.length > MAX_BUFFER_SIZE) return out.slice(-MAX_BUFFER_SIZE);
+        return out;
+    } catch (e) {
+        console.warn(`[TelegramService] Could not read session file ${sessionFilePath}:`, e.message);
+        return [];
+    }
+}
+
+function buildMsgObjFromGatewayLine(parsed) {
+    if (!parsed || parsed.type !== 'message' || !parsed.message) return null;
+    const data = parsed;
+    const role = data.message.role;
+    const contentBlocks = data.message.content || [];
+    let text = '';
+    contentBlocks.forEach((b) => {
+        if (b.type === 'text') {
+            text += b.text + '\n';
+        } else if (b.type === 'toolCall') {
+            text += `⚙️ [Tool Call: ${b.name}]\n`;
+        } else if (b.type === 'toolResult') {
+            text += `✅ [Tool Result: ${b.toolName}]\n`;
+        }
+    });
+    text = text.trim();
+    if (!text) return null;
+    return {
+        id: data.id || `gen_${Math.random()}`,
+        text,
+        sender: role === 'assistant' ? 'TARS (Engine)' : role === 'toolResult' ? 'System (Tool)' : 'User (Telegram)',
+        senderId: role,
+        date: Math.floor(new Date(data.timestamp || Date.now()).getTime() / 1000),
+        isBot: role === 'assistant' || role === 'toolResult',
+        metrics: data.message.usage || null,
+        model: data.message.model || ''
+    };
+}
+
+/**
+ * Variant A: re-resolve canonical sessionFile from sessions.json and refill buffer (call on each SSE connect).
+ */
+export function refreshChatMirrorFromCanonicalSession(chatId) {
+    hydrateOpenclawSessionIndex();
+    const key = normalizeChatIdForBuffer(String(chatId));
+    const sessionFile = telegramGroupIdToSessionFile.get(key);
+    if (!sessionFile) {
+        return;
+    }
+    replaceBufferFromSessionFile(key, sessionFile);
 }
 
 /** UI / legacy aliases → canonical Telegram chat id (same numeric id as openclaw --to). */
@@ -294,23 +406,8 @@ export const initTelegramService = () => {
 };
 
 const processGatewayMessage = (data, isInit = false, filePath = '') => {
-    const role = data.message.role;
-    const contentBlocks = data.message.content || [];
-    let text = '';
-    
-    // Convert OpenClaw message format to pure text
-    contentBlocks.forEach(b => {
-        if (b.type === 'text') {
-            text += b.text + '\n';
-        } else if (b.type === 'toolCall') {
-            text += `⚙️ [Tool Call: ${b.name}]\n`;
-        } else if (b.type === 'toolResult') {
-            text += `✅ [Tool Result: ${b.toolName}]\n`;
-        }
-    });
-    
-    text = text.trim();
-    if (!text) return;
+    const msgObj = buildMsgObjFromGatewayLine(data);
+    if (!msgObj) return;
 
     const sessionUuid = extractSessionUuidFromPath(filePath);
     let telegramFromUser = extractTelegramGroupIdFromUserPayload(data);
@@ -334,16 +431,17 @@ const processGatewayMessage = (data, isInit = false, filePath = '') => {
         return;
     }
 
-    const msgObj = {
-        id: data.id || `gen_${Math.random()}`,
-        text: text,
-        sender: role === 'assistant' ? 'TARS (Engine)' : (role === 'toolResult' ? 'System (Tool)' : 'User (Telegram)'),
-        senderId: role,
-        date: Math.floor(new Date(data.timestamp || Date.now()).getTime() / 1000),
-        isBot: role === 'assistant' || role === 'toolResult',
-        metrics: data.message.usage || null,
-        model: data.message.model || ''
-    };
+    /** Only ingest lines from the canonical sessionFile for this group (same as OpenClaw Control UI). */
+    const expectedFile = telegramGroupIdToSessionFile.get(canonicalChatId);
+    if (expectedFile && filePath) {
+        try {
+            if (path.resolve(filePath) !== path.resolve(expectedFile)) {
+                return;
+            }
+        } catch {
+            return;
+        }
+    }
 
     const chatId = canonicalChatId;
     if (!messageBuffer.has(chatId)) messageBuffer.set(chatId, []);

@@ -122,8 +122,8 @@ export default function TelegramChat({ channelId, channelName }) {
                 if (event.data === ':ping') return;
                 try {
                     const parsed = JSON.parse(event.data);
-                    if (parsed.type === 'INIT') {
-                        setMessages(parsed.messages);
+                    if (parsed.type === 'INIT' || parsed.type === 'SESSION_REBOUND') {
+                        setMessages(parsed.messages || []);
                     } else if (parsed.type === 'MESSAGE') {
                         setMessages((prev) => {
                             // Avoid duplicates if SSE reconnects
