@@ -13,7 +13,7 @@ agent_index:
     logic: "#5-datenfluss--design-entscheidungen"
     risks: "#6-architektur-risiken--audit-härtung"
 created: "2026-04-12T01:07:00Z"
-last_modified: "2026-04-17T22:00:00Z"
+last_modified: "2026-04-17T23:30:00Z"
 author: "AntiGravity"
 provenance:
   git_repo: "OpenClaw_Control_Center"
@@ -24,8 +24,8 @@ tags: [specification, channel_manager, gateway-first, requirements, zod-hardenin
 
 # Spezifikation & Kernanforderungen: Sovereign Channel Management (V2.1)
 
-**Version**: 2.3.1 | **Date**: 17.04.2026 | **Status**: Sovereign | **Context**: Gateway-First, CM als Konfigurationsspiegel, Triade (TARS · MARVIN · CASE), Workbench multi-root, Skill-Herkunft-UX, TTG bulk & Sub-Agent-CRUD, Integrations-Roadmap, TTG strict env
-20260417_2200_SPECIFICATION_v2.3.1
+**Version**: 2.4.0 | **Date**: 17.04.2026 | **Status**: Sovereign | **Context**: Gateway-First, CM als Konfigurationsspiegel, Triade (TARS · MARVIN · CASE), Workbench multi-root, Skill-Herkunft-UX, TTG bulk & Sub-Agent-CRUD, Integrations-Roadmap, TTG strict env, **Chat = Session-Stream (Option A)**
+20260417_2330_SPECIFICATION_v2.4
 
 **Status:** active | **Master Source:** Horizon Studio Framework
 
@@ -155,6 +155,9 @@ graph TB
 | **Configuration** | Kanäle, Modelle, Skills, Agenten — **verbindliche** Laufzeitquelle. |
 | **OpenClaw Chat** | **Spiegel** des gateway-gestützten Verlaufs (SSE), gebunden an gewählte Gruppe / Session. Chat kann paralel über diese Interface geführt werden, (derzeit keine Bilder...) |
 | **IDE project summary** | **Kein** zweiter Live-Chat; **verdichtete** IDE-/Projektspur — Quelle u. a. `Studio_Framework/050_Artifacts/A070_ide_cursor_summaries/`; API **`/api/ide-project-summaries`**. |
+
+**Architekturentscheid — Tab „OpenClaw Chat“ (verbindlich, 17.04.2026):**  
+Für jeden Kanal soll der Channel Manager **denselben inhaltlichen Stream zeigen wie das OpenClaw-Chatfenster** (Control-UI / Webchat), sobald **dieselbe Telegram-Gruppe / dieselbe gebundene OpenClaw-Session** gemeint ist — **Option A: realer Session-Stream** der aktuell zugeordneten Session (JSONL-/Gateway-Pfad), **nicht** Option B (nur „als Telegram erkannte“ Ereignisse) und **nicht** Option C (Mischsicht ohne Spezifikation). Die **Telegram-Gruppen-ID** allein ist kein hinreichender Alleinstellungs-„Stream“-Beweis; Zuordnung und Parity laufen über **Session-/Session-Key** (`agent:main:telegram:group:<id>`, `sessions.json` ↔ `.jsonl`) und **Validierung** gegen Routing-/Channel-Config bleiben **Nebenprüfungen** (Alias, TTG-Namen, Drift), nicht Ersatz für diese Zieldefinition.
 
 **Verbindlich:** [CHANNEL_MANAGER_SCOPE_MVP_2026-04-15.md](CHANNEL_MANAGER_SCOPE_MVP_2026-04-15.md).
 

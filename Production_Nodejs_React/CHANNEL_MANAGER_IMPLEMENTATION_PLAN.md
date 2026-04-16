@@ -13,7 +13,7 @@ agent_index:
     phase5: "#5-phase-ui-polishing-persistence--unified-brain"
     phase6: "#6-phase-native-ide-telegram-integration-anti-gravity"
 created: "2026-04-12T01:07:00Z"
-last_modified: "2026-04-17T23:00:00Z"
+last_modified: "2026-04-17T23:30:00Z"
 author: "AntiGravity"
 provenance:
   git_repo: "OpenClaw_Control_Center"
@@ -233,6 +233,7 @@ Ziel: Umbenennung des Repositories in `OpenClaw_Control_Center` und Ablösung ha
 - [ ] **§12 / P1 — MCP 8.3:** manuell: IDE neu laden, **Send Telegram Reply** über MCP → `/api/telegram/send` verifizieren.
 - [ ] **§12 / P1 — Gateway-Parity:** Abgleich geschriebener Felder mit OpenClaw-Schema (z. B. bekannte Sync-Skips im Code prüfen); ggf. separates Audit-Issue.
 - [x] **§12 / P1 — Chat-Spiegel vs. OpenClaw Web (Webchat-Metadaten):** Gateway-Bridge hat JSONL-Zeilen bisher nur zugeordnet, wenn User-Payload **`Conversation info` + `chat_id`** enthielt. **Webchat/OpenClaw-Control-UI** sendet oft nur **`Sender (untrusted metadata)`** ohne Telegram-ID — dann blieb der Puffer leer. **Fix:** `sessions.json` laden/beobachten (`sessionId` → Key `agent:main:telegram:group:<id>`), Zuordnung pro Session-Datei; Env **`OPENCLAW_SESSIONS_JSON_PATH`** optional. Implementierung: `backend/services/telegramService.js` (`hydrateOpenclawSessionIndex`).
+- [ ] **§12 / P1 — Parity: CM „OpenClaw Chat“ = OpenClaw-UI-Stream:** **Spec:** [CHANNEL_MANAGER_SPECIFICATION.md §3.4](CHANNEL_MANAGER_SPECIFICATION.md) — **Option A** (Session-Stream, nicht nur Telegram-Filter). Folgearbeit: Backend-Buffer/SSE strikt an **dieselbe Session-JSONL** koppeln, die die UI nutzt; ggf. Restpuffer-Bereinigung, wenn noch „Telegram-only“-Pfad von Session-Realität abweicht.
 
 **Referenz:** [CHANNEL_MANAGER_SPECIFICATION.md §3.6](CHANNEL_MANAGER_SPECIFICATION.md), [CHANNEL_MANAGER_IDE_BRIDGE_DISCOVERY.md](CHANNEL_MANAGER_IDE_BRIDGE_DISCOVERY.md).
 
