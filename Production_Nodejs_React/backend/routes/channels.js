@@ -7,6 +7,11 @@ import chokidar from 'chokidar';
 import { EventEmitter } from 'events';
 import { resolveSafe } from '../utils/security.js';
 import { scanWorkspaceSkillsCatalog, resolveWorkspaceSkillsDir } from '../services/workspaceSkillRegistry.js';
+import {
+    assertStrictTtgChannelNames,
+    isStrictTtgChannelNamesEnabled,
+    TTG_CHANNEL_NAME_PREFIX_RE
+} from '../utils/ttgChannelNameValidation.js';
 
 const OPENCLAW_JSON_PATH = process.env.OPENCLAW_CONFIG_PATH || '/home/claw-agentbox/.openclaw/openclaw.json';
 
@@ -133,6 +138,8 @@ const ChannelConfigSchema = z.object({
 
 const UpdateChannelSchema = z.object({
     channelId: z.string().min(1),
+    /** Optional rename; validated when CHANNEL_MANAGER_STRICT_TTG_CHANNEL_NAMES is set. */
+    name: z.string().min(1).max(240).transform((s) => s.trim()).optional(),
     skills: z.array(z.string()).nullish(),
     assignedAgent: z.string().nullish(),
     ideOverride: z.boolean().nullish(),
@@ -269,6 +276,7 @@ router.get('/export', async (req, res, next) => {
 async function persistFullChannelConfig(body) {
     const payload = ChannelConfigSchema.parse(body);
     payload.channels = normalizeChannelsAssignedAgentTars(payload.channels);
+    assertStrictTtgChannelNames(payload.channels);
     const configPath = await getConfigPath();
     const release = await lockfile.lock(configPath, { retries: 5 });
     try {
@@ -467,6 +475,19 @@ router.post('/update', async (req, res, next) => {
             const channelIndex = parsed.channels.findIndex(c => c.id === payload.channelId);
 
             if (channelIndex > -1) {
+                if (payload.name !== undefined) {
+                    if (isStrictTtgChannelNamesEnabled() && !TTG_CHANNEL_NAME_PREFIX_RE.test(payload.name)) {
+                        throw new z.ZodError([
+                            {
+                                code: z.ZodIssueCode.custom,
+                                path: ['name'],
+                                message:
+                                    'Channel name must start with TTG followed by three digits (e.g. TTG001).'
+                            }
+                        ]);
+                    }
+                    parsed.channels[channelIndex].name = payload.name;
+                }
                 if (payload.skills !== undefined) {
                     parsed.channels[channelIndex].skills = payload.skills;
                 }
@@ -489,9 +510,25 @@ router.post('/update', async (req, res, next) => {
                     parsed.channels[channelIndex].inactiveCaseSkills = payload.inactiveCaseSkills;
                 }
             } else {
+                let initialName = isStrictTtgChannelNamesEnabled()
+                    ? `TTG000 group ${payload.channelId}`
+                    : `New Channel ${payload.channelId}`;
+                if (payload.name !== undefined) {
+                    if (isStrictTtgChannelNamesEnabled() && !TTG_CHANNEL_NAME_PREFIX_RE.test(payload.name)) {
+                        throw new z.ZodError([
+                            {
+                                code: z.ZodIssueCode.custom,
+                                path: ['name'],
+                                message:
+                                    'Channel name must start with TTG followed by three digits (e.g. TTG001).'
+                            }
+                        ]);
+                    }
+                    initialName = payload.name;
+                }
                 parsed.channels.push({
                     id: payload.channelId,
-                    name: `New Channel ${payload.channelId}`,
+                    name: initialName,
                     skills: payload.skills || [],
                     assignedAgent: 'tars',
                     ideOverride: payload.ideOverride || false,
@@ -507,6 +544,7 @@ router.post('/update', async (req, res, next) => {
 
             // G4 Secondary check: ensure our modifications didn't break the global schema
             const finalState = ChannelConfigSchema.parse(parsed);
+            assertStrictTtgChannelNames(finalState.channels);
 
             await fs.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
 

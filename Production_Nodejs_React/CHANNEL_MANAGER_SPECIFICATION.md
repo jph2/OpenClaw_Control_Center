@@ -13,7 +13,7 @@ agent_index:
     logic: "#5-datenfluss--design-entscheidungen"
     risks: "#6-architektur-risiken--audit-härtung"
 created: "2026-04-12T01:07:00Z"
-last_modified: "2026-04-17T18:00:00Z"
+last_modified: "2026-04-17T22:00:00Z"
 author: "AntiGravity"
 provenance:
   git_repo: "OpenClaw_Control_Center"
@@ -24,8 +24,8 @@ tags: [specification, channel_manager, gateway-first, requirements, zod-hardenin
 
 # Spezifikation & Kernanforderungen: Sovereign Channel Management (V2.1)
 
-**Version**: 2.3.0 | **Date**: 17.04.2026 | **Status**: Sovereign | **Context**: Gateway-First, CM als Konfigurationsspiegel, Triade (TARS · MARVIN · CASE), Workbench multi-root, Skill-Herkunft-UX, TTG bulk & Sub-Agent-CRUD, Integrations-Roadmap
-20260417_1800_SPECIFICATION_v2.3
+**Version**: 2.3.1 | **Date**: 17.04.2026 | **Status**: Sovereign | **Context**: Gateway-First, CM als Konfigurationsspiegel, Triade (TARS · MARVIN · CASE), Workbench multi-root, Skill-Herkunft-UX, TTG bulk & Sub-Agent-CRUD, Integrations-Roadmap, TTG strict env
+20260417_2200_SPECIFICATION_v2.3.1
 
 **Status:** active | **Master Source:** Horizon Studio Framework
 
@@ -196,7 +196,7 @@ UI: **Agents**-Tab — „Sub-Agent anlegen“, Destroy-**X** auf der Sub-Agent-
 Für **einheitliche Zuordnung** von IDE-Arbeit zu Telegram-Topic-Groups ist ein **stabiles Namensschema** sinnvoll (z. B. Anzeige-`name` beginnt mit **`TTG` + dreistellige Nummer** + Rest). **Reine Text-Anforderung** („User/Agent soll es so schreiben“) ist **fehleranfällig** (Menschen und Agenten verletzen Regeln).
 
 **Empfohlene Mehrlinien-Strategie (Spec-Vorgabe):**
-- **Technisch (primär):** Bei **Neu-Anlage oder Umbenennung** von Kanälen im Backend **validieren** (Zod), optional **normalisieren** oder **warnen**; Import/Export kann dieselbe Regel nutzen.
+- **Technisch (primär):** Bei **Neu-Anlage oder Umbenennung** von Kanälen im Backend **validieren** (Zod), optional **normalisieren** oder **warnen**; Import/Export kann dieselbe Regel nutzen. **Umsetzung (17.04.2026):** optional **`CHANNEL_MANAGER_STRICT_TTG_CHANNEL_NAMES=1`** — dann müssen alle persistierten Kanal-`name`-Werte mit **`TTG` + drei Ziffern** beginnen (`/^TTG\d{3}/`); greift bei **POST `/api/channels/config`**, **`/import`** und **`/update`** (inkl. Default `TTG000 group <id>` für neu angelegte Zeilen). **Standard:** aus — bestehende Konfigurationen ohne Präfix bleiben gültig.
 - **IDE:** **Skill** (Workspace) + **Cursor Rule** (`*.mdc`) als **Erinnerung und Verfahren** für Agents — **nicht** als einzige Absicherung.
 - **Optional:** CI-Check auf `channel_config.json` / PR, der Schema-Verletzungen blockt.
 

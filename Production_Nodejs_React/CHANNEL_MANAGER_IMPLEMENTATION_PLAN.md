@@ -13,7 +13,7 @@ agent_index:
     phase5: "#5-phase-ui-polishing-persistence--unified-brain"
     phase6: "#6-phase-native-ide-telegram-integration-anti-gravity"
 created: "2026-04-12T01:07:00Z"
-last_modified: "2026-04-17T18:00:00Z"
+last_modified: "2026-04-17T22:00:00Z"
 author: "AntiGravity"
 provenance:
   git_repo: "OpenClaw_Control_Center"
@@ -225,6 +225,13 @@ Ziel: Umbenennung des Repositories in `OpenClaw_Control_Center` und Ablösung ha
 | **P1** | **IDE-Exports & Verifikation** | `ideConfigBridge`, `/api/exports/*`, `/api/ide-project-summaries` in wiederholbare Workflows; **Sub-Task 8.3** (MCP Sovereign Test) abschließen. |
 | **P2** | **Rosetta / Session** | Offene Punkte aus früheren Sub-Tasks (Memory-/Session-Parity), falls noch nicht erledigt. |
 | **P2** | **TTG-Präfix `TTG000`** | **Backend-Validierung** (Zod) bei Create/Rename; ergänzend **Workspace-Skill** + **Cursor Rule** — **nicht** als einzige Absicherung. |
+
+**Ausführung (Stand 17.04.2026):**
+
+- [x] **§12 / P2 — TTG-Präfix (Backend):** `backend/utils/ttgChannelNameValidation.js` — bei **`CHANNEL_MANAGER_STRICT_TTG_CHANNEL_NAMES=1`** (`true`/`yes`) müssen alle **persistierten** Kanalnamen mit `TTG` + drei Ziffern beginnen; **Import/Config** und **POST `/api/channels/update`** (inkl. optionales Feld **`name`**, Default für neue Zeile **`TTG000 group <channelId>`** im Strict-Modus). **Standard:** Env unset → keine Namenspflicht (Legacy). Tests: `backend/test/ttg-channel-name-validation.test.js`.
+- [ ] **§12 / P2 — Skill + Cursor Rule:** Workspace-Skill / `.mdc` als Ergänzung zur API-Validierung (noch offen).
+- [ ] **§12 / P1 — MCP 8.3:** manuell: IDE neu laden, **Send Telegram Reply** über MCP → `/api/telegram/send` verifizieren.
+- [ ] **§12 / P1 — Gateway-Parity:** Abgleich geschriebener Felder mit OpenClaw-Schema (z. B. bekannte Sync-Skips im Code prüfen); ggf. separates Audit-Issue.
 
 **Referenz:** [CHANNEL_MANAGER_SPECIFICATION.md §3.6](CHANNEL_MANAGER_SPECIFICATION.md), [CHANNEL_MANAGER_IDE_BRIDGE_DISCOVERY.md](CHANNEL_MANAGER_IDE_BRIDGE_DISCOVERY.md).
 
