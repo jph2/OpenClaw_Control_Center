@@ -13,7 +13,7 @@ agent_index:
     phase5: "#5-phase-ui-polishing-persistence--unified-brain"
     phase6: "#6-phase-native-ide-telegram-integration-anti-gravity"
 created: "2026-04-12T01:07:00Z"
-last_modified: "2026-04-17T10:00:00Z"
+last_modified: "2026-04-17T18:00:00Z"
 author: "AntiGravity"
 provenance:
   git_repo: "OpenClaw_Control_Center"
@@ -24,10 +24,10 @@ tags: [implementation, channel_manager, telegram-hub, zod, private-ecosystem]
 
 # Implementierungsplan: Centralized Channel Manager (V1.3)
 
-**Release**: V1.7 | **Status**: Phase 6 & 8 (teilweise), MCP/Cursor operational | **Focus**: Rosetta-Sync, Gateway-Delivery, IDE-MCP, TTG bulk UI & Sub-Agent-CRUD
-**GlobalID**: 20260417_1200_IMPLEMENTATION_v1.7
+**Release**: V1.8 | **Status**: Phase 6 & 8 (teilweise), MCP/Cursor operational | **Focus**: Rosetta-Sync, Gateway-Delivery, IDE-MCP, TTG bulk UI & Sub-Agent-CRUD, Integrations-Roadmap
+**GlobalID**: 20260417_1800_IMPLEMENTATION_v1.8
 
-**Last Updated:** 16.04.2026 (Sprint: IDE bridge + tabs + Workbench + Skill-UX + TTG bulk + Sub-Agent CRUD)  
+**Last Updated:** 17.04.2026 (Sprint: Doku §3.6 / §12 — Backend↔OpenClaw↔IDE, TTG-Validierung; UI: zwei `<tr>` pro Zeile, Bulk nur „Manage Channels“, 1010px + Scroll)  
 **Framework:** Horizon Studio Framework  
 **Status:** active
 
@@ -136,9 +136,10 @@ Ziel: Bedienkomfort verbessern, Architektur-Lecks schließen und Wissens-Kontinu
   - **SSE:** bei Registry-Update benutzerdefinierte Reihenfolge bereinigen (unbekannte IDs entfernen).  
   - **Extras (optional):** gespeicherte Filter-Presets; Gruppierung einklappbar nach Kategorie.
 
-- [x] **Sub-Task 6.15: TTG-Benennung, Bulk-Zeilenhöhen, Sub-Agent Create/Delete, Dev-Resilienz (16.04.2026)**  
-  - **Spec:** [CHANNEL_MANAGER_SPECIFICATION.md](CHANNEL_MANAGER_SPECIFICATION.md) §3.5.  
-  - **Frontend:** Header **CSS-Grid** (`minmax(0,auto) | minmax(0,1fr) | auto`); vier zentrale Buttons (**Collapse all**, **Configure all**, **Open Claw Chat all**, **TARS in IDE, all**) mit `className="header-actions"` — **horizontal**, kein vertikaler Stack durch `flex-wrap` auf dem Gesamt-Header. Konstanten `ROW_HEIGHT_COLLAPSED` (**260**), `ROW_HEIGHT_EXPANDED` (**1160**); Collapse setzt **alle** Zeilen-Sub-Tabs auf **`config`**.  
+- [x] **Sub-Task 6.15: TTG-Benennung, Bulk-Zeilenhöhen, Sub-Agent Create/Delete, Dev-Resilienz (16.–17.04.2026)**  
+  - **Spec:** [CHANNEL_MANAGER_SPECIFICATION.md](CHANNEL_MANAGER_SPECIFICATION.md) §3.5, §3.6.  
+  - **Frontend — Header:** **CSS-Grid** (`minmax(0,auto) | minmax(0,1fr) | auto` wenn Tab Kanäle, sonst zwei Spalten); vier zentrale Buttons (**Collapse all**, **Configure all**, **Open Claw Chat all**, **TARS in IDE, all**) mit `className="header-actions"` — **horizontal**, nur wenn `activeTab === 'channels'`. **Toolbar** unter dem Header (Select All, Bulk-Model, Bulk-Skill) nur in `renderManageChannels()` — damit ebenfalls nur auf **Manage Channels**.  
+  - **Frontend — Zeile:** Zwei `<tr>` pro Kanal (`React.Fragment`): Hauptzeile (Checkbox, TTG, Workspace) + **Footer-`<tr>`** (`colSpan={3}`) mit **Open** / **Collapse** und **Resize-Handle**. Konstanten `ROW_HEIGHT_COLLAPSED` (**260**), `ROW_HEIGHT_EXPANDED` (**1010**). **Open:** nur diese Zeile expandieren, dann Footer mit `scrollIntoView({ block: 'end', behavior: 'smooth' })` (nach Layout). **Collapse** pro Zeile: Höhe 260px, Zeilen-Sub-Tab **`config`** (wie **Collapse all**). **Collapse all** setzt **alle** Zeilen-Sub-Tabs auf **`config`**.  
   - **Anzeige:** `formatTtgChannelName` (`TG`+Ziffer → `TTG`+Ziffer); Tabellenkopf **TTG (Telegram Topic Group)**.  
   - **Backend:** `POST /api/channels/createSubAgent`, `POST /api/channels/deleteSubAgent` (inkl. Bereinigung `inactiveSubAgents`); siehe `backend/routes/channels.js`.  
   - **Agents-UI:** Modal „Sub-Agent anlegen“, Destroy-**X** pro Sub-Agent-Karte.  
@@ -214,5 +215,18 @@ Ziel: Umbenennung des Repositories in `OpenClaw_Control_Center` und Ablösung ha
 - [x] **Sub-Task 11.4: Final Execution (Rename & Deployment)** (Directory renamed to `OpenClaw_Control_Center` ✅).
 - [x] **Sub-Task 11.5: Ordner `Production_Nodejs_React` (15.04.2026):** Tippfehler `Prodution_Nodejs_React` → **`Production_Nodejs_React`** im Repo bereinigt.
 
+## 12. Nächste Schritte: Integration Backend ↔ OpenClaw ↔ IDE & TTG-Durchsetzung (17.04.2026)
+
+**Kontext:** Channel-Manager-UI (Konfiguration, Chat, Summary, Bulk, Sub-Agente) ist **implementiert**; Fokus: **Laufzeit-Parity**, **Export/IDE-Pfade**, **durchsetzbare** TTG-Namensregeln.
+
+| Priorität | Thema | Kurzbeschreibung |
+|-----------|--------|------------------|
+| **P1** | **Gateway / OpenClaw-Parity** | `channel_config.json` und tatsächliches Gateway-Verhalten abstimmen; keine stillen Abweichungen. |
+| **P1** | **IDE-Exports & Verifikation** | `ideConfigBridge`, `/api/exports/*`, `/api/ide-project-summaries` in wiederholbare Workflows; **Sub-Task 8.3** (MCP Sovereign Test) abschließen. |
+| **P2** | **Rosetta / Session** | Offene Punkte aus früheren Sub-Tasks (Memory-/Session-Parity), falls noch nicht erledigt. |
+| **P2** | **TTG-Präfix `TTG000`** | **Backend-Validierung** (Zod) bei Create/Rename; ergänzend **Workspace-Skill** + **Cursor Rule** — **nicht** als einzige Absicherung. |
+
+**Referenz:** [CHANNEL_MANAGER_SPECIFICATION.md §3.6](CHANNEL_MANAGER_SPECIFICATION.md), [CHANNEL_MANAGER_IDE_BRIDGE_DISCOVERY.md](CHANNEL_MANAGER_IDE_BRIDGE_DISCOVERY.md).
+
 ---
-*Status: Phasen 1–5 erweitert (5.3 Outbound), Phase 6–8 teilweise (6.10/6.12/6.13/**6.14**/**6.15** Sprint 16.04.2026), Phase 7 inkl. Cursor/SSH, Phase 10/11 teilweise. Sub-Task 6.9 Medien = Roadmap.*
+*Status: Phasen 1–5 erweitert (5.3 Outbound), Phase 6–8 teilweise (6.10/6.12/6.13/**6.14**/**6.15** Sprint 16.–17.04.2026), Phase 7 inkl. Cursor/SSH, Phase 10/11 teilweise. Sub-Task 6.9 Medien = Roadmap. §12 = Integrations-Backlog.*

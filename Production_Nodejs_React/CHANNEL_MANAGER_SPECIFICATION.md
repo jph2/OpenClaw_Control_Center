@@ -13,7 +13,7 @@ agent_index:
     logic: "#5-datenfluss--design-entscheidungen"
     risks: "#6-architektur-risiken--audit-härtung"
 created: "2026-04-12T01:07:00Z"
-last_modified: "2026-04-17T10:00:00Z"
+last_modified: "2026-04-17T18:00:00Z"
 author: "AntiGravity"
 provenance:
   git_repo: "OpenClaw_Control_Center"
@@ -24,8 +24,8 @@ tags: [specification, channel_manager, gateway-first, requirements, zod-hardenin
 
 # Spezifikation & Kernanforderungen: Sovereign Channel Management (V2.1)
 
-**Version**: 2.2.0 | **Date**: 17.04.2026 | **Status**: Sovereign | **Context**: Gateway-First, CM als Konfigurationsspiegel, Triade (TARS · MARVIN · CASE), Workbench multi-root, Skill-Herkunft-UX, TTG bulk & Sub-Agent-CRUD
-20260417_1200_SPECIFICATION_v2.2
+**Version**: 2.3.0 | **Date**: 17.04.2026 | **Status**: Sovereign | **Context**: Gateway-First, CM als Konfigurationsspiegel, Triade (TARS · MARVIN · CASE), Workbench multi-root, Skill-Herkunft-UX, TTG bulk & Sub-Agent-CRUD, Integrations-Roadmap
+20260417_1800_SPECIFICATION_v2.3
 
 **Status:** active | **Master Source:** Horizon Studio Framework
 
@@ -164,14 +164,16 @@ graph TB
 Die Tabelle nutzt die Spaltenüberschrift **„TTG (Telegram Topic Group)“**. Anzeigenamen aus `channel_config.json` können historisch mit Präfix **`TG`** + Ziffer beginnen; die **UI** normalisiert die Darstellung auf **`TTG`** + Ziffer (`frontend/src/utils/formatTtgChannelName.js`) — **ohne** die persistierten `name`-Felder im JSON zu ändern. **Kanal-IDs** (`channels[].id`) bleiben unverändert.
 
 **Zeilenhöhen & Persistenz:**  
-Pro Kanalzeile ist die Höhe des Arbeitsbereichs **anpassbar** (Resize-Handle, Zustand in `localStorage` unter **`ag-channel-row-heights`**). **Bulk-Buttons** in der **Header-Mitte** (gleiche Button-Klasse wie Export/Import; Layout: **CSS-Grid**, damit die vier Aktionen **nebeneinander** bleiben):
+Pro Kanalzeile ist die Höhe des Arbeitsbereichs **anpassbar** (Resize-Handle, Zustand in `localStorage` unter **`ag-channel-row-heights`**). **Bulk-Buttons** in der **Header-Mitte** (gleiche Button-Klasse wie Export/Import; Layout: **CSS-Grid**, damit die vier Aktionen **nebeneinander** bleiben). Sie sind **nur sichtbar**, wenn der aktive Haupt-Tab **Manage Channels** ist — auf **Agents** und **Skills** werden sie **nicht** gerendert (kein Höhenverlust in diesen Tabs).
 
 | Aktion | Verhalten |
 |--------|-----------|
 | **Collapse all** | Alle Zeilen **~260px** Höhe; **alle** Zeilen-Sub-Tabs auf **Configuration** (vermeidet Layout-Artefakte, wenn zuvor **OpenClaw Chat** oder **TARS in IDE · IDE project summary** aktiv war). |
-| **Configure all** | Alle Zeilen auf die **expandierte** Zielhöhe (aktuell **1160px**, für ~ein Viewport-Segment auf 4K; Wert ist im Code zentral konstant und wurde iterativ gegenüber 1760/1460px reduziert) + Sub-Tab **Configuration**. |
+| **Configure all** | Alle Zeilen auf die **expandierte** Zielhöhe (aktuell **1010px**, für ~ein Viewport-Segment auf 4K; Wert ist im Code zentral konstant und wurde iterativ gegenüber 1760/1460/1160px reduziert) + Sub-Tab **Configuration**. |
 | **Open Claw Chat all** | Gleiche expandierte Höhe + Sub-Tab **OpenClaw Chat**. |
 | **TARS in IDE, all** | Gleiche expandierte Höhe + Sub-Tab **TARS in IDE · IDE project summary** (`summary`). |
+
+**Pro-TTG-Zeile:** Pro Kanal werden **zwei Tabellenzeilen** (`<tr>`) gerendert (`React.Fragment`): (1) Hauptzeile mit Checkbox, TTG-Spalte, Workspace; (2) **Footer-Zeile** mit `colSpan={3}` — zentrierte Buttons **Open** / **Collapse** und darunter das **Resize-Handle**, damit die drei Spalten in Zeile (1) gleich hoch bleiben und Steuerung **vollbreit** unter dem Segment sitzt. **Open** setzt nur diese Zeile auf die expandierte Höhe (**1010px**, Konstante `ROW_HEIGHT_EXPANDED`) und scrollt anschließend die **Buttonzeile** so, dass ihre **untere Kante** am unteren Rand des sichtbaren Viewports ausgerichtet wird (`scrollIntoView({ block: 'end', behavior: 'smooth' })`, nach Layout-Update per `requestAnimationFrame` / `queueMicrotask`). **Collapse** pro Zeile setzt die Höhe auf **260px** und den Zeilen-Sub-Tab auf **Configuration** (wie **Collapse all**).
 
 **Sub-Agente (Konfigurationsebene):**  
 - **Anlegen:** `POST /api/channels/createSubAgent` — `id` (eindeutig), `name`, optional `description`, `parent` (Hauptagent), optional `additionalSkills`, `enabled`.  
@@ -180,6 +182,25 @@ Pro Kanalzeile ist die Höhe des Arbeitsbereichs **anpassbar** (Resize-Handle, Z
 UI: **Agents**-Tab — „Sub-Agent anlegen“, Destroy-**X** auf der Sub-Agent-Karte.
 
 **React Query / Dev:** `GET /api/channels` nutzt **Retries mit Backoff** bei kurzzeitigem Backend-Ausfall (z. B. Proxy **502** während API-Neustart). **TelegramChat** (`EventSource`): Reconnect mit Backoff, gedrosseltes **Console-Logging** bei SSE-`onerror` (normal bei Reconnect/Tab-Hintergrund).
+
+### 3.6 Nächste Schritte: Integration Backend ↔ OpenClaw ↔ IDE & TTG-Namenskonvention (17.04.2026)
+
+**Stand:** Die **Channel-Manager-UI** für Konfiguration, Chat-Spiegel, IDE-Summary-Tab, Bulk-Aktionen, Sub-Agent-CRUD und TTG-Anzeige ist **umgesetzt**. Die **verbindliche technische Verdrahtung** zur Laufzeit (Harness, IDE-Projektionen, wiederholbare Syncs) ist **weiterzuführen** — siehe bereits **IDE-Bridge** (`ideConfigBridge.js`, `/api/exports/*`, `/api/ide-project-summaries`) und [CHANNEL_MANAGER_IDE_BRIDGE_DISCOVERY.md](CHANNEL_MANAGER_IDE_BRIDGE_DISCOVERY.md).
+
+**Priorisierte Integrationslinien (nicht abschließend):**
+1. **OpenClaw / Harness:** Sicherstellen, dass geschriebene `channel_config.json`-Felder mit dem **tatsächlichen** Gateway-Verhalten übereinstimmen (kein stiller Drift); wo nötig **explizite** Sync- oder Projektionspfade statt Annahme.
+2. **IDE / Cursor:** Export-Bundles (`/api/exports/ide`) und Studio-Artefakte **regelmäßig** oder ereignisgesteuert validieren; MCP-Bridge **8.3** (Sovereign-Verifikation) abschließen.
+3. **Rosetta / Session:** Fortführung geplanter **Memory- / Session-Parity** (siehe Implementierungsplan 6.3 / 6.6), falls noch offen.
+
+**TTG-Kürzel (`TTG000`, `TTG001`, …) – Konvention vs. Durchsetzung:**  
+Für **einheitliche Zuordnung** von IDE-Arbeit zu Telegram-Topic-Groups ist ein **stabiles Namensschema** sinnvoll (z. B. Anzeige-`name` beginnt mit **`TTG` + dreistellige Nummer** + Rest). **Reine Text-Anforderung** („User/Agent soll es so schreiben“) ist **fehleranfällig** (Menschen und Agenten verletzen Regeln).
+
+**Empfohlene Mehrlinien-Strategie (Spec-Vorgabe):**
+- **Technisch (primär):** Bei **Neu-Anlage oder Umbenennung** von Kanälen im Backend **validieren** (Zod), optional **normalisieren** oder **warnen**; Import/Export kann dieselbe Regel nutzen.
+- **IDE:** **Skill** (Workspace) + **Cursor Rule** (`*.mdc`) als **Erinnerung und Verfahren** für Agents — **nicht** als einzige Absicherung.
+- **Optional:** CI-Check auf `channel_config.json` / PR, der Schema-Verletzungen blockt.
+
+Damit wird die Konvention **durchsetzbar**, ohne ausschließlich auf menschliche Disziplin zu vertrauen.
 
 ---
 

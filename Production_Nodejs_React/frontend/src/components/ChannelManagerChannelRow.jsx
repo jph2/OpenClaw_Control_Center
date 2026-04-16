@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, { Fragment, useLayoutEffect, useRef, useState } from 'react';
 import TelegramChat from './TelegramChat';
 import IdeProjectSummaryPanel from './IdeProjectSummaryPanel';
 import ActiveBotsList from './ActiveBotsList';
@@ -30,7 +30,10 @@ export default function ChannelManagerChannelRow({
     handleToggleSubAgentSkill,
     handleSubAgentToggle,
     onSubAgentUnassignParent,
-    onSubAgentAssignToTars
+    onSubAgentAssignToTars,
+    /** Same px as header bulk actions (ChannelManager). */
+    rowHeightExpanded = 1010,
+    rowHeightCollapsed = 260
 }) {
     /** UI policy (16.04.2026): primary engine is always TARS; MARVIN/CASE are harness personas (conversation), not per-channel engine picks. */
     const assignedAgentKey = 'tars';
@@ -72,8 +75,28 @@ export default function ChannelManagerChannelRow({
     const subTab = rowSubtabs[tg.id] || 'config';
     const rowH = rowHeights[tg.id] || 450;
 
+    const expandThisSegment = () => {
+        setRowHeights((prev) => ({ ...prev, [tg.id]: rowHeightExpanded }));
+        queueMicrotask(() => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    const el = segmentFooterRef.current;
+                    if (!el) return;
+                    el.scrollIntoView({ block: 'end', behavior: 'smooth', inline: 'nearest' });
+                });
+            });
+        });
+    };
+
+    const collapseThisSegment = () => {
+        setRowHeights((prev) => ({ ...prev, [tg.id]: rowHeightCollapsed }));
+        setRowSubtabs((prev) => ({ ...prev, [tg.id]: 'config' }));
+    };
+
     const leftColRef = useRef(null);
     const tarsRelayRef = useRef(null);
+    /** Footer row (Open/Collapse + resize): scroll into view after expand so it sits at bottom of viewport. */
+    const segmentFooterRef = useRef(null);
     const [dividerTop, setDividerTop] = useState(null);
 
     const syncDividerEnabled = subTab === 'config';
@@ -369,11 +392,13 @@ export default function ChannelManagerChannelRow({
         );
     };
 
+    const rowBg = selectedChannels.includes(tg.id) ? 'rgba(255,255,255,0.05)' : 'transparent';
+
     return (
+        <Fragment>
         <tr
             style={{
-                borderBottom: '3px solid rgba(255, 255, 255, 0.1)',
-                background: selectedChannels.includes(tg.id) ? 'rgba(255,255,255,0.05)' : 'transparent'
+                background: rowBg
             }}
         >
             <td style={{ borderLeft: `2px solid ${agentDetails.color || 'transparent'}`, width: '40px', textAlign: 'center' }}>
@@ -731,44 +756,85 @@ export default function ChannelManagerChannelRow({
                         </div>
                     )}
                 </div>
-                <div
-                    onMouseDown={(e) => {
-                        e.preventDefault();
-                        const startY = e.clientY;
-                        const startH = rowHeights[tg.id] || 450;
-                        const onMove = (me) =>
-                            setRowHeights((prev) => ({
-                                ...prev,
-                                [tg.id]: Math.max(200, startH + (me.clientY - startY))
-                            }));
-                        const onUp = () => {
-                            document.removeEventListener('mousemove', onMove);
-                            document.removeEventListener('mouseup', onUp);
-                        };
-                        document.addEventListener('mousemove', onMove);
-                        document.addEventListener('mouseup', onUp);
-                    }}
-                    style={{
-                        width: '100%',
-                        height: '8px',
-                        cursor: 'row-resize',
-                        background: 'var(--border-color)',
-                        borderBottom: '1px solid #111',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'background 0.2s'
-                    }}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#444';
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'var(--border-color)';
-                    }}
-                >
-                    <div style={{ width: '30px', height: '4px', background: 'var(--text-secondary)', borderRadius: '2px' }} />
+            </td>
+        </tr>
+        <tr
+            style={{
+                borderBottom: '3px solid rgba(255, 255, 255, 0.1)',
+                background: rowBg
+            }}
+        >
+            <td colSpan={3} style={{ padding: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <div
+                        ref={segmentFooterRef}
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            gap: '10px',
+                            padding: '8px 12px',
+                            flexShrink: 0,
+                            borderTop: '1px solid var(--border-color)',
+                            background: 'rgba(26, 27, 38, 0.95)',
+                            scrollMarginBottom: '12px'
+                        }}
+                    >
+                        <button
+                            type="button"
+                            title={`Segment auf ${rowHeightExpanded}px (wie „Configure all“)`}
+                            onClick={expandThisSegment}
+                        >
+                            Open
+                        </button>
+                        <button
+                            type="button"
+                            title={`Segment auf ${rowHeightCollapsed}px; Tab Configuration (wie „Collapse all“)`}
+                            onClick={collapseThisSegment}
+                        >
+                            Collapse
+                        </button>
+                    </div>
+                    <div
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            const startY = e.clientY;
+                            const startH = rowHeights[tg.id] || 450;
+                            const onMove = (me) =>
+                                setRowHeights((prev) => ({
+                                    ...prev,
+                                    [tg.id]: Math.max(200, startH + (me.clientY - startY))
+                                }));
+                            const onUp = () => {
+                                document.removeEventListener('mousemove', onMove);
+                                document.removeEventListener('mouseup', onUp);
+                            };
+                            document.addEventListener('mousemove', onMove);
+                            document.addEventListener('mouseup', onUp);
+                        }}
+                        style={{
+                            width: '100%',
+                            height: '8px',
+                            cursor: 'row-resize',
+                            background: 'var(--border-color)',
+                            borderBottom: '1px solid #111',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#444';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'var(--border-color)';
+                        }}
+                    >
+                        <div style={{ width: '30px', height: '4px', background: 'var(--text-secondary)', borderRadius: '2px' }} />
+                    </div>
                 </div>
             </td>
         </tr>
+        </Fragment>
     );
 }

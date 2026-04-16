@@ -13,7 +13,7 @@ agent_index:
     stabilization: "#2-stabilisierungs-meilensteine-14042026"
     anti_patterns: "#anti-patterns--architektonische-fallstricke"
 created: "2026-04-13T20:45:00Z"
-last_modified: "2026-04-17T10:00:00Z"
+last_modified: "2026-04-17T18:00:00Z"
 author: "AntiGravity"
 provenance:
   git_repo: "OpenClaw_Control_Center"
@@ -28,9 +28,9 @@ tags: [master-docs, architecture, zod, telegram-hub, private-ecosystem, anti-pat
 
 # OpenClaw Channel Manager: Master Documentation
 
-**Version**: 2.6.0 | **Date**: 17.04.2026 | **Time**: 12:00 | **GlobalID**: 20260417_1200_MASTER_DOC_v2.6
+**Version**: 2.7.0 | **Date**: 17.04.2026 | **Time**: 18:00 | **GlobalID**: 20260417_1800_MASTER_DOC_v2.7
 
-**Status:** active | **Source Registry:** Consolidated from Docs 10.04., 14.04., **15.04.** & **16.–17.04.2026** (IDE bridge, TARS-only Kanal-UI, IDE-Projekt-Summary-API, **Workbench multi-root**, **Skill-Herkunft-Labels**, **TTG bulk actions**, **Sub-Agent create/delete**, **Dev-Resilienz**).
+**Status:** active | **Source Registry:** Consolidated from Docs 10.04., 14.04., **15.04.** & **16.–17.04.2026** (IDE bridge, TARS-only Kanal-UI, IDE-Projekt-Summary-API, **Workbench multi-root**, **Skill-Herkunft-Labels**, **TTG bulk actions**, **Sub-Agent create/delete**, **Dev-Resilienz**, **Integrations-Roadmap §3.6 / §2.12**).
 
 ---
 
@@ -163,9 +163,19 @@ Das Dropdown **TARS / MARVIN / CASE** pro Kanal wurde **entfernt**. Die Harness-
 **Header — vier Convenience-Buttons (Mitte):**  
 Im **sticky Header** ist die Mitte eine **Grid-Spalte** zwischen Navigation (links) und Export/Import/Reload/Save (rechts). Vier Buttons — **Collapse all**, **Configure all**, **Open Claw Chat all**, **TARS in IDE, all** — nutzen dieselbe **header-actions**-Stilistik wie die rechten Aktionen und bleiben **in einer Zeile** (`flex-wrap: nowrap` im Mittelblock; bei Bedarf **horizontal scroll** statt vertikalem Stack).
 
+**Header-Mitte (nur Tab „Manage Channels“):**  
+Die vier **Convenience**-Buttons — **Collapse all**, **Configure all**, **Open Claw Chat all**, **TARS in IDE, all** — liegen im **sticky Header** in der mittleren Grid-Spalte. Sie werden **nur gerendert**, wenn `activeTab === 'channels'`; auf **Agents** und **Skills** entfällt die Mittelspalte (Grid schrumpft auf zwei Spalten), sodass kein Leerraum entsteht.
+
+**Toolbar oberhalb der Tabelle (ebenfalls nur „Manage Channels“):**  
+**Select All** (mit Zähler), Bulk-**Model** (Dropdown + Apply) und Bulk-**Skill** (Dropdown + Add) sitzen in der **unteren Leiste** innerhalb von `renderManageChannels()` — sie erscheinen nicht auf den anderen Haupt-Tabs, weil dort diese View gar nicht gemountet ist.
+
+**Zeilen-Markup (zwei `<tr>` pro Kanal):**  
+`ChannelManagerChannelRow` rendert ein **`React.Fragment`** mit (1) Hauptzeile: Checkbox, TTG-Spalte, Workspace-Spalte; (2) **Footer-Zeile** mit `colSpan={3}`: zentrierte **Open** / **Collapse**, darunter das **Resize-Handle**. So bleiben die drei Spalten in Zeile (1) gleich hoch; Steuerung liegt **vollbreit** unter dem Segment.
+
 **Zeilenhöhen:**  
 - **Collapse all:** ca. **260px** pro Kanalzeile; **alle** Zeilen-Sub-Tabs werden auf **Configuration** gesetzt (verhindert Überlappungs-Artefakte der linken Spalte, wenn vorher **OpenClaw Chat** oder **IDE project summary** aktiv war).  
-- **Die drei „expand all“-Varianten:** gemeinsame Zielhöhe (**aktuell 1160px**, Konstante `ROW_HEIGHT_EXPANDED` in `ChannelManager.jsx`; iterativ von 1760 → 1460 → 1160 reduziert für nutzbaren Platz auf dem Bildschirm) plus jeweils Sub-Tab **Configuration** / **OpenClaw Chat** / **summary** (TARS in IDE).  
+- **Die drei „expand all“-Varianten:** gemeinsame Zielhöhe (**aktuell 1010px**, Konstante `ROW_HEIGHT_EXPANDED` in `ChannelManager.jsx`; iterativ von 1760 → 1460 → 1160 → 1010 reduziert für nutzbaren Platz auf dem Bildschirm) plus jeweils Sub-Tab **Configuration** / **OpenClaw Chat** / **summary** (TARS in IDE).  
+- **Pro-Segment Open:** nach Expand scrollt die Ansicht so, dass die **Footer-Zeile** (Open/Collapse) mit `scrollIntoView({ block: 'end', behavior: 'smooth' })` am unteren Rand des sichtbaren Bereichs ausgerichtet wird (nach Layout-Update). **Pro-Segment Collapse:** Höhe **260px**, Zeilen-Sub-Tab **Configuration** (analog **Collapse all** nur für diese Zeile).  
 - Persistenz der Höhen: **`localStorage`**-Key **`ag-channel-row-heights`**.
 
 **TTG-Anzeige:**  
@@ -179,6 +189,19 @@ Spaltenkopf **„TTG (Telegram Topic Group)“**. Anzeigenamen mit veraltetem Pr
 **Dev / Betrieb:**  
 - **`GET /api/channels`:** React Query mit **Retries und Backoff** bei temporärem **502** (Vite-Proxy, wenn die API neu startet).  
 - **`TelegramChat` / SSE:** Reconnect mit **Backoff**, **gedrosseltes** Logging bei `EventSource`-Fehlern (Reconnect ist erwartbar).
+
+### 2.12 Nächste Schritte: Backend ↔ OpenClaw ↔ IDE & TTG-Namenskonvention (17.04.2026)
+
+**Stand:** Die Channel-Manager-**UI** für Konfiguration, Chat-Spiegel, IDE-Summary, Bulk, Sub-Agent-CRUD und TTG-Anzeige ist **umgesetzt**. Als Nächstes zählen **Laufzeit-Verdrahtung** und **prüfbare** Regeln — siehe Spec **§3.6** und Plan **§12**.
+
+**Priorisierte Integrationslinien:**  
+1. **OpenClaw / Gateway:** Parity zwischen persistierter Kanal-Config und **tatsächlichem** Gateway-Verhalten (kein stiller Drift).  
+2. **IDE / Cursor:** Export-Bundles (`/api/exports/ide`), `ideConfigBridge`, `/api/ide-project-summaries` in wiederholbare Checks einbinden; **MCP Sub-Task 8.3** (Sovereign-Verifikation) abschließen.  
+3. **Rosetta / Session:** ggf. offene Memory-/Session-Punkte aus früheren Phasen nachziehen.
+
+**TTG-Kürzel (`TTG000`, …):** Einheitliche Zuordnung IDE ↔ Telegram-Topic-Group erfordert ein **stabiles Schema**. **Nur** „User/Agent soll es so schreiben“ ist **unzureichend**. Empfohlen: **Backend-Validierung** (Zod) bei Create/Rename, optional Normalisierung/Warnung; ergänzend **Workspace-Skill** und **Cursor Rule** für IDE-Agenten — die technische Schranke bleibt die **API/Config**, nicht die bloße Erinnerung.
+
+**Referenz:** [CHANNEL_MANAGER_IDE_BRIDGE_DISCOVERY.md](CHANNEL_MANAGER_IDE_BRIDGE_DISCOVERY.md).
 
 ---
 
@@ -269,9 +292,10 @@ Die Windows-`mcp.json` (`E:\`, `cmd /c`, `.exe`) in **Remote-SSH** nach `~/.curs
 | **Kanal-UI** | TARS-only (kein Engine-Dropdown); Sub-agents; Tab „TARS in IDE · IDE project summary“. |
 | **Workbench** | Multi-Root (`resolveWorkbenchPath`); gebündelte Skills + User-Home; URL nach persist-Hydration; `.env.example` (`WORKBENCH_*`). |
 | **Skill-Badges** | Sub-Agent vor Hauptagent bei Duplikat-IDs; Label **Inherited from {Name} · sub-agent**. |
-| **TTG bulk / Sub-Agent CRUD** | §3.5 Spec; Header-Buttons, 260px / 1160px, `createSubAgent` / `deleteSubAgent`; §2.11 Master-Doku. |
+| **TTG bulk / Sub-Agent CRUD** | §3.5 Spec; Header-Buttons, 260px / 1010px expand, zwei `<tr>` pro Zeile, Bulk nur Tab „Manage Channels“, `createSubAgent` / `deleteSubAgent`; §2.11 Master-Doku. |
+| **Integration / TTG-Regel** | Spec §3.6, Plan §12, Master §2.12 — OpenClaw-Parity, IDE-Exports, MCP 8.3; TTG-Präfix **durch Validierung**, nicht nur Skill/Text. |
 
 ---
 
 **Ende der konsolidierten Master-Dokumentation.**
-*Zusammengeführt 14.04.2026 (AntiGravity); Abschnitte 2.6–2.8, AP-17 und Summary 15.04.2026 ergänzt; **Abschnitt 2.9 und Summary 16.04.2026** (IDE-Bridge, TARS-only, Sub-agents, IDE-Summary-API); **Abschnitt 2.10 16.04.2026** (Workbench multi-root, Skill-Herkunft); **Abschnitt 2.11 17.04.2026** (TTG bulk, Sub-Agent create/delete, TTG-Anzeige, Dev-Resilienz).*
+*Zusammengeführt 14.04.2026 (AntiGravity); Abschnitte 2.6–2.8, AP-17 und Summary 15.04.2026 ergänzt; **Abschnitt 2.9 und Summary 16.04.2026** (IDE-Bridge, TARS-only, Sub-agents, IDE-Summary-API); **Abschnitt 2.10 16.04.2026** (Workbench multi-root, Skill-Herkunft); **Abschnitt 2.11 17.04.2026** (TTG bulk, Sub-Agent create/delete, TTG-Anzeige, Dev-Resilienz, zwei-Zeilen-Layout, Bulk-Sichtbarkeit); **Abschnitt 2.12 17.04.2026** (Integration Backlog, TTG-Durchsetzung).*

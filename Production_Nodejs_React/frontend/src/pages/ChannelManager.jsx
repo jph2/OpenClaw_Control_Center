@@ -14,8 +14,8 @@ const SKILL_LIST_FILTER_INITIAL = { q: '', cat: '', src: '', defOnly: false, sor
 
 /** Bulk row heights for Manage Channels (4K single-segment layout). */
 const ROW_HEIGHT_COLLAPSED = 260;
-/** Expanded height for bulk “all” actions (tuned for ~one viewport segment on 4K; was 1760 → 1460 → 1160). */
-const ROW_HEIGHT_EXPANDED = 1160;
+/** Expanded height for bulk “all” actions (tuned for ~one viewport segment on 4K; was 1760 → 1460 → 1160 → 1010). */
+const ROW_HEIGHT_EXPANDED = 1010;
 
 export default function ChannelManager() {
     const queryClient = useQueryClient();
@@ -573,6 +573,8 @@ export default function ChannelManager() {
                             onSubAgentAssignToTars={(subId) =>
                                 updateSubAgentMutation.mutate({ subAgentId: subId, parent: 'tars' })
                             }
+                            rowHeightExpanded={ROW_HEIGHT_EXPANDED}
+                            rowHeightCollapsed={ROW_HEIGHT_COLLAPSED}
                         />
                     ))}
 
