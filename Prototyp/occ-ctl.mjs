@@ -9,6 +9,9 @@ const __dirname = path.dirname(__filename);
 /** Repo root (Production_Nodejs_React and Backend_MCP live one level up from Prototyp). */
 const REPO_ROOT = path.resolve(__dirname, '..');
 
+/** Parent of repo (e.g. …/9999_LocalRepo) — backend resolves channel_config and workbench paths from this. */
+const DEFAULT_WORKSPACE_ROOT = path.resolve(REPO_ROOT, '..');
+
 const PORTS = {
     BACKEND: 3000,
     WORKBENCH: 4260,
@@ -82,10 +85,15 @@ async function start() {
         }
 
         console.log(`Starting "${service.name}"...`);
+        const workspaceRoot = process.env.WORKSPACE_ROOT || DEFAULT_WORKSPACE_ROOT;
         const child = spawn(service.command, service.args, {
             cwd: service.cwd,
             detached: true,
-            stdio: 'ignore' // We run in background for lightweight assurance
+            stdio: 'ignore', // We run in background for lightweight assurance
+            env: {
+                ...process.env,
+                WORKSPACE_ROOT: workspaceRoot
+            }
         });
         
         child.unref();

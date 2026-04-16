@@ -562,6 +562,6 @@ app.get(['/workbench', '/workbench/*', '/', '/*'], (req, res) => {
 
 await loadCustomRoots();
 
-app.listen(PORT, () => {
-  console.log(`OpenClaw workbench MVP listening on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`OpenClaw workbench MVP listening on http://0.0.0.0:${PORT}`);
 });
