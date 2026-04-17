@@ -5,13 +5,20 @@
 
 **Current State:** Functional MVP with CLI fallback. Core chat architecture migrated successfully.
 
-**Final Verification (2026-04-17 18:59):**
+**Final Verification (2026-04-17 19:34):**
 - ✅ CM TEST PING 124-132: All messages sent successfully
 - ✅ Backend Ack: ~12-30ms (excellent)
 - ✅ No duplicate messages
 - ✅ Native OpenClaw session path working
+- ✅ Frontend .env configuration documented
 - ⚠️ Perceived latency: ~9s (upstream issue, documented)
 - ⚠️ Lüfter: High CPU from OpenClaw Gateway (outside CM scope)
+
+**Critical Fix Applied (2026-04-17 19:30):**
+- Added missing `frontend/.env` with `VITE_API_BASE_URL=http://localhost:3000`
+- Created `.env.example` template
+- Updated `.gitignore` to exclude local .env files
+- This fixes the "Failed to send message" error that occurred after hard reload
 
 **Next Phase (Future):** Performance optimization - see §Performance Analysis below.
 
@@ -103,6 +110,15 @@ It exists separately from the broader implementation plan so the migration can p
 - Updated `isMe` to use only `senderRole === 'user'`
 - Updated `handleSendMessage()` to use native API when available
 - Updated SSE handler to remove pending message reconciliation logic
+- Added `useMemo` optimization for message filtering
+- Limited messages to last 100 to prevent UI blocking
+- Skip ReactMarkdown for plain text (performance)
+
+### Frontend Configuration
+- **NEW:** `frontend/.env.example` - Template for local configuration
+- **NEW:** `frontend/.env` - Local config with `VITE_API_BASE_URL=http://localhost:3000`
+- **IMPORTANT:** This environment variable is required for SSE/EventSource to work reliably
+- Setup: `cp frontend/.env.example frontend/.env`
 
 ---
 
@@ -154,17 +170,39 @@ The issues are **UPSTREAM** of the Channel Manager:
 ---
 
 ## 📋 Documentation Transfer Note
-**Status:** Zwischenstand dokumentiert - Transfer zu `CHANNEL_MANAGER_DOCUMENTATION_16-04-2026.md` ausstehend
+**Status:** ✅ COMPLETED - All changes documented and committed
 
-**Zu übertragende Inhalte:**
+**Transfer to `CHANNEL_MANAGER_DOCUMENTATION_16-04-2026.md`:**
 - ✅ Phase 1-5 Implementation Details
-- ✅ Code-Änderungen in `telegramService.js`, `openclaw.js`, `TelegramChat.jsx`
-- ✅ Neue API Routes (`/api/openclaw/*`)
-- ✅ Runtime Behavior & Performance-Metriken
-- ⚠️ Known Issues (HTTP Gateway, CPU-Last)
-- 🔧 Konfiguration (`.env` Variablen)
+- ✅ Code changes in `telegramService.js`, `openclaw.js`, `TelegramChat.jsx`
+- ✅ New API Routes (`/api/openclaw/*`)
+- ✅ Runtime Behavior & Performance metrics
+- ✅ Frontend configuration (`.env.example`, `.gitignore`)
+- ⚠️ Known Issues (HTTP Gateway, CPU-Load, 9s latency)
 
-**Transfer erfolgt nach:** Abschluss aller Phasen und Stabilisierung
+**Setup Instructions (NEW):**
+```bash
+# 1. Backend setup
+cd backend
+npm install
+cp .env.example .env  # Edit as needed
+npm start
+
+# 2. Frontend setup (in new terminal)
+cd frontend
+npm install
+cp .env.example .env  # REQUIRED: Sets VITE_API_BASE_URL
+npm run dev
+
+# 3. Access
+# Frontend: http://localhost:5173
+# Backend: http://localhost:3000
+```
+
+**Git Repository:**
+- All changes committed and pushed
+- `.env` files properly excluded from git
+- `.env.example` templates provided
 
 ---
 

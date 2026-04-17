@@ -30,7 +30,7 @@ tags: [master-docs, architecture, zod, telegram-hub, private-ecosystem, anti-pat
 
 **Version**: 2.8.0 | **Date**: 18.04.2026 | **Time**: 20:00 | **GlobalID**: 20260418_2000_MASTER_DOC_v2.8
 
-**Status:** active | **Source Registry:** Consolidated from Docs 10.04., 14.04., **15.04.** & **16.–18.04.2026** (IDE bridge, TARS-only Kanal-UI, IDE-Projekt-Summary-API, **Workbench multi-root**, **Skill-Herkunft-Labels**, **TTG bulk actions**, **Sub-Agent create/delete**, **Dev-Resilienz**, **Chat-SoT §3.4a–e**, **Restoration/Ops 17.04.**, **Integrations-Roadmap §3.6 / §2.12**, **Chat Rebuild 17.04.–Native Session Architecture**).
+**Status:** active | **Source Registry:** Consolidated from Docs 10.04., 14.04., **15.04.** & **16.–18.04.2026** (IDE bridge, TARS-only Kanal-UI, IDE-Projekt-Summary-API, **Workbench multi-root**, **Skill-Herkunft-Labels**, **TTG bulk actions**, **Sub-Agent create/delete**, **Dev-Resilienz**, **Chat-SoT §3.4a–e**, **Restoration/Ops 17.04.**, **Integrations-Roadmap §3.6 / §2.12**, **Chat Rebuild 17.04.–Native Session Architecture COMPLETED**).
 
 ---
 
@@ -328,6 +328,7 @@ Die Windows-`mcp.json` (`E:\`, `cmd /c`, `.exe`) in **Remote-SSH** nach `~/.curs
 | **Traceability (Studio)** | Zwei Achsen; **[TRACEABILITY_SCHEMA_V1.1.md](../../Studio_Framework/020_Standards_Definitions_Rules/010_Schema/TRACEABILITY_SCHEMA_V1.1.md)**. |
 | **Restore / Ops 17.04.** | Master §2.14; Report [OPENCLAW_CHANNEL_MANAGER_RESTORATION_REPORT.md](OPENCLAW_CHANNEL_MANAGER_RESTORATION_REPORT.md). |
 | **Chat Rebuild 17.04.** | Native OpenClaw Session Architecture; [CHANNEL_MANAGER_CHAT_REBUILD_PLAN_2026-04-17.md](CHANNEL_MANAGER_CHAT_REBUILD_PLAN_2026-04-17.md) — Phase 1-5 COMPLETED. |
+| **Frontend Config** | `.env.example` template added; `VITE_API_BASE_URL` required for SSE/EventSource. Setup: `cp frontend/.env.example frontend/.env` |
 
 ---
 
