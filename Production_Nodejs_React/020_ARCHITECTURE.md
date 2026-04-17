@@ -245,17 +245,23 @@ duplicate the same server id.
 
 ### 6.3 Known pain points (Bundle A)
 
-- Session directory polling loop in `telegramService.js` (`readdirSync` +
-  `statSync` every 2s) drives measurable CPU load. **Fix:** chokidar scoped to
-  active canonical `sessionFile`(s).
-- `sendViaHttpGateway` (HTTP fast path to `:8080/api/v1/sessions/:id/send`)
-  always falls through (`"fetch failed"`) and should be removed until the
-  gateway endpoint is real.
-- `scrollToBottom` with `behavior: 'smooth'` runs on every message and
-  contributes to perceived latency. **Fix:** `behavior: 'auto'`, only scroll
-  when near the bottom, skip filtered-out messages.
+- ~~Session directory polling loop in `telegramService.js` (`readdirSync` +
+  `statSync` every 2s) drives measurable CPU load.~~ **Resolved in Bundle A/P1**:
+  replaced by a chokidar watcher on `sessions.json` plus one watcher whose
+  path set tracks the canonical `sessionFile` of every group in
+  `sessions.json`. Orphan `*.jsonl` files are never watched.
+- ~~`sendViaHttpGateway` (HTTP fast path to `:8080/api/v1/sessions/:id/send`)
+  always falls through (`"fetch failed"`).~~ **Resolved in Bundle A/P3**:
+  removed entirely; `sendMessageToChat` now goes straight to the `openclaw`
+  CLI. The HTTP endpoint will be re-introduced only when the gateway actually
+  exposes it.
+- ~~`scrollToBottom` with `behavior: 'smooth'` runs on every message and
+  contributes to perceived latency.~~ **Resolved in Bundle A/P2**: scroll uses
+  `behavior: 'auto'`, is keyed on `filteredMessages.length`, and is gated by a
+  `stuckToBottomRef` so the user's reading position is preserved.
 - Inline `await import('../services/telegramService.js')` in `routes/openclaw.js`
-  is a circular-dependency smell scheduled to disappear with the route merge.
+  is a circular-dependency smell scheduled to disappear with the route merge
+  in Bundle B/P4.
 
 ---
 

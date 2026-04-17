@@ -14,7 +14,7 @@
 | Area                                | State                                                                  |
 | ----------------------------------- | ---------------------------------------------------------------------- |
 | Configuration tab                   | Functional; TTG CRUD, sub-agent CRUD, skills list, row heights persist |
-| OpenClaw Chat mirror                | Functional MVP (gateway-first read, CLI send); perf work pending       |
+| OpenClaw Chat mirror                | Functional; chokidar-scoped watchers, CLI send, dead code purged        |
 | Cursor Summary tab                  | Read-only MVP live; A070 list + renderer                               |
 | IDE Bridge (MCP)                    | Live for `send_telegram_reply` and `change_agent_mode`                 |
 | Exports (read-only projections)    | Live: `/api/exports/{canonical,openclaw,ide,cursor}`                   |
@@ -39,42 +39,56 @@ information lands in the four normative docs.
 
 ---
 
-## 3. Bundle A — Performance and cleanup (next)
+## 3. Bundle A — Performance and cleanup (done)
 
 **Goal:** unbreak CPU and perceived latency, remove dead code and stale
-fallbacks. No architectural changes. Lands as one PR (three commits).
+fallbacks. No architectural changes. Landed as three commits in order P1 → P2 → P3.
 
-### A / P1 — Fan kill
+### A / P1 — Fan kill (done)
 
-- Replace 2-second sessions-directory polling in `telegramService.js` with
-  `chokidar.watch()` scoped to the active canonical `sessionFile`(s).
-- Remove `hydrateOpenclawSessionIndex` calls from the hot paths
-  (`resolveCanonicalSession`, `sendMessageToChat`); keep a single debounced
-  watcher on `sessions.json`.
+- ✅ Replaced the 2-second sessions-directory polling in `telegramService.js`
+  with two scoped `chokidar.watch()` instances: one on `sessions.json`
+  (debounced 200 ms), one whose path set tracks the canonical `sessionFile`
+  of each group currently present in `sessions.json`.
+- ✅ Removed the internal rate-limit trampoline inside
+  `hydrateOpenclawSessionIndex` and the per-call hydrate inside
+  `resolveCanonicalSession` / `refreshChatMirrorFromCanonicalSession`.
 
-### A / P2 — Perceived latency
+### A / P2 — Perceived latency (done)
 
-- `TelegramChat.jsx`: switch `scrollToBottom` to `behavior: 'auto'`; only
-  scroll when the container is near the bottom; skip auto-scroll for messages
-  that are filtered out.
-- Wrap SSE `setMessages` updates in `startTransition` where they cause visible
-  stutter.
+- ✅ `TelegramChat.jsx` switched to `behavior: 'auto'`, keyed the auto-scroll
+  effect on `filteredMessages.length`, and added a `stuckToBottomRef` gate so
+  auto-scroll only runs when the user is within 80 px of the bottom.
+- ✅ SSE state updates (`INIT`, `SESSION_REBOUND`, `MESSAGE`) are wrapped in
+  `startTransition()` so typing, button clicks and scroll stay responsive
+  during bursts.
 
-### A / P3 — Dead code purge
+### A / P3 — Dead code purge (done)
 
-- Delete `historyScanner.mjs`, the `Telegraf` import, the `bot` / `relayBot`
-  globals, `getChatBots`, the hardcoded `-3736210177` alias fix-up, and the
-  Prototyp-path fallback.
-- Delete `sendViaHttpGateway` and its call site in `sendMessageToChat` until
-  the OpenClaw gateway exposes a functional
+- ✅ Deleted `historyScanner.mjs`, `ActiveBotsList.jsx` and the
+  `/api/telegram/bots/:chatId` route + `getChatBots`.
+- ✅ Removed the `Telegraf` import, the `bot` / `relayBot` / `mainBotInfo` /
+  `relayBotInfo` globals, the `scanHistory` hydration block, and the
+  disabled `bot.launch()` scaffolding from `telegramService.js`.
+- ✅ Removed the hardcoded `-3736210177 → -1003752539559` alias fix-up from
+  both `CHAT_ID_ALIASES` and `routes/telegram.js`.
+- ✅ Removed the `process.cwd()`-relative Prototyp fallback in
+  `hydrateChannelAliasesFromDiskSync`; the function now requires
+  `WORKSPACE_ROOT` and logs a single warning if it is missing.
+- ✅ Removed `sendViaHttpGateway` and its call site in `sendMessageToChat`.
+  The HTTP fast path was never reachable in practice; `sendMessageToChat`
+  now goes straight to the `openclaw` CLI. It will be re-introduced only
+  when the gateway exposes a functional
   `POST /api/v1/sessions/:sessionId/send`.
 
-**Acceptance:**
+**Acceptance (observed):**
 
-- CPU on idle chat panel drops to near zero.
-- First paint of an open chat under ~300 ms on a warm backend.
-- No references to `historyScanner`, `Telegraf`, `sendViaHttpGateway`, or the
-  hardcoded group-id fallback remain in `grep`.
+- CPU on an idle chat panel is effectively zero; fan no longer ramps.
+- First paint of an open chat is well under 300 ms on a warm backend.
+- `grep` for `historyScanner`, `Telegraf`, `sendViaHttpGateway`,
+  `getChatBots`, `ActiveBotsList`, or the hardcoded group-id fallback
+  returns no hits outside `_archive/` and standalone `backend/test-*.js`
+  scripts.
 
 ---
 
@@ -214,8 +228,8 @@ not part of the A → B → C1 → C2 sequence above.
 
 ## 9. Release cadence
 
-- **Phase 0** — this commit.
-- **Bundle A** — one PR; three commits (P1, P2, P3) in that order.
+- **Phase 0** — landed.
+- **Bundle A** — landed as three commits (P1, P2, P3) in that order.
 - **Bundle B** — one PR; `/api/telegram/*` aliases kept for **one release**,
   then removed in the following PR.
 - **Bundle C1, C2** — one PR each, blocked on B.

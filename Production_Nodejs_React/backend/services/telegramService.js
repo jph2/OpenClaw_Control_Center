@@ -1,19 +1,12 @@
-import { Telegraf } from 'telegraf';
 import { EventEmitter } from 'events';
 import chokidar from 'chokidar';
 import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { scanHistory } from './historyScanner.mjs';
 
 const execAsync = promisify(exec);
 const DEFAULT_SESSIONS_ROOT = path.join(process.env.HOME || '/home/claw-agentbox', '.openclaw/agents/main/sessions');
-
-// Performance optimization: HTTP-based session send instead of CLI spawn
-// This eliminates per-message process spawn overhead (~500-2000ms)
-const GATEWAY_BASE_URL = process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:8080';
-const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || null;
 
 /** One-line log helper for openclaw CLI (no secrets; truncate). */
 function clip(s, max = 600) {
@@ -246,8 +239,7 @@ const CHAT_ID_ALIASES = new Map([
     ['TTG000_General_Chat', '-1003752539559'],
     ['TG000_General_Chat', '-1003752539559'],
     ['TSG003_General_Chat', '-1003752539559'],
-    ['tg000_general_chat', '-1003752539559'],
-    ['-3736210177', '-1003752539559']
+    ['tg000_general_chat', '-1003752539559']
 ]);
 
 /**
@@ -255,35 +247,42 @@ const CHAT_ID_ALIASES = new Map([
  * real group id in this install — never a stale hardcoded id.
  */
 function hydrateChannelAliasesFromDiskSync() {
-    const tryPaths = [];
-    if (process.env.WORKSPACE_ROOT) {
-        tryPaths.push(
-            path.join(process.env.WORKSPACE_ROOT, 'OpenClaw_Control_Center', 'Prototyp', 'channel_CHAT-manager', 'channel_config.json')
-        );
+    // Only the WORKSPACE_ROOT-relative path is supported. The old
+    // process.cwd()-relative fallback silently picked up whichever
+    // channel_config.json happened to sit at "../../Prototyp/..." and
+    // produced confusing "hydrated 0 aliases" logs whenever the backend
+    // was started from a different directory.
+    if (!process.env.WORKSPACE_ROOT) {
+        console.warn('[TelegramService] WORKSPACE_ROOT is not set; skipping channel alias hydration.');
+        return;
     }
-    tryPaths.push(path.join(process.cwd(), '..', '..', 'Prototyp', 'channel_CHAT-manager', 'channel_config.json'));
-
-    for (const configPath of tryPaths) {
-        try {
-            if (!fs.existsSync(configPath)) continue;
-            const raw = fs.readFileSync(configPath, 'utf8');
-            const parsed = JSON.parse(raw);
-            let n = 0;
-            for (const c of parsed.channels || []) {
-                if (c?.id == null || !c?.name) continue;
-                const id = String(c.id).trim();
-                const name = String(c.name).trim();
-                CHAT_ID_ALIASES.set(name, id);
-                CHAT_ID_ALIASES.set(name.toLowerCase(), id);
-                n++;
-            }
-            console.log(`[TelegramService] Hydrated ${n} channel id aliases from ${configPath}`);
+    const configPath = path.join(
+        process.env.WORKSPACE_ROOT,
+        'OpenClaw_Control_Center',
+        'Prototyp',
+        'channel_CHAT-manager',
+        'channel_config.json'
+    );
+    try {
+        if (!fs.existsSync(configPath)) {
+            console.warn(`[TelegramService] No channel_config.json at ${configPath}; label→id may be incomplete.`);
             return;
-        } catch (e) {
-            console.warn(`[TelegramService] Could not hydrate aliases from ${configPath}:`, e.message);
         }
+        const raw = fs.readFileSync(configPath, 'utf8');
+        const parsed = JSON.parse(raw);
+        let n = 0;
+        for (const c of parsed.channels || []) {
+            if (c?.id == null || !c?.name) continue;
+            const id = String(c.id).trim();
+            const name = String(c.name).trim();
+            CHAT_ID_ALIASES.set(name, id);
+            CHAT_ID_ALIASES.set(name.toLowerCase(), id);
+            n++;
+        }
+        console.log(`[TelegramService] Hydrated ${n} channel id aliases from ${configPath}`);
+    } catch (e) {
+        console.warn(`[TelegramService] Could not hydrate aliases from ${configPath}:`, e.message);
     }
-    console.warn('[TelegramService] No channel_config.json found for alias hydration; label→id may be incomplete.');
 }
 
 /**
@@ -330,9 +329,6 @@ function extractTelegramGroupIdFromUserPayload(data) {
     }
     return null;
 }
-
-let bot = null;         // TARS (Inbound)
-let relayBot = null;    // CASE / Shedly (Outbound)
 
 // Track file sizes to only read new lines on each chokidar change event.
 const fileOffsets = new Map();
@@ -504,40 +500,7 @@ function handleSessionFileAppend(filePath) {
 export const initTelegramService = () => {
     hydrateChannelAliasesFromDiskSync();
 
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    const relayToken = process.env.RELAY_BOT_TOKEN || process.env.SHEDLY_BOT_TOKEN;
-
-    if (!token) {
-        console.warn('[TelegramService] TELEGRAM_BOT_TOKEN not found in .env.');
-    }
-    
-    if (!relayToken) {
-        console.warn('[TelegramService] RELAY_BOT_TOKEN not found in .env. Cannot send answers!');
-    } else {
-        // relayBot = new Telegraf(relayToken); (Mirroring disabled to prevent Bot-on-Bot noise)
-    }
-
-    // Load historical messages from Markdown transcripts
-    scanHistory().then(historyMap => {
-        console.log(`[TelegramService] Hydrated history for ${historyMap.size} chats.`);
-        for (const [chatId, messages] of historyMap) {
-            const key = normalizeChatIdForBuffer(chatId);
-            if (!messageBuffer.has(key)) {
-                messageBuffer.set(key, messages);
-            } else {
-                const existing = messageBuffer.get(key);
-                const merged = [...messages, ...existing].sort((a,b) => a.date - b.date);
-                messageBuffer.set(key, merged.slice(-MAX_BUFFER_SIZE));
-            }
-        }
-    });
-
     try {
-        if (token) {
-            // bot = new Telegraf(token);
-            // NOTE: bot.launch() is INTENTIONALLY REMOVED to satisfy Phase 7 (Gateway-First)
-        }
-
         // ==========================================
         // PHASE 7: Gateway-First filesystem bridge (chokidar, scoped)
         // ==========================================
@@ -663,49 +626,6 @@ export const getMessagesForChat = (chatId) => {
     return messageBuffer.get(key) || [];
 };
 
-/**
- * Send message via HTTP API to OpenClaw Gateway (fast path)
- * Falls back to CLI spawn only if HTTP is unavailable
- */
-async function sendViaHttpGateway(sessionId, message, sessionKey) {
-    // Use native fetch (Node.js 18+) or fall back to dynamic import
-    const fetchFn = globalThis.fetch;
-    if (!fetchFn) {
-        throw new Error('fetch not available - Node.js 18+ required for HTTP gateway');
-    }
-    
-    const url = `${GATEWAY_BASE_URL}/api/v1/sessions/${sessionId}/send`;
-    const headers = {
-        'Content-Type': 'application/json',
-        ...(GATEWAY_TOKEN && { 'Authorization': `Bearer ${GATEWAY_TOKEN}` })
-    };
-    const body = JSON.stringify({ message, sessionKey });
-    
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    
-    try {
-        const response = await fetchFn(url, {
-            method: 'POST',
-            headers,
-            body,
-            signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-            const errorText = await response.text().catch(() => 'Unknown error');
-            throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
-        
-        return await response.json();
-    } catch (err) {
-        clearTimeout(timeoutId);
-        throw err;
-    }
-}
-
 export const sendMessageToChat = async (chatId, text) => {
     const requestStartedAt = Date.now();
     const canonical = resolveCanonicalSession(chatId);
@@ -725,47 +645,12 @@ export const sendMessageToChat = async (chatId, text) => {
         return { message_id: `ui-empty-${Date.now()}`, transport: 'noop', timing: { totalMs: Date.now() - requestStartedAt } };
     }
 
-    // PHASE 4: Native OpenClaw session send via HTTP (fast path)
-    // Eliminates per-message CLI spawn overhead
-    if (canonical.sessionId) {
-        try {
-            const httpStartedAt = Date.now();
-            const result = await sendViaHttpGateway(canonical.sessionId, text, canonical.sessionKey);
-            const httpDoneAt = Date.now();
-            
-            logOpenclawCli('inject_http_ok', {
-                transport: 'session-native-http',
-                realChatId: String(realChatId),
-                sessionId: canonical.sessionId,
-                timing: {
-                    httpCallMs: httpDoneAt - httpStartedAt,
-                    totalAckMs: httpDoneAt - requestStartedAt
-                }
-            });
-            
-            return {
-                message_id: result.messageId || `http-${httpDoneAt}`,
-                transport: 'session-native-http',
-                sessionKey: canonical.sessionKey,
-                sessionId: canonical.sessionId,
-                sessionFile: canonical.sessionFile,
-                timing: {
-                    totalAckMs: httpDoneAt - requestStartedAt,
-                    httpCallMs: httpDoneAt - httpStartedAt
-                }
-            };
-        } catch (httpErr) {
-            // HTTP failed - fall back to CLI spawn but log the attempt
-            logOpenclawCli('inject_http_fallback', {
-                reason: httpErr.message,
-                sessionId: canonical.sessionId,
-                willTry: 'cli-spawn'
-            });
-            // Continue to CLI fallback below
-        }
-    }
-
-    // CLI spawn fallback (legacy, slower)
+    // Gateway send via openclaw CLI. There used to be an HTTP "fast path"
+    // against the Gateway's /api/v1/sessions/:id/send endpoint, but in
+    // practice the endpoint was never deployed on this machine, every
+    // send fell straight into the CLI branch anyway, and the extra
+    // try/catch added ~5s of HTTP timeout to every failed attempt.
+    // Removed in Bundle A/P3.
     const safeText = text.replace(/"/g, '\\"').replace(/\n/g, ' ');
     let cmd = null;
     let transport = null;
@@ -827,33 +712,3 @@ export const sendMessageToChat = async (chatId, text) => {
     }
 };
 
-let relayBotInfo = null;
-let mainBotInfo = null;
-
-export const getChatBots = async (chatId) => {
-    if (!bot) return [];
-    try {
-        if (!mainBotInfo) mainBotInfo = await bot.telegram.getMe();
-        
-        const admins = await bot.telegram.getChatAdministrators(chatId);
-        // Filter out human admins, keep only bots, AND hide the primary bot itself
-        const bots = admins.filter(admin => admin.user.is_bot && admin.user.id !== mainBotInfo.id).map(admin => admin.user);
-
-        if (relayBot) {
-            try {
-                if (!relayBotInfo) relayBotInfo = await relayBot.telegram.getMe();
-                if (!bots.find(b => b.id === relayBotInfo.id)) {
-                    const relayMember = await bot.telegram.getChatMember(chatId, relayBotInfo.id);
-                    if (['creator', 'administrator', 'member', 'restricted'].includes(relayMember.status)) {
-                        bots.push(relayMember.user);
-                    }
-                }
-            } catch (err) {}
-        }
-
-        return bots;
-    } catch (err) {
-        console.error(`[TelegramService] Failed to fetch admins for ${chatId}:`, err.message);
-        return [];
-    }
-};

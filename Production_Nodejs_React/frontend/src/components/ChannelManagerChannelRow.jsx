@@ -1,7 +1,6 @@
 import React, { Fragment, useLayoutEffect, useRef, useState } from 'react';
 import TelegramChat from './TelegramChat';
 import IdeProjectSummaryPanel from './IdeProjectSummaryPanel';
-import ActiveBotsList from './ActiveBotsList';
 import { formatSkillOptionLabel } from '../utils/formatSkillOptionLabel.js';
 import { formatTtgChannelName } from '../utils/formatTtgChannelName.js';
 
@@ -323,7 +322,6 @@ export default function ChannelManagerChannelRow({
                             Sub-agents
                         </div>
                         {renderSubAgentBlock('ide')}
-                        <ActiveBotsList chatId={tg.id} />
                     </div>
                 </div>
             );
@@ -386,7 +384,6 @@ export default function ChannelManagerChannelRow({
                     </div>
                     <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Sub-agents</div>
                     {renderSubAgentBlock('ide')}
-                    <ActiveBotsList chatId={tg.id} suppressTopBorder />
                 </div>
             </div>
         );

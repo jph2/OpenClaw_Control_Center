@@ -4,7 +4,6 @@ import {
     telegramEvents,
     getMessagesForChat,
     sendMessageToChat,
-    getChatBots,
     normalizeChatIdForBuffer,
     refreshChatMirrorFromCanonicalSession,
     resolveCanonicalSession
@@ -114,26 +113,6 @@ router.post('/send', apiLimiter, async (req, res, next) => {
 router.get('/session/:chatId', (req, res) => {
     const resolved = resolveCanonicalSession(req.params.chatId);
     res.json({ ok: true, ...resolved });
-});
-
-/**
- * GET /api/telegram/bots/:chatId
- * Fetches the bots currently present in the chat (as administrators).
- */
-router.get('/bots/:chatId', async (req, res, next) => {
-    try {
-        let { chatId } = req.params;
-        
-        // Auto-fix legacy generic OpenClaw aliases to the real telegram Chat ID
-        if (chatId === '-3736210177') {
-            chatId = '-1003752539559';
-        }
-
-        const bots = await getChatBots(chatId);
-        res.json({ ok: true, bots });
-    } catch (error) {
-        next(error);
-    }
 });
 
 export default router;
