@@ -1,7 +1,7 @@
 # Channel Manager — Workspace Skills Registry (Specification)
 
 **Status:** registry implemented; presentation (filter / order) **planned** — see § [Filtering, ordering, and display](#filtering-ordering-and-display-planned)  
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-18
 
 ## Goal
 
@@ -13,6 +13,8 @@ Expose **all** skills that exist under the OpenClaw workspace skills tree in the
 |--------|------|
 | **Bundled / managed catalog** | Fixed entries shipped with Channel Manager (`BUNDLED_SKILL_CATALOG` in `routes/channels.js`): built-in OpenClaw skills, ClawHub entries such as `notion`, etc. |
 | **Workspace scan** | For every subdirectory `<OPENCLAW_WORKSPACE>/skills/<skillId>/` that contains `SKILL.md`, the backend builds one registry entry keyed by `skillId`. |
+
+**Config consistency (2026-04-17, Hardening):** The parent **`channel_config.json`** must keep **`channels`**, **`agents`**, and **`subAgents`** as **JSON arrays** (never `{}` where an array is required). The registry merge assumes a valid config shape after backend normalization — see [OPENCLAW_CHANNEL_MANAGER_RESTORATION_REPORT.md](OPENCLAW_CHANNEL_MANAGER_RESTORATION_REPORT.md).
 
 ### Environment
 

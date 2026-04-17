@@ -13,7 +13,7 @@ agent_index:
     logic: "#5-datenfluss--design-entscheidungen"
     risks: "#6-architektur-risiken--audit-härtung"
 created: "2026-04-12T01:07:00Z"
-last_modified: "2026-04-18T12:00:00Z"
+last_modified: "2026-04-18T20:00:00Z"
 author: "AntiGravity"
 provenance:
   git_repo: "OpenClaw_Control_Center"
@@ -24,8 +24,8 @@ tags: [specification, channel_manager, gateway-first, requirements, zod-hardenin
 
 # Spezifikation & Kernanforderungen: Sovereign Channel Management (V2.1)
 
-**Version**: 2.4.1 | **Date**: 18.04.2026 | **Status**: Sovereign | **Context**: Gateway-First, CM als Konfigurationsspiegel, Triade (TARS · MARVIN · CASE), Workbench multi-root, Skill-Herkunft-UX, TTG bulk & Sub-Agent-CRUD, Integrations-Roadmap, TTG strict env, **Chat = Session-Stream (Option A)**, **Session-Key stabil / UUID ephemer**
-20260418_1200_SPECIFICATION_v2.4.1
+**Version**: 2.5.0 | **Date**: 18.04.2026 | **Status**: Sovereign | **Context**: Gateway-First, CM als Konfigurationsspiegel, Triade (TARS · MARVIN · CASE), Workbench multi-root, Skill-Herkunft-UX, TTG bulk & Sub-Agent-CRUD, Integrations-Roadmap, TTG strict env, **Chat = Session-Stream (Option A)**, **Session-Key stabil / UUID ephemer**, **Read/Send-Split**, **toolResult vs. user-facing**
+20260418_2000_SPECIFICATION_v2.5.0
 
 **Status:** active | **Master Source:** Horizon Studio Framework
 
@@ -94,7 +94,7 @@ Die **effektive** Skill-Liste im Konfigurations-Workspace (Kanalzeile) wird aus 
 
 **Hinweis:** Vollständig getrennte Steuerung bei gleicher Skill-ID über mehrere Sub-Agents erfordert **unterschiedliche `subAgents[].id`** pro Instanz (Spec §3.2e).
 
-**UI-Badge:** Sub-Agent-Skills tragen ein Label der Form **Inherited from sub-agent · {Anzeigename}** (nicht nur ein generisches „inherited by agent“). Hauptagent-Skills: **INHERITED BY AGENT**; Kanal-Skills: **CHANNEL SKILL**.
+**UI-Badge:** Sub-Agent-Skills tragen ein Label der Form **Inherited from {Anzeigename} · sub-agent** (nicht nur ein generisches „inherited by agent“). Hauptagent-Skills: **INHERITED BY AGENT**; Kanal-Skills: **CHANNEL SKILL**.
 
 ### 3.2d OpenClaw Workbench (Dateizugriff) (16.04.2026)
 
@@ -173,6 +173,33 @@ Für jeden Kanal soll der Channel Manager **denselben inhaltlichen Stream zeigen
 
 **Verbindlich:** [CHANNEL_MANAGER_SCOPE_MVP_2026-04-15.md](CHANNEL_MANAGER_SCOPE_MVP_2026-04-15.md).
 
+### 3.4a Architekturbefund: Chat-Parity und Source of Truth (16.04.2026)
+
+**Kernbefund:** Chat-Parity war **nicht nur** ein Darstellungs-/Frontend-Problem, sondern ein **Source-of-Truth-Problem**: dieselbe sichtbare **Telegram-Gruppen-ID** bedeutet **nicht automatisch dieselbe Transcript-Quelle**. Die OpenClaw-UI ist **session-native**. Der Channel Manager darf **nicht** dauerhaft auf einem rein **telegram-projizierten Puffer** basieren, wenn die kanonische Lesespur der **OpenClaw-Session-JSONL** folgt (`group_id` → `sessions.json` → **`sessionFile`**).
+
+### 3.4b User-facing Historie und `toolResult`
+
+- Zeilen mit **`toolResult` / interner Tool-Ausgabe** sind **keine** user-facing kanonische Chat-Historie im Sinne der Parity mit dem OpenClaw-Web-Chat.
+- **Regression:** Wenn solche Zeilen **unmittelbar** wie normale Konversationsblasen erscheinen, leidet die **sichtbare Parität** mit der Harness-UI.
+- **Vorgabe:** Filterung bzw. klare Einordnung (nicht als „normale User-Nachricht“ ohne Kennzeichnung) — siehe Implementierungsplan (Sub-Task **6.17**, §12).
+
+### 3.4c Lesepfad und Sendepfad (struktureller Split)
+
+- **Lesepfad (Read):** **session-first** — `group_id` → `sessions.json` → aktuelle **`sessionFile`** → Stream aus der **kanonischen** JSONL (vgl. Option A, oben).
+- **Sendepfad (Send):** Outbound über **`openclaw agent`** / **`POST /api/telegram/send`** ist **zustellungsorientiert** (Telegram); **nicht automatisch** dieselbe physische Session-Datei wie der Mirror-Lesepfad.
+- **Evidenz (April 2026):** Test **`API_DIRECT_TEST_1814`** — Send über die API kann **Erfolg** bzw. **Echo am Backend** liefern, **ohne** garantierte Materialisierung in derselben **kanonischen** OpenClaw-Session-JSONL wie der **Read**-Mirror.
+- **Ziel / offen:** **session-native Send-Binding** oder Routing, das **garantiert** in dieselbe kanonische Session schreibt — Implementierungsplan §12.
+
+### 3.4d Erwartungsklärung: Channel Manager vs. andere OpenClaw-Oberflächen
+
+Eine im Channel Manager **gesendete** Nachricht erscheint **nicht automatisch** in jedem **anderen** OpenClaw-/TARS-/Web-Chatfenster, wenn **unterschiedliche Session-Dateien** oder **Oberflächen** beteiligt sind. Das ist **kein** alleiniger Implementierungsfehler des Channel Managers, sondern folgt aus **unterschiedlichen Sessions/Sichtkontexten**. Verbindlich auch: [OPENCLAW_CHANNEL_MANAGER_RESTORATION_REPORT.md](OPENCLAW_CHANNEL_MANAGER_RESTORATION_REPORT.md) §3.2.
+
+### 3.4e TTG und Traceability (zwei Achsen)
+
+- **TTG allein reicht nicht**, sobald parallel **mehrere Work-/Projektlinien** dieselbe Kommunikations-Spur nutzen.
+- **Zwei Achsen:** (1) **Kommunikation** — `ttgId` / Kanal / Playbook; (2) **Arbeit** — `projectId` und Artefakt-**Lineage**.
+- **Traceability-Contract (Studio):** Pflichtanker u. a. **`routing.ttgId`**, **`work.projectId`**, **`work.stage`**, **`lineage.artifactRefs`** — vollständig in **[TRACEABILITY_SCHEMA_V1.1.md](../../Studio_Framework/020_Standards_Definitions_Rules/010_Schema/TRACEABILITY_SCHEMA_V1.1.md)** (Horizon Studio Framework). Der Channel Manager bleibt **Konfigurations- und Spiegel-Ebene**; das Studio-Schema ist **nicht** in jeder Chat-Zeile repliziert.
+
 ### 3.5 Manage Channels: TTG-Benennung, Zeilenhöhen, Bulk-Aktionen & Sub-Agent-CRUD (16.04.2026)
 
 **TTG (Telegram Topic Group) — Anzeige:**  
@@ -206,6 +233,8 @@ UI: **Agents**-Tab — „Sub-Agent anlegen“, Destroy-**X** auf der Sub-Agent-
 1. **OpenClaw / Harness:** Sicherstellen, dass geschriebene `channel_config.json`-Felder mit dem **tatsächlichen** Gateway-Verhalten übereinstimmen (kein stiller Drift); wo nötig **explizite** Sync- oder Projektionspfade statt Annahme.
 2. **IDE / Cursor:** Export-Bundles (`/api/exports/ide`) und Studio-Artefakte **regelmäßig** oder ereignisgesteuert validieren; MCP-Bridge **8.3** (Sovereign-Verifikation) abschließen.
 3. **Rosetta / Session:** Fortführung geplanter **Memory- / Session-Parity** (siehe Implementierungsplan 6.3 / 6.6), falls noch offen.
+4. **Chat / Transcript:** **`toolResult`**-Handling und **Send-vs.-Read-Parity** — §3.4b–§3.4c; Implementierungsplan **6.17 / 6.18**, §12.
+5. **Traceability (Studio):** Zwei Achsen (Kommunikation vs. Arbeit) — §3.4e und [TRACEABILITY_SCHEMA_V1.1.md](../../Studio_Framework/020_Standards_Definitions_Rules/010_Schema/TRACEABILITY_SCHEMA_V1.1.md).
 
 **TTG-Kürzel (`TTG000`, `TTG001`, …) – Konvention vs. Durchsetzung:**  
 Für **einheitliche Zuordnung** von IDE-Arbeit zu Telegram-Topic-Groups ist ein **stabiles Namensschema** sinnvoll (z. B. Anzeige-`name` beginnt mit **`TTG` + dreistellige Nummer** + Rest). **Reine Text-Anforderung** („User/Agent soll es so schreiben“) ist **fehleranfällig** (Menschen und Agenten verletzen Regeln).
@@ -384,4 +413,4 @@ Eine **Projekt**-`.cursor/mcp.json` mit derselben **Server-ID** wie die User-Dat
 **Abgrenzung:** Bis zur Umsetzung bleiben **Fotos und Screenshots** der primäre Kanal **Telegram nativ**; der Channel Manager bleibt textorientiert.
 
 ---
-*Status: V2.1 — §3.2c/§3.2d Skill-Merge + Workbench; **R6**; §5.2 um Workbench/Skill-Zeilen ergänzt; §1/§2/§4/R5/§5.4 unverändert gültig.*
+*Status: V2.5 — §3.4a–§3.4e Chat-SoT, Read/Send-Split, `toolResult`, Multi-Oberflächen-Erwartung, Traceability-Verweis; §3.2c/§3.2d Skill-Merge + Workbench; **R6**; §5.2; §1/§2/§4/R5/§5.4 unverändert gültig.*

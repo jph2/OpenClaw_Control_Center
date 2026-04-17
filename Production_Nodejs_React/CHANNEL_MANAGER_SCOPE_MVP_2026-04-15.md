@@ -6,7 +6,7 @@ type: PRACTICAL
 status: active
 trust_level: 3
 created: "2026-04-15T18:00:00Z"
-last_modified: "2026-04-16T21:00:00Z"
+last_modified: "2026-04-18T20:00:00Z"
 author: "Studio + OpenClaw"
 provenance:
   git_repo: "OpenClaw_Control_Center"
@@ -52,11 +52,23 @@ Es gibt **zwei** konzeptionelle Zielbilder (A: IDE liefert Verdichtung; B: IDE w
 - Channel Manager als **einzige** Chat-Oberfläche, die **parallel** dieselbe Absicht an IDE **und** OpenClaw **sendet** (Doppelantworten).  
 - Vollständiger Ersatz des OpenClaw-Web-Chats — wer dort arbeitet, bleibt dort; **OpenClaw Chat** im CM ist der **Spiegel**, nicht der Konkurrent, alle Inhalte werden 1 zu 1 vom OpenClaw-Web-Chats übertragen.
 
-## Nächste technische Schritte (kurz)
+## MVP-Grenze: Read-Parity vs. Send-Parity (Klärung 18.04.2026)
 
-1. Frontend: Tabs **OpenClaw Chat** | **Cursor Summary** (Summary zunächst Platzhalter oder MD-Liste aus konfigurierbarem Pfad).  
-2. Skills: `memory`- / Summary-Pipeline für IDE → `A070_ide_cursor_summaries/` (Studio) + `memory/` (OpenClaw).  
-3. Spec: `CHANNEL_MANAGER_SPECIFICATION.md` — Verweis auf dieses Dokument als **Scope-of-Record**.
+| Bereich | MVP-Nähe | Begründung |
+|--------|----------|------------|
+| **Read / Mirror** | **Kern-MVP** | Session-nativer **Stream** (Option A), `sessions.json` → **`sessionFile`** — [CHANNEL_MANAGER_SPECIFICATION.md](CHANNEL_MANAGER_SPECIFICATION.md) §3.4. |
+| **Send** | **Zustellung**, nicht automatisch **dieselbe JSONL** wie der Mirror | Outbound über **`openclaw agent`** / API ist **strukturell** vom Read-Pfad getrennt, bis **session-native Send-Binding** existiert — Spec §3.4c, Plan Sub-Task **6.18**. |
+| **Restore / Repo / Proxy / `channels: {}`** | **Stabilisierung**, **kein** MVP-Feature | Betriebsschicht; [OPENCLAW_CHANNEL_MANAGER_RESTORATION_REPORT.md](OPENCLAW_CHANNEL_MANAGER_RESTORATION_REPORT.md) — nicht als Produkt-Scope verkaufen. |
+
+## Umsetzungsstand (nach Phase-1-UI, 16.04.2026)
+
+Die Tab-Ziele **„OpenClaw Chat“** und **„TARS in IDE · IDE project summary“** (sowie Dual-Export) sind **implementiert** (siehe Master-Doku + Implementierungsplan). **Offen** bleiben u. a.: vollständige **Send/Read-Parity** (§3.4c), **`toolResult`-Filterung** (§3.4b), Memory-/Summary-Schreibpfade — jeweils **Spec/Plan**, nicht dieses Scope-Dokument allein.
+
+## Nächste Schritte (Backlog / nicht „Scope-of-Record“-Pflicht)
+
+1. **Spec:** [CHANNEL_MANAGER_SPECIFICATION.md](CHANNEL_MANAGER_SPECIFICATION.md) §3.4a–e als **Ground Truth** für Chat; Traceability **Studio** [TRACEABILITY_SCHEMA_V1.1.md](../../Studio_Framework/020_Standards_Definitions_Rules/010_Schema/TRACEABILITY_SCHEMA_V1.1.md).  
+2. **Doku:** `CHANNEL_MANAGER_DOCUMENTATION_16-04-2026.md` §2.13 vs. §2.14 (Architektur vs. Restaurationsstand).  
+3. **Skills / A070:** Schreiben und Promotion nach `memory/` — weiter **Backlog** (Plan 6.10b).
 
 ---
-*Status: Scope-of-Record für MVP-Entscheidung; UI-Implementierung kann inkrementell folgen. **16.04.2026:** Workbench + Skill-Herkunft-UX in Spec/Doku/Plan referenziert (§2.10, §3.2c–d, R6, Sub-Task 6.14).*
+*Status: Scope-of-Record für MVP-Entscheidung. **16.04.2026:** Workbench + Skill-Herkunft-UX in Spec/Doku/Plan referenziert (§2.10, §3.2c–d, R6, Sub-Task 6.14). **18.04.2026:** MVP-Grenze Read vs. Send; Restore explizit **nicht** MVP-Feature; „Nächste Schritte“ modernisiert.*

@@ -2,7 +2,7 @@
 title: "Research: Skills (Dateien) vs. OpenClaw Sub-Agents — Lebenszyklus, Import, externe Quellen"
 type: RESEARCH
 status: active
-last_modified: "2026-04-16"
+last_modified: "2026-04-18"
 git_path: "Production_Nodejs_React/CHANNEL_MANAGER_SKILLS_AND_OPENCLAW_SUBAGENTS_RESEARCH.md"
 ---
 
@@ -74,6 +74,8 @@ Praxisbericht zu mehreren Agenten, `openclaw.json`, Telegram-Bindings, Persönli
 Einträge unter **`subAgents`** sind eine **Konfigurationsschicht** fürs UI (Zuordnung zu Hauptagenten, zusätzliche Skills, Kanal-Toggles). Sie **ersetzen** nicht die OpenClaw-Engine-Definition eines **Sub-Agent als Session**.
 
 **Soul-/MD-Editoren** pro Eintrag nur nötig, wenn ihr diese Konfiguration **explizit** an Dateipfade bindet (`soulPath` o. Ä.). Für **reine Skill-Themen** gilt §2.
+
+**Hardening 17.04.2026 (operativ):** `channel_config.json` muss **`channels`**, **`agents`**, **`subAgents`** als **Arrays** führen (kein `{}` statt `[]`); Backend normalisiert defensiv. Leere Listen können beim **GET** aus **Metadaten** ergänzt werden, damit der Agents-Tab nicht leer bleibt — siehe [OPENCLAW_CHANNEL_MANAGER_RESTORATION_REPORT.md](OPENCLAW_CHANNEL_MANAGER_RESTORATION_REPORT.md). Das ändert **nicht** die inhaltliche Trennung „CM-Config-Subagent“ vs. „OpenClaw-Runtime-Subagent“ (§3).
 
 ---
 

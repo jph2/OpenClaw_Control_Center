@@ -1,0 +1,1079 @@
+[TelegramService] Hydrated 0 channel id aliases from /media/claw-agentbox/data/9999_LocalRepo/OpenClaw_Control_Center/Prototyp/channel_CHAT-manager/channel_config.json
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Initializing simple polling monitor on /home/claw-agentbox/.openclaw/agents/main/sessions ...
+[TelegramService] Phase 7 Gateway Listener active. Bridging session transcripts to React SSE.
+OpenClaw Unified API listening on http://0.0.0.0:3000
+Locked to WORKSPACE_ROOT: /media/claw-agentbox/data/9999_LocalRepo
+[Polling] Detected config change in /media/claw-agentbox/data/9999_LocalRepo/OpenClaw_Control_Center/Prototyp/channel_CHAT-manager/channel_config.json. Pushing SSE hot-reload event...
+[Polling] Active and watching: /media/claw-agentbox/data/9999_LocalRepo/OpenClaw_Control_Center/Prototyp/channel_CHAT-manager/channel_config.json
+[Polling] Workspace skill file added: /home/claw-agentbox/.openclaw/workspace/skills/adopt-external-skill/SKILL.md
+[Polling] Workspace skill file added: /home/claw-agentbox/.openclaw/workspace/skills/chat-to-studio-artifact/SKILL.md
+[Polling] Workspace skill file added: /home/claw-agentbox/.openclaw/workspace/skills/framework-salvage/SKILL.md
+[Polling] Workspace skill file added: /home/claw-agentbox/.openclaw/workspace/skills/omniverse-extension-development/SKILL.md
+[Polling] Workspace skill file added: /home/claw-agentbox/.openclaw/workspace/skills/openclaw-action-summary/SKILL.md
+[Polling] Workspace skill file added: /home/claw-agentbox/.openclaw/workspace/skills/skill-creator/SKILL.md
+[Polling] Workspace skill file added: /home/claw-agentbox/.openclaw/workspace/skills/skill-security-auditor/SKILL.md
+[Polling] Workspace skill file added: /home/claw-agentbox/.openclaw/workspace/skills/skill-security-wrapper/SKILL.md
+[Polling] Workspace skill file added: /home/claw-agentbox/.openclaw/workspace/skills/usd-development/SKILL.md
+[Polling] Watching workspace skills: /home/claw-agentbox/.openclaw/workspace/skills
+[TelegramService] Hydrated history for 2 chats.
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService][openclaw] inject_start {"rawChatId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","realChatId":"-5168034995","sessionKey":"agent:main:telegram:group:-5168034995","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","textLen":11,"requestStartedAt":1776442980465}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5168034995","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","spawnedPid":"1058250","stderrPreview":"","timing":{"spawnExecMs":4,"totalAckMs":29}}
+[0mPOST /api/openclaw/session/3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3/send [32m200[0m 36.155 ms - 390[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/stream/-5168034995 [32m200[0m 12.616 ms - -[0m
+[0mGET /api/channels/events [32m200[0m 1.923 ms - -[0m
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [32m200[0m 9.964 ms - 14334[0m
+[0mGET /api/telegram/bots/-5116743354 [32m200[0m 0.607 ms - 21[0m
+[0mGET /api/telegram/bots/-5168034995 [32m200[0m 0.161 ms - 21[0m
+[0mGET /api/telegram/bots/-1003752539559 [32m200[0m 0.120 ms - 21[0m
+[0mGET /api/telegram/bots/-5024908938 [32m200[0m 0.144 ms - 21[0m
+[0mGET /api/telegram/bots/-5275137502 [32m200[0m 0.165 ms - 21[0m
+[0mGET /api/telegram/bots/-5034730971 [32m200[0m 0.094 ms - 21[0m
+[0mGET /api/telegram/bots/-5159996212 [32m200[0m 0.128 ms - 21[0m
+[0mGET /api/telegram/bots/-1003968061817 [32m200[0m 0.121 ms - 21[0m
+[0mGET /api/telegram/bots/-5103615103 [32m200[0m 0.086 ms - 21[0m
+[0mGET /api/telegram/bots/-5272630186 [32m200[0m 0.089 ms - 21[0m
+[0mGET /api/telegram/bots/-5169316413 [32m200[0m 0.091 ms - 21[0m
+[0mGET /api/telegram/bots/-5155708359 [32m200[0m 0.091 ms - 21[0m
+[0mGET /api/telegram/bots/-5197370693 [32m200[0m 0.075 ms - 21[0m
+[0mGET /api/telegram/bots/-5012559503 [32m200[0m 0.097 ms - 21[0m
+[0mGET /api/telegram/bots/-5228979198 [32m200[0m 0.101 ms - 21[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/session/-5168034995 [32m200[0m 10.281 ms - 306[0m
+[0mGET /api/telegram/session/-5168034995 [36m304[0m 5.097 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService][openclaw] inject_start {"rawChatId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","realChatId":"-5168034995","sessionKey":"agent:main:telegram:group:-5168034995","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","textLen":31,"requestStartedAt":1776443073314}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5168034995","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","spawnedPid":"1058703","stderrPreview":"","timing":{"spawnExecMs":2,"totalAckMs":12}}
+[0mPOST /api/openclaw/session/3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3/send [32m200[0m 14.757 ms - 390[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/session/-5168034995 [36m304[0m 11.354 ms - -[0m
+[0mGET /api/telegram/stream/-5168034995 [32m200[0m 10.127 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [36m304[0m 12.413 ms - -[0m
+[0mGET /api/telegram/bots/-1003752539559 [36m304[0m 0.094 ms - -[0m
+[0mGET /api/telegram/bots/-5168034995 [36m304[0m 0.077 ms - -[0m
+[0mGET /api/telegram/bots/-5116743354 [36m304[0m 0.072 ms - -[0m
+[0mGET /api/telegram/bots/-5024908938 [36m304[0m 0.119 ms - -[0m
+[0mGET /api/telegram/bots/-5034730971 [36m304[0m 0.095 ms - -[0m
+[0mGET /api/telegram/bots/-5275137502 [36m304[0m 0.071 ms - -[0m
+[0mGET /api/telegram/bots/-5159996212 [36m304[0m 0.069 ms - -[0m
+[0mGET /api/telegram/bots/-1003968061817 [36m304[0m 0.075 ms - -[0m
+[0mGET /api/telegram/bots/-5103615103 [36m304[0m 0.071 ms - -[0m
+[0mGET /api/telegram/bots/-5272630186 [36m304[0m 0.070 ms - -[0m
+[0mGET /api/telegram/bots/-5155708359 [36m304[0m 0.064 ms - -[0m
+[0mGET /api/telegram/bots/-5169316413 [36m304[0m 0.112 ms - -[0m
+[0mGET /api/telegram/bots/-5197370693 [36m304[0m 0.063 ms - -[0m
+[0mGET /api/telegram/bots/-5012559503 [36m304[0m 0.059 ms - -[0m
+[0mGET /api/telegram/bots/-5228979198 [36m304[0m 0.059 ms - -[0m
+[0mGET /api/channels/events [32m200[0m 0.175 ms - -[0m
+[0mGET /api/telegram/stream/-5168034995 [32m200[0m 7.568 ms - -[0m
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [32m200[0m 47.841 ms - 14334[0m
+[0mGET /api/telegram/bots/-1003752539559 [32m200[0m 0.394 ms - 21[0m
+[0mGET /api/telegram/bots/-5168034995 [32m200[0m 0.230 ms - 21[0m
+[0mGET /api/telegram/bots/-5116743354 [32m200[0m 0.226 ms - 21[0m
+[0mGET /api/telegram/bots/-5024908938 [32m200[0m 0.225 ms - 21[0m
+[0mGET /api/telegram/bots/-5275137502 [32m200[0m 0.208 ms - 21[0m
+[0mGET /api/telegram/bots/-5034730971 [32m200[0m 0.210 ms - 21[0m
+[0mGET /api/telegram/bots/-5159996212 [32m200[0m 0.060 ms - 21[0m
+[0mGET /api/telegram/bots/-1003968061817 [32m200[0m 0.057 ms - 21[0m
+[0mGET /api/telegram/bots/-5103615103 [32m200[0m 0.057 ms - 21[0m
+[0mGET /api/telegram/bots/-5272630186 [32m200[0m 0.063 ms - 21[0m
+[0mGET /api/telegram/bots/-5169316413 [32m200[0m 0.087 ms - 21[0m
+[0mGET /api/telegram/bots/-5155708359 [32m200[0m 0.123 ms - 21[0m
+[0mGET /api/telegram/bots/-5197370693 [32m200[0m 0.068 ms - 21[0m
+[0mGET /api/telegram/bots/-5012559503 [32m200[0m 0.069 ms - 21[0m
+[0mGET /api/telegram/bots/-5228979198 [32m200[0m 0.084 ms - 21[0m
+[0mGET /api/telegram/bots/-1003752539559 [36m304[0m 0.235 ms - -[0m
+[0mGET /api/telegram/bots/-5168034995 [36m304[0m 0.122 ms - -[0m
+[0mGET /api/telegram/bots/-5116743354 [36m304[0m 0.474 ms - -[0m
+[0mGET /api/telegram/bots/-5024908938 [36m304[0m 0.345 ms - -[0m
+[0mGET /api/telegram/bots/-5275137502 [36m304[0m 0.315 ms - -[0m
+[0mGET /api/telegram/bots/-5034730971 [36m304[0m 0.359 ms - -[0m
+[0mGET /api/telegram/bots/-5159996212 [36m304[0m 0.362 ms - -[0m
+[0mGET /api/telegram/bots/-1003968061817 [36m304[0m 0.385 ms - -[0m
+[0mGET /api/telegram/bots/-5103615103 [36m304[0m 0.114 ms - -[0m
+[0mGET /api/telegram/bots/-5272630186 [36m304[0m 0.117 ms - -[0m
+[0mGET /api/telegram/bots/-5169316413 [36m304[0m 0.101 ms - -[0m
+[0mGET /api/telegram/bots/-5155708359 [36m304[0m 0.093 ms - -[0m
+[0mGET /api/telegram/bots/-5197370693 [36m304[0m 0.089 ms - -[0m
+[0mGET /api/telegram/bots/-5012559503 [36m304[0m 0.073 ms - -[0m
+[0mGET /api/telegram/bots/-5228979198 [36m304[0m 0.070 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/session/-5168034995 [32m200[0m 9.635 ms - 306[0m
+[0mGET /api/telegram/session/-5168034995 [36m304[0m 4.751 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [36m304[0m 8.425 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService][openclaw] inject_start {"rawChatId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","realChatId":"-5168034995","sessionKey":"agent:main:telegram:group:-5168034995","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","textLen":33,"requestStartedAt":1776444666612}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5168034995","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","spawnedPid":"1065741","stderrPreview":"","timing":{"spawnExecMs":6,"totalAckMs":22}}
+[0mPOST /api/openclaw/session/3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3/send [32m200[0m 28.581 ms - 390[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/stream/-5168034995 [32m200[0m 6.394 ms - -[0m
+[0mGET /api/channels/events [32m200[0m 0.136 ms - -[0m
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [36m304[0m 7.247 ms - -[0m
+[0mGET /api/telegram/bots/-1003752539559 [32m200[0m 0.166 ms - 21[0m
+[0mGET /api/telegram/bots/-5116743354 [32m200[0m 0.058 ms - 21[0m
+[0mGET /api/telegram/bots/-5168034995 [32m200[0m 0.050 ms - 21[0m
+[0mGET /api/telegram/bots/-5024908938 [32m200[0m 0.047 ms - 21[0m
+[0mGET /api/telegram/bots/-5275137502 [32m200[0m 0.055 ms - 21[0m
+[0mGET /api/telegram/bots/-5034730971 [32m200[0m 0.048 ms - 21[0m
+[0mGET /api/telegram/bots/-5159996212 [32m200[0m 0.066 ms - 21[0m
+[0mGET /api/telegram/bots/-1003968061817 [32m200[0m 0.057 ms - 21[0m
+[0mGET /api/telegram/bots/-5155708359 [32m200[0m 0.058 ms - 21[0m
+[0mGET /api/telegram/bots/-5103615103 [32m200[0m 0.056 ms - 21[0m
+[0mGET /api/telegram/bots/-5169316413 [32m200[0m 0.064 ms - 21[0m
+[0mGET /api/telegram/bots/-5272630186 [32m200[0m 0.069 ms - 21[0m
+[0mGET /api/telegram/bots/-5012559503 [32m200[0m 0.059 ms - 21[0m
+[0mGET /api/telegram/bots/-5197370693 [32m200[0m 0.064 ms - 21[0m
+[0mGET /api/telegram/bots/-5228979198 [32m200[0m 0.056 ms - 21[0m
+[0mGET /api/channels/events [32m200[0m 0.098 ms - -[0m
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [36m304[0m 8.927 ms - -[0m
+[0mGET /api/telegram/bots/-5116743354 [36m304[0m 0.450 ms - -[0m
+[0mGET /api/telegram/bots/-5168034995 [36m304[0m 0.246 ms - -[0m
+[0mGET /api/telegram/bots/-1003752539559 [36m304[0m 0.263 ms - -[0m
+[0mGET /api/telegram/bots/-5024908938 [36m304[0m 0.223 ms - -[0m
+[0mGET /api/telegram/bots/-5275137502 [36m304[0m 0.252 ms - -[0m
+[0mGET /api/telegram/bots/-5034730971 [36m304[0m 0.054 ms - -[0m
+[0mGET /api/telegram/bots/-5159996212 [36m304[0m 0.087 ms - -[0m
+[0mGET /api/telegram/bots/-1003968061817 [36m304[0m 0.072 ms - -[0m
+[0mGET /api/telegram/bots/-5103615103 [36m304[0m 0.062 ms - -[0m
+[0mGET /api/telegram/bots/-5272630186 [36m304[0m 0.085 ms - -[0m
+[0mGET /api/telegram/bots/-5169316413 [36m304[0m 0.092 ms - -[0m
+[0mGET /api/telegram/bots/-5155708359 [36m304[0m 0.070 ms - -[0m
+[0mGET /api/telegram/bots/-5197370693 [36m304[0m 0.064 ms - -[0m
+[0mGET /api/telegram/bots/-5012559503 [36m304[0m 0.066 ms - -[0m
+[0mGET /api/telegram/bots/-5228979198 [36m304[0m 0.060 ms - -[0m
+[0mGET /api/channels/events [32m200[0m 0.082 ms - -[0m
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [36m304[0m 50.908 ms - -[0m
+[0mGET /api/telegram/bots/-5024908938 [36m304[0m 0.405 ms - -[0m
+[0mGET /api/telegram/bots/-5116743354 [36m304[0m 0.240 ms - -[0m
+[0mGET /api/telegram/bots/-5168034995 [36m304[0m 0.192 ms - -[0m
+[0mGET /api/telegram/bots/-1003752539559 [36m304[0m 0.189 ms - -[0m
+[0mGET /api/telegram/bots/-5275137502 [36m304[0m 0.212 ms - -[0m
+[0mGET /api/telegram/bots/-5034730971 [36m304[0m 0.198 ms - -[0m
+[0mGET /api/telegram/bots/-5159996212 [36m304[0m 0.066 ms - -[0m
+[0mGET /api/telegram/bots/-1003968061817 [36m304[0m 0.056 ms - -[0m
+[0mGET /api/telegram/bots/-5103615103 [36m304[0m 0.068 ms - -[0m
+[0mGET /api/telegram/bots/-5272630186 [36m304[0m 0.092 ms - -[0m
+[0mGET /api/telegram/bots/-5169316413 [36m304[0m 0.086 ms - -[0m
+[0mGET /api/telegram/bots/-5155708359 [36m304[0m 0.060 ms - -[0m
+[0mGET /api/telegram/bots/-5197370693 [36m304[0m 0.066 ms - -[0m
+[0mGET /api/telegram/bots/-5012559503 [36m304[0m 0.054 ms - -[0m
+[0mGET /api/telegram/bots/-5228979198 [36m304[0m 0.060 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/session/-5168034995 [36m304[0m 10.684 ms - -[0m
+[0mGET /api/telegram/session/-5168034995 [36m304[0m 3.161 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService][openclaw] inject_start {"rawChatId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","realChatId":"-5168034995","sessionKey":"agent:main:telegram:group:-5168034995","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","textLen":47,"requestStartedAt":1776444991810}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5168034995","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","spawnedPid":"1067232","stderrPreview":"","timing":{"spawnExecMs":2,"totalAckMs":20}}
+[0mPOST /api/openclaw/session/3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3/send [32m200[0m 22.106 ms - 390[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService][openclaw] inject_start {"rawChatId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","realChatId":"-5168034995","sessionKey":"agent:main:telegram:group:-5168034995","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","textLen":34,"requestStartedAt":1776445054490}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5168034995","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","spawnedPid":"1067544","stderrPreview":"","timing":{"spawnExecMs":2,"totalAckMs":15}}
+[0mPOST /api/openclaw/session/3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3/send [32m200[0m 16.546 ms - 390[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/bots/-1003752539559 [36m304[0m 0.599 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/session/-1003752539559 [32m200[0m 8.671 ms - 348[0m
+[0mGET /api/telegram/session/-5116743354 [32m200[0m 2.915 ms - 339[0m
+[0mGET /api/telegram/session/-5024908938 [32m200[0m 3.348 ms - 339[0m
+[0mGET /api/telegram/session/-5159996212 [32m200[0m 3.590 ms - 339[0m
+[0mGET /api/telegram/session/-5034730971 [32m200[0m 3.516 ms - 339[0m
+[0mGET /api/telegram/session/-5275137502 [32m200[0m 3.268 ms - 339[0m
+[0mGET /api/telegram/session/-5103615103 [32m200[0m 3.417 ms - 339[0m
+[0mGET /api/telegram/session/-5272630186 [32m200[0m 2.916 ms - 339[0m
+[0mGET /api/telegram/session/-1003968061817 [32m200[0m 2.907 ms - 114[0m
+[0mGET /api/telegram/bots/-5116743354 [36m304[0m 0.104 ms - -[0m
+[0mGET /api/telegram/session/-5155708359 [32m200[0m 3.390 ms - 339[0m
+[0mGET /api/telegram/session/-5197370693 [32m200[0m 2.778 ms - 339[0m
+[0mGET /api/telegram/session/-5169316413 [32m200[0m 3.037 ms - 339[0m
+[0mGET /api/telegram/bots/-5024908938 [36m304[0m 0.061 ms - -[0m
+[0mGET /api/telegram/session/-5228979198 [32m200[0m 2.791 ms - 339[0m
+[0mGET /api/telegram/session/-1003752539559 [36m304[0m 3.232 ms - -[0m
+[0mGET /api/telegram/session/-5012559503 [32m200[0m 2.685 ms - 339[0m
+[0mGET /api/telegram/bots/-5275137502 [36m304[0m 0.078 ms - -[0m
+[0mGET /api/telegram/session/-5024908938 [36m304[0m 3.152 ms - -[0m
+[0mGET /api/telegram/session/-5159996212 [36m304[0m 2.683 ms - -[0m
+[0mGET /api/telegram/session/-5116743354 [36m304[0m 3.168 ms - -[0m
+[0mGET /api/telegram/bots/-5034730971 [36m304[0m 0.071 ms - -[0m
+[0mGET /api/telegram/session/-5275137502 [36m304[0m 2.631 ms - -[0m
+[0mGET /api/telegram/session/-5103615103 [36m304[0m 3.179 ms - -[0m
+[0mGET /api/telegram/session/-5034730971 [36m304[0m 2.701 ms - -[0m
+[0mGET /api/telegram/bots/-5159996212 [36m304[0m 0.055 ms - -[0m
+[0mGET /api/telegram/session/-1003968061817 [36m304[0m 3.313 ms - -[0m
+[0mGET /api/telegram/session/-5155708359 [36m304[0m 2.834 ms - -[0m
+[0mGET /api/telegram/session/-5272630186 [36m304[0m 3.135 ms - -[0m
+[0mGET /api/telegram/bots/-1003968061817 [36m304[0m 0.075 ms - -[0m
+[0mGET /api/telegram/bots/-5103615103 [36m304[0m 0.073 ms - -[0m
+[0mGET /api/telegram/bots/-5272630186 [36m304[0m 0.064 ms - -[0m
+[0mGET /api/telegram/bots/-5169316413 [36m304[0m 0.067 ms - -[0m
+[0mGET /api/telegram/bots/-5155708359 [36m304[0m 0.072 ms - -[0m
+[0mGET /api/telegram/bots/-5197370693 [36m304[0m 0.065 ms - -[0m
+[0mGET /api/telegram/bots/-5012559503 [36m304[0m 0.086 ms - -[0m
+[0mGET /api/telegram/bots/-5228979198 [36m304[0m 0.062 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [32m200[0m 3.415 ms - 14334[0m
+[API POST /send] Incoming payload: {
+  chatId: '-1003752539559',
+  text: '🔧 AUTO TEST - TG000_General_Chat - 2026-04-17T17:05:14.395Z'
+}
+[API POST /send] Parsed values -> chatId: -1003752539559, textLength: 60
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService][openclaw] inject_start {"rawChatId":"-1003752539559","realChatId":"-1003752539559","sessionKey":"agent:main:telegram:group:-1003752539559","sessionId":"3dd6aff1-3b36-49cd-819d-fd71e9afc616","textLen":60,"requestStartedAt":1776445514428}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"3dd6aff1-3b36-49cd-819d-fd71e9afc616","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-1003752539559","sessionId":"3dd6aff1-3b36-49cd-819d-fd71e9afc616","spawnedPid":"1069505","stderrPreview":"","timing":{"spawnExecMs":2,"totalAckMs":10}}
+[API POST /send] Ack! messageId: session-native-cli-1776445514438, transport: session-native-cli, totalMs: 12, ackMs: 10
+[0mPOST /api/telegram/send [32m200[0m 12.261 ms - 391[0m
+[API POST /send] Incoming payload: {
+  chatId: '-5168034995',
+  text: '🔧 AUTO TEST - TG001_Idea_Capture - 2026-04-17T17:05:14.942Z'
+}
+[API POST /send] Parsed values -> chatId: -5168034995, textLength: 60
+[TelegramService][openclaw] inject_start {"rawChatId":"-5168034995","realChatId":"-5168034995","sessionKey":"agent:main:telegram:group:-5168034995","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","textLen":60,"requestStartedAt":1776445514945}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5168034995","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","spawnedPid":"1069522","stderrPreview":"","timing":{"spawnExecMs":3,"totalAckMs":11}}
+[API POST /send] Ack! messageId: session-native-cli-1776445514956, transport: session-native-cli, totalMs: 11, ackMs: 11
+[0mPOST /api/telegram/send [32m200[0m 12.383 ms - 388[0m
+[API POST /send] Incoming payload: {
+  chatId: '-5116743354',
+  text: '🔧 AUTO TEST - TG010_Discovery_Research - 2026-04-17T17:05:15.458Z'
+}
+[API POST /send] Parsed values -> chatId: -5116743354, textLength: 66
+[TelegramService][openclaw] inject_start {"rawChatId":"-5116743354","realChatId":"-5116743354","sessionKey":"agent:main:telegram:group:-5116743354","sessionId":"994e8dd3-ebb4-4074-b93b-825fe1ddaaa3","textLen":66,"requestStartedAt":1776445515460}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"994e8dd3-ebb4-4074-b93b-825fe1ddaaa3","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5116743354","sessionId":"994e8dd3-ebb4-4074-b93b-825fe1ddaaa3","spawnedPid":"1069539","stderrPreview":"","timing":{"spawnExecMs":2,"totalAckMs":7}}
+[API POST /send] Ack! messageId: session-native-cli-1776445515467, transport: session-native-cli, totalMs: 7, ackMs: 7
+[0mPOST /api/telegram/send [32m200[0m 7.877 ms - 386[0m
+[API POST /send] Incoming payload: {
+  chatId: '-5024908938',
+  text: '🔧 AUTO TEST - TG020_omniUSD - 2026-04-17T17:05:15.969Z'
+}
+[API POST /send] Parsed values -> chatId: -5024908938, textLength: 55
+[TelegramService][openclaw] inject_start {"rawChatId":"-5024908938","realChatId":"-5024908938","sessionKey":"agent:main:telegram:group:-5024908938","sessionId":"50a97130-6a69-4eee-8c0b-1329f13cac4c","textLen":55,"requestStartedAt":1776445515971}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"50a97130-6a69-4eee-8c0b-1329f13cac4c","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5024908938","sessionId":"50a97130-6a69-4eee-8c0b-1329f13cac4c","spawnedPid":"1069575","stderrPreview":"","timing":{"spawnExecMs":3,"totalAckMs":10}}
+[API POST /send] Ack! messageId: session-native-cli-1776445515981, transport: session-native-cli, totalMs: 11, ackMs: 10
+[0mPOST /api/telegram/send [32m200[0m 11.656 ms - 388[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[API POST /send] Incoming payload: {
+  chatId: '-5275137502',
+  text: '🔧 AUTO TEST - TG030_DCC_CAD - 2026-04-17T17:05:16.483Z'
+}
+[API POST /send] Parsed values -> chatId: -5275137502, textLength: 55
+[TelegramService][openclaw] inject_start {"rawChatId":"-5275137502","realChatId":"-5275137502","sessionKey":"agent:main:telegram:group:-5275137502","sessionId":"88797f0f-de11-47fa-907c-ac14740639b8","textLen":55,"requestStartedAt":1776445516485}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"88797f0f-de11-47fa-907c-ac14740639b8","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5275137502","sessionId":"88797f0f-de11-47fa-907c-ac14740639b8","spawnedPid":"1069602","stderrPreview":"","timing":{"spawnExecMs":4,"totalAckMs":10}}
+[API POST /send] Ack! messageId: session-native-cli-1776445516495, transport: session-native-cli, totalMs: 10, ackMs: 10
+[0mPOST /api/telegram/send [32m200[0m 11.032 ms - 388[0m
+[API POST /send] Incoming payload: {
+  chatId: '-5034730971',
+  text: '🔧 AUTO TEST - TG040_WebDev_Backend - 2026-04-17T17:05:16.997Z'
+}
+[API POST /send] Parsed values -> chatId: -5034730971, textLength: 62
+[TelegramService][openclaw] inject_start {"rawChatId":"-5034730971","realChatId":"-5034730971","sessionKey":"agent:main:telegram:group:-5034730971","sessionId":"7a5a1d80-74d6-4169-b9ad-8f0aa33362a1","textLen":62,"requestStartedAt":1776445517000}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"7a5a1d80-74d6-4169-b9ad-8f0aa33362a1","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5034730971","sessionId":"7a5a1d80-74d6-4169-b9ad-8f0aa33362a1","spawnedPid":"1069640","stderrPreview":"","timing":{"spawnExecMs":4,"totalAckMs":13}}
+[API POST /send] Ack! messageId: session-native-cli-1776445517013, transport: session-native-cli, totalMs: 13, ackMs: 13
+[0mPOST /api/telegram/send [32m200[0m 14.480 ms - 388[0m
+[API POST /send] Incoming payload: {
+  chatId: '-5159996212',
+  text: '🔧 AUTO TEST - TG050_WebDev_Frontend - 2026-04-17T17:05:17.515Z'
+}
+[API POST /send] Parsed values -> chatId: -5159996212, textLength: 63
+[TelegramService][openclaw] inject_start {"rawChatId":"-5159996212","realChatId":"-5159996212","sessionKey":"agent:main:telegram:group:-5159996212","sessionId":"7831bc29-7745-411f-af13-77bf48e3d5b9","textLen":63,"requestStartedAt":1776445517517}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"7831bc29-7745-411f-af13-77bf48e3d5b9","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5159996212","sessionId":"7831bc29-7745-411f-af13-77bf48e3d5b9","spawnedPid":"1069672","stderrPreview":"","timing":{"spawnExecMs":4,"totalAckMs":16}}
+[API POST /send] Ack! messageId: session-native-cli-1776445517533, transport: session-native-cli, totalMs: 16, ackMs: 16
+[0mPOST /api/telegram/send [32m200[0m 16.652 ms - 388[0m
+[API POST /send] Incoming payload: {
+  chatId: '-1003968061817',
+  text: '🔧 AUTO TEST - TG060_Social_Media - 2026-04-17T17:05:18.034Z'
+}
+[API POST /send] Parsed values -> chatId: -1003968061817, textLength: 60
+[TelegramService][openclaw] inject_start {"rawChatId":"-1003968061817","realChatId":"-1003968061817","sessionKey":null,"sessionId":null,"textLen":60,"requestStartedAt":1776445518036}
+[TelegramService][openclaw] inject_spawned {"transport":"legacy-telegram-deliver","realChatId":"-1003968061817","sessionId":null,"spawnedPid":"1069695","stderrPreview":"","timing":{"spawnExecMs":4,"totalAckMs":12}}
+[API POST /send] Ack! messageId: legacy-telegram-deliver-1776445518048, transport: legacy-telegram-deliver, totalMs: 12, ackMs: 12
+[0mPOST /api/telegram/send [32m200[0m 13.034 ms - 238[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[API POST /send] Incoming payload: {
+  chatId: '-5103615103',
+  text: '🔧 AUTO TEST - TG070_QA_Security - 2026-04-17T17:05:18.550Z'
+}
+[API POST /send] Parsed values -> chatId: -5103615103, textLength: 59
+[TelegramService][openclaw] inject_start {"rawChatId":"-5103615103","realChatId":"-5103615103","sessionKey":"agent:main:telegram:group:-5103615103","sessionId":"93c81776-97ee-450a-8b98-7c8441e560ed","textLen":59,"requestStartedAt":1776445518554}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"93c81776-97ee-450a-8b98-7c8441e560ed","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5103615103","sessionId":"93c81776-97ee-450a-8b98-7c8441e560ed","spawnedPid":"1069730","stderrPreview":"","timing":{"spawnExecMs":6,"totalAckMs":19}}
+[API POST /send] Ack! messageId: session-native-cli-1776445518573, transport: session-native-cli, totalMs: 20, ackMs: 19
+[0mPOST /api/telegram/send [32m200[0m 20.880 ms - 388[0m
+[API POST /send] Incoming payload: {
+  chatId: '-5272630186',
+  text: '🔧 AUTO TEST - TG500_OpenClaw_Governance - 2026-04-17T17:05:19.075Z'
+}
+[API POST /send] Parsed values -> chatId: -5272630186, textLength: 67
+[TelegramService][openclaw] inject_start {"rawChatId":"-5272630186","realChatId":"-5272630186","sessionKey":"agent:main:telegram:group:-5272630186","sessionId":"68795725-bc6f-429e-8cf7-774563ec908b","textLen":67,"requestStartedAt":1776445519080}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"68795725-bc6f-429e-8cf7-774563ec908b","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5272630186","sessionId":"68795725-bc6f-429e-8cf7-774563ec908b","spawnedPid":"1069753","stderrPreview":"","timing":{"spawnExecMs":4,"totalAckMs":18}}
+[API POST /send] Ack! messageId: session-native-cli-1776445519098, transport: session-native-cli, totalMs: 19, ackMs: 18
+[0mPOST /api/telegram/send [32m200[0m 20.160 ms - 388[0m
+[API POST /send] Incoming payload: {
+  chatId: '-5169316413',
+  text: '🔧 AUTO TEST - TG510_Upcoming_Skills - 2026-04-17T17:05:19.600Z'
+}
+[API POST /send] Parsed values -> chatId: -5169316413, textLength: 63
+[TelegramService][openclaw] inject_start {"rawChatId":"-5169316413","realChatId":"-5169316413","sessionKey":"agent:main:telegram:group:-5169316413","sessionId":"9b1bc0d4-0207-4878-9647-f15d8b1db388","textLen":63,"requestStartedAt":1776445519604}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"9b1bc0d4-0207-4878-9647-f15d8b1db388","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5169316413","sessionId":"9b1bc0d4-0207-4878-9647-f15d8b1db388","spawnedPid":"1069791","stderrPreview":"","timing":{"spawnExecMs":7,"totalAckMs":51}}
+[API POST /send] Ack! messageId: session-native-cli-1776445519655, transport: session-native-cli, totalMs: 53, ackMs: 51
+[0mPOST /api/telegram/send [32m200[0m 55.018 ms - 388[0m
+[API POST /send] Incoming payload: {
+  chatId: '-5155708359',
+  text: '🔧 AUTO TEST - TG520_Agentic_Intelligence - 2026-04-17T17:05:20.159Z'
+}
+[API POST /send] Parsed values -> chatId: -5155708359, textLength: 68
+[TelegramService][openclaw] inject_start {"rawChatId":"-5155708359","realChatId":"-5155708359","sessionKey":"agent:main:telegram:group:-5155708359","sessionId":"c23d3c6a-5091-41e8-9e52-be00311b52d3","textLen":68,"requestStartedAt":1776445520160}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"c23d3c6a-5091-41e8-9e52-be00311b52d3","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5155708359","sessionId":"c23d3c6a-5091-41e8-9e52-be00311b52d3","spawnedPid":"1069801","stderrPreview":"","timing":{"spawnExecMs":8,"totalAckMs":22}}
+[API POST /send] Ack! messageId: session-native-cli-1776445520182, transport: session-native-cli, totalMs: 23, ackMs: 22
+[0mPOST /api/telegram/send [32m200[0m 23.547 ms - 388[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[API POST /send] Incoming payload: {
+  chatId: '-5197370693',
+  text: '🔧 AUTO TEST - TG700_Studio_Framework - 2026-04-17T17:05:20.684Z'
+}
+[API POST /send] Parsed values -> chatId: -5197370693, textLength: 64
+[TelegramService][openclaw] inject_start {"rawChatId":"-5197370693","realChatId":"-5197370693","sessionKey":"agent:main:telegram:group:-5197370693","sessionId":"bfba65fd-6518-44c2-a2a8-b50d8ca735bb","textLen":64,"requestStartedAt":1776445520687}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"bfba65fd-6518-44c2-a2a8-b50d8ca735bb","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5197370693","sessionId":"bfba65fd-6518-44c2-a2a8-b50d8ca735bb","spawnedPid":"1069845","stderrPreview":"","timing":{"spawnExecMs":8,"totalAckMs":33}}
+[API POST /send] Ack! messageId: session-native-cli-1776445520720, transport: session-native-cli, totalMs: 33, ackMs: 33
+[0mPOST /api/telegram/send [32m200[0m 34.739 ms - 388[0m
+[API POST /send] Incoming payload: {
+  chatId: '-5012559503',
+  text: '🔧 AUTO TEST - TG800_Experimental_Box - 2026-04-17T17:05:21.225Z'
+}
+[API POST /send] Parsed values -> chatId: -5012559503, textLength: 64
+[TelegramService][openclaw] inject_start {"rawChatId":"-5012559503","realChatId":"-5012559503","sessionKey":"agent:main:telegram:group:-5012559503","sessionId":"8ece5fa2-e538-4328-9765-f78d39a8f932","textLen":64,"requestStartedAt":1776445521231}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"8ece5fa2-e538-4328-9765-f78d39a8f932","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5012559503","sessionId":"8ece5fa2-e538-4328-9765-f78d39a8f932","spawnedPid":"1069875","stderrPreview":"","timing":{"spawnExecMs":11,"totalAckMs":38}}
+[API POST /send] Ack! messageId: session-native-cli-1776445521269, transport: session-native-cli, totalMs: 39, ackMs: 38
+[0mPOST /api/telegram/send [32m200[0m 40.067 ms - 389[0m
+[API POST /send] Incoming payload: {
+  chatId: '-5228979198',
+  text: '🔧 AUTO TEST - TG900_Troubleshooting - 2026-04-17T17:05:21.775Z'
+}
+[API POST /send] Parsed values -> chatId: -5228979198, textLength: 63
+[TelegramService][openclaw] inject_start {"rawChatId":"-5228979198","realChatId":"-5228979198","sessionKey":"agent:main:telegram:group:-5228979198","sessionId":"26057e2f-8b0d-41ea-9423-d79c3d1c016b","textLen":63,"requestStartedAt":1776445521779}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"26057e2f-8b0d-41ea-9423-d79c3d1c016b","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5228979198","sessionId":"26057e2f-8b0d-41ea-9423-d79c3d1c016b","spawnedPid":"1069897","stderrPreview":"","timing":{"spawnExecMs":19,"totalAckMs":53}}
+[API POST /send] Ack! messageId: session-native-cli-1776445521832, transport: session-native-cli, totalMs: 55, ackMs: 53
+[0mPOST /api/telegram/send [32m200[0m 55.893 ms - 389[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/stream/-5116743354 [32m200[0m 1.956 ms - -[0m
+[0mGET /api/channels/events [32m200[0m 0.143 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/stream/-5159996212 [32m200[0m 0.093 ms - -[0m
+[0mGET /api/telegram/stream/-5034730971 [32m200[0m 3.476 ms - -[0m
+[0mGET /api/telegram/session/-5197370693 [36m304[0m 5.774 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/stream/-5103615103 [32m200[0m 0.098 ms - -[0m
+[0mGET /api/telegram/stream/-5024908938 [32m200[0m 0.077 ms - -[0m
+[0mGET /api/telegram/stream/-5275137502 [32m200[0m 0.106 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/session/-5169316413 [36m304[0m 3.132 ms - -[0m
+[0mGET /api/telegram/session/-5228979198 [36m304[0m 2.929 ms - -[0m
+[0mGET /api/telegram/stream/-5155708359 [32m200[0m 0.090 ms - -[0m
+[TelegramService][openclaw] inject_start {"rawChatId":"88797f0f-de11-47fa-907c-ac14740639b8","realChatId":"-5275137502","sessionKey":"agent:main:telegram:group:-5275137502","sessionId":"88797f0f-de11-47fa-907c-ac14740639b8","textLen":55,"requestStartedAt":1776445825509}
+[TelegramService][openclaw] inject_start {"rawChatId":"68795725-bc6f-429e-8cf7-774563ec908b","realChatId":"-5272630186","sessionKey":"agent:main:telegram:group:-5272630186","sessionId":"68795725-bc6f-429e-8cf7-774563ec908b","textLen":55,"requestStartedAt":1776445825513}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"88797f0f-de11-47fa-907c-ac14740639b8","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"68795725-bc6f-429e-8cf7-774563ec908b","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5275137502","sessionId":"88797f0f-de11-47fa-907c-ac14740639b8","spawnedPid":"1071314","stderrPreview":"","timing":{"spawnExecMs":4,"totalAckMs":11}}
+[0mPOST /api/openclaw/session/88797f0f-de11-47fa-907c-ac14740639b8/send [32m200[0m 11.644 ms - 390[0m
+[API POST /send] Incoming payload: {
+  chatId: '-5012559503',
+  text: "17.04.26  TEST -> Response from TARS: 'YES. I hear you'"
+}
+[API POST /send] Parsed values -> chatId: -5012559503, textLength: 55
+[TelegramService][openclaw] inject_start {"rawChatId":"-5012559503","realChatId":"-5012559503","sessionKey":"agent:main:telegram:group:-5012559503","sessionId":"8ece5fa2-e538-4328-9765-f78d39a8f932","textLen":55,"requestStartedAt":1776445825523}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"8ece5fa2-e538-4328-9765-f78d39a8f932","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5272630186","sessionId":"68795725-bc6f-429e-8cf7-774563ec908b","spawnedPid":"1071316","stderrPreview":"","timing":{"spawnExecMs":10,"totalAckMs":15}}
+[0mPOST /api/openclaw/session/68795725-bc6f-429e-8cf7-774563ec908b/send [32m200[0m 15.540 ms - 391[0m
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5012559503","sessionId":"8ece5fa2-e538-4328-9765-f78d39a8f932","spawnedPid":"1071323","stderrPreview":"","timing":{"spawnExecMs":2,"totalAckMs":5}}
+[API POST /send] Ack! messageId: session-native-cli-1776445825528, transport: session-native-cli, totalMs: 6, ackMs: 5
+[0mPOST /api/telegram/send [32m200[0m 6.197 ms - 386[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/stream/-5168034995 [32m200[0m 6.673 ms - -[0m
+[0mGET /api/telegram/stream/-1003968061817 [32m200[0m 0.203 ms - -[0m
+[0mGET /api/telegram/stream/-5272630186 [32m200[0m 4.905 ms - -[0m
+[0mGET /api/telegram/stream/-1003752539559 [32m200[0m 0.191 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [36m304[0m 9.843 ms - -[0m
+[0mGET /api/telegram/bots/-1003752539559 [36m304[0m 0.424 ms - -[0m
+[0mGET /api/telegram/bots/-5168034995 [36m304[0m 0.261 ms - -[0m
+[0mGET /api/telegram/bots/-5024908938 [36m304[0m 0.202 ms - -[0m
+[0mGET /api/telegram/bots/-5116743354 [36m304[0m 0.183 ms - -[0m
+[0mGET /api/telegram/bots/-5275137502 [36m304[0m 0.104 ms - -[0m
+[0mGET /api/telegram/bots/-5034730971 [36m304[0m 0.097 ms - -[0m
+[0mGET /api/telegram/bots/-5159996212 [36m304[0m 0.057 ms - -[0m
+[0mGET /api/telegram/bots/-1003968061817 [36m304[0m 0.056 ms - -[0m
+[0mGET /api/telegram/bots/-5272630186 [36m304[0m 0.050 ms - -[0m
+[0mGET /api/telegram/bots/-5103615103 [36m304[0m 0.057 ms - -[0m
+[0mGET /api/telegram/bots/-5169316413 [36m304[0m 0.058 ms - -[0m
+[0mGET /api/telegram/bots/-5155708359 [36m304[0m 0.067 ms - -[0m
+[0mGET /api/telegram/bots/-5197370693 [36m304[0m 0.073 ms - -[0m
+[0mGET /api/telegram/bots/-5012559503 [36m304[0m 0.047 ms - -[0m
+[0mGET /api/telegram/bots/-5228979198 [36m304[0m 0.049 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/session/-1003752539559 [36m304[0m 10.762 ms - -[0m
+[0mGET /api/telegram/session/-5168034995 [36m304[0m 4.962 ms - -[0m
+[0mGET /api/telegram/session/-5034730971 [36m304[0m 3.786 ms - -[0m
+[0mGET /api/telegram/session/-5116743354 [36m304[0m 2.861 ms - -[0m
+[0mGET /api/telegram/session/-1003968061817 [36m304[0m 2.819 ms - -[0m
+[0mGET /api/telegram/session/-5159996212 [36m304[0m 3.007 ms - -[0m
+[0mGET /api/telegram/session/-5024908938 [36m304[0m 3.107 ms - -[0m
+[0mGET /api/telegram/session/-5103615103 [36m304[0m 2.836 ms - -[0m
+[0mGET /api/telegram/session/-5272630186 [36m304[0m 3.033 ms - -[0m
+[0mGET /api/telegram/session/-5169316413 [32m200[0m 2.795 ms - 339[0m
+[0mGET /api/telegram/session/-5275137502 [36m304[0m 2.841 ms - -[0m
+[0mGET /api/telegram/session/-5012559503 [32m200[0m 2.875 ms - 339[0m
+[0mGET /api/telegram/session/-5197370693 [36m304[0m 2.897 ms - -[0m
+[0mGET /api/telegram/session/-5228979198 [32m200[0m 2.978 ms - 339[0m
+[0mGET /api/telegram/session/-5155708359 [36m304[0m 2.852 ms - -[0m
+[0mGET /api/telegram/session/-5168034995 [36m304[0m 3.036 ms - -[0m
+[0mGET /api/telegram/session/-5034730971 [36m304[0m 2.944 ms - -[0m
+[0mGET /api/telegram/session/-5116743354 [36m304[0m 2.830 ms - -[0m
+[0mGET /api/telegram/session/-1003752539559 [36m304[0m 3.058 ms - -[0m
+[0mGET /api/telegram/session/-5159996212 [36m304[0m 2.829 ms - -[0m
+[0mGET /api/telegram/session/-5024908938 [36m304[0m 2.818 ms - -[0m
+[0mGET /api/telegram/session/-5103615103 [36m304[0m 2.924 ms - -[0m
+[0mGET /api/telegram/session/-1003968061817 [36m304[0m 2.894 ms - -[0m
+[0mGET /api/telegram/session/-5169316413 [36m304[0m 2.916 ms - -[0m
+[0mGET /api/telegram/session/-5272630186 [36m304[0m 3.071 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/bots/-1003752539559 [36m304[0m 0.423 ms - -[0m
+[0mGET /api/telegram/bots/-5168034995 [36m304[0m 0.252 ms - -[0m
+[0mGET /api/telegram/bots/-5116743354 [36m304[0m 0.205 ms - -[0m
+[0mGET /api/telegram/bots/-5275137502 [36m304[0m 0.243 ms - -[0m
+[0mGET /api/telegram/bots/-5024908938 [36m304[0m 0.052 ms - -[0m
+[0mGET /api/telegram/bots/-5034730971 [36m304[0m 0.049 ms - -[0m
+[0mGET /api/telegram/bots/-1003968061817 [36m304[0m 0.072 ms - -[0m
+[0mGET /api/telegram/bots/-5159996212 [36m304[0m 0.065 ms - -[0m
+[0mGET /api/telegram/bots/-5103615103 [36m304[0m 0.061 ms - -[0m
+[0mGET /api/telegram/bots/-5272630186 [36m304[0m 0.057 ms - -[0m
+[0mGET /api/telegram/bots/-5169316413 [36m304[0m 0.064 ms - -[0m
+[0mGET /api/telegram/bots/-5155708359 [36m304[0m 0.052 ms - -[0m
+[0mGET /api/telegram/bots/-5197370693 [36m304[0m 0.077 ms - -[0m
+[0mGET /api/telegram/bots/-5012559503 [36m304[0m 0.053 ms - -[0m
+[0mGET /api/telegram/bots/-5228979198 [36m304[0m 0.053 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/stream/-5116743354 [32m200[0m 2.512 ms - -[0m
+[0mGET /api/telegram/stream/-5024908938 [32m200[0m 0.131 ms - -[0m
+[0mGET /api/telegram/stream/-5168034995 [32m200[0m 7.582 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/session/-5275137502 [36m304[0m 3.537 ms - -[0m
+[0mGET /api/telegram/stream/-5034730971 [32m200[0m 3.690 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/stream/-5103615103 [32m200[0m 0.075 ms - -[0m
+[0mGET /api/telegram/stream/-1003752539559 [32m200[0m 0.252 ms - -[0m
+[0mGET /api/telegram/stream/-1003968061817 [32m200[0m 0.021 ms - -[0m
+[0mGET /api/telegram/stream/-5159996212 [32m200[0m 0.105 ms - -[0m
+[0mGET /api/channels/events [32m200[0m 0.363 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/stream/-5275137502 [32m200[0m 0.135 ms - -[0m
+[0mGET /api/telegram/session/-5197370693 [36m304[0m 3.190 ms - -[0m
+[0mGET /api/telegram/stream/-5155708359 [32m200[0m 0.162 ms - -[0m
+[0mGET /api/telegram/stream/-5169316413 [32m200[0m 4.233 ms - -[0m
+[0mGET /api/telegram/stream/-5272630186 [32m200[0m 4.777 ms - -[0m
+[0mGET /api/telegram/stream/-5012559503 [32m200[0m 10.731 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [32m200[0m 8.802 ms - 14334[0m
+[0mGET /api/telegram/bots/-5024908938 [36m304[0m 0.411 ms - -[0m
+[0mGET /api/telegram/bots/-5116743354 [36m304[0m 0.260 ms - -[0m
+[0mGET /api/telegram/bots/-5168034995 [36m304[0m 0.196 ms - -[0m
+[0mGET /api/telegram/bots/-1003752539559 [36m304[0m 0.265 ms - -[0m
+[0mGET /api/telegram/bots/-5275137502 [36m304[0m 0.124 ms - -[0m
+[0mGET /api/telegram/bots/-5034730971 [36m304[0m 0.057 ms - -[0m
+[0mGET /api/telegram/bots/-5159996212 [36m304[0m 0.079 ms - -[0m
+[0mGET /api/telegram/bots/-1003968061817 [36m304[0m 0.068 ms - -[0m
+[0mGET /api/telegram/bots/-5103615103 [36m304[0m 0.056 ms - -[0m
+[0mGET /api/telegram/bots/-5272630186 [36m304[0m 0.053 ms - -[0m
+[0mGET /api/telegram/bots/-5169316413 [36m304[0m 0.052 ms - -[0m
+[0mGET /api/telegram/bots/-5155708359 [36m304[0m 0.051 ms - -[0m
+[0mGET /api/telegram/bots/-5197370693 [36m304[0m 0.062 ms - -[0m
+[0mGET /api/telegram/bots/-5012559503 [36m304[0m 0.052 ms - -[0m
+[0mGET /api/telegram/bots/-5228979198 [36m304[0m 0.048 ms - -[0m
+[0mGET /api/channels/events [32m200[0m 0.162 ms - -[0m
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [36m304[0m 8.668 ms - -[0m
+[0mGET /api/telegram/bots/-5168034995 [36m304[0m 0.384 ms - -[0m
+[0mGET /api/telegram/bots/-1003752539559 [36m304[0m 0.230 ms - -[0m
+[0mGET /api/telegram/bots/-5116743354 [36m304[0m 0.070 ms - -[0m
+[0mGET /api/telegram/bots/-5024908938 [36m304[0m 0.070 ms - -[0m
+[0mGET /api/telegram/bots/-5275137502 [36m304[0m 0.066 ms - -[0m
+[0mGET /api/telegram/bots/-5034730971 [36m304[0m 0.055 ms - -[0m
+[0mGET /api/telegram/bots/-1003968061817 [36m304[0m 0.072 ms - -[0m
+[0mGET /api/telegram/bots/-5103615103 [36m304[0m 0.057 ms - -[0m
+[0mGET /api/telegram/bots/-5272630186 [36m304[0m 0.054 ms - -[0m
+[0mGET /api/telegram/bots/-5169316413 [36m304[0m 0.049 ms - -[0m
+[0mGET /api/telegram/bots/-5159996212 [36m304[0m 0.048 ms - -[0m
+[0mGET /api/telegram/bots/-5155708359 [36m304[0m 0.045 ms - -[0m
+[0mGET /api/telegram/bots/-5197370693 [36m304[0m 0.086 ms - -[0m
+[0mGET /api/telegram/bots/-5012559503 [36m304[0m 0.060 ms - -[0m
+[0mGET /api/telegram/bots/-5228979198 [36m304[0m 0.051 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/session/-1003752539559 [36m304[0m 21.854 ms - -[0m
+[0mGET /api/telegram/session/-5168034995 [36m304[0m 4.111 ms - -[0m
+[0mGET /api/telegram/session/-5116743354 [36m304[0m 3.226 ms - -[0m
+[0mGET /api/telegram/session/-5159996212 [36m304[0m 4.139 ms - -[0m
+[0mGET /api/telegram/session/-5034730971 [36m304[0m 3.065 ms - -[0m
+[0mGET /api/telegram/session/-5024908938 [36m304[0m 3.032 ms - -[0m
+[0mGET /api/telegram/session/-5103615103 [36m304[0m 3.356 ms - -[0m
+[0mGET /api/telegram/session/-5272630186 [36m304[0m 2.674 ms - -[0m
+[0mGET /api/telegram/session/-1003968061817 [36m304[0m 2.733 ms - -[0m
+[0mGET /api/telegram/session/-5275137502 [36m304[0m 3.337 ms - -[0m
+[0mGET /api/telegram/session/-5155708359 [32m200[0m 2.764 ms - 339[0m
+[0mGET /api/telegram/session/-5197370693 [32m200[0m 3.138 ms - 339[0m
+[0mGET /api/telegram/session/-5012559503 [32m200[0m 2.870 ms - 339[0m
+[0mGET /api/telegram/session/-5169316413 [36m304[0m 3.110 ms - -[0m
+[0mGET /api/telegram/session/-1003752539559 [36m304[0m 2.700 ms - -[0m
+[0mGET /api/telegram/session/-5168034995 [36m304[0m 3.039 ms - -[0m
+[0mGET /api/telegram/session/-5116743354 [36m304[0m 2.875 ms - -[0m
+[0mGET /api/telegram/session/-5228979198 [32m200[0m 3.139 ms - 339[0m
+[0mGET /api/telegram/session/-5159996212 [36m304[0m 3.664 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/session/-5168034995 [32m200[0m 7.203 ms - 306[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/stream/-5024908938 [32m200[0m 0.103 ms - -[0m
+[0mGET /api/telegram/stream/-5275137502 [32m200[0m 0.124 ms - -[0m
+[0mGET /api/channels/events [32m200[0m 0.096 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/stream/-5116743354 [32m200[0m 1.785 ms - -[0m
+[0mGET /api/telegram/stream/-5034730971 [32m200[0m 6.625 ms - -[0m
+[0mGET /api/telegram/stream/-5159996212 [32m200[0m 0.093 ms - -[0m
+[0mGET /api/telegram/stream/-5272630186 [32m200[0m 0.096 ms - -[0m
+[0mGET /api/telegram/stream/-5169316413 [32m200[0m 3.818 ms - -[0m
+[0mGET /api/telegram/stream/-5155708359 [32m200[0m 0.147 ms - -[0m
+[0mGET /api/telegram/stream/-5197370693 [32m200[0m 0.122 ms - -[0m
+[0mGET /api/telegram/session/-5034730971 [36m304[0m 3.974 ms - -[0m
+[0mGET /api/telegram/stream/-5228979198 [32m200[0m 0.121 ms - -[0m
+[0mGET /api/telegram/session/-5228979198 [36m304[0m 3.187 ms - -[0m
+[0mGET /api/telegram/stream/-1003968061817 [32m200[0m 0.020 ms - -[0m
+[0mGET /api/telegram/stream/-1003752539559 [32m200[0m 0.253 ms - -[0m
+[0mGET /api/telegram/stream/-5168034995 [32m200[0m 12.267 ms - -[0m
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [32m200[0m 11.220 ms - 14334[0m
+[0mGET /api/telegram/bots/-5116743354 [32m200[0m 0.146 ms - 21[0m
+[0mGET /api/telegram/bots/-1003752539559 [32m200[0m 0.057 ms - 21[0m
+[0mGET /api/telegram/bots/-5168034995 [32m200[0m 0.046 ms - 21[0m
+[0mGET /api/telegram/bots/-5024908938 [32m200[0m 0.048 ms - 21[0m
+[0mGET /api/telegram/bots/-5275137502 [32m200[0m 0.078 ms - 21[0m
+[0mGET /api/telegram/bots/-5034730971 [32m200[0m 0.070 ms - 21[0m
+[0mGET /api/telegram/bots/-5159996212 [32m200[0m 0.079 ms - 21[0m
+[0mGET /api/telegram/bots/-5103615103 [32m200[0m 0.062 ms - 21[0m
+[0mGET /api/telegram/bots/-5272630186 [32m200[0m 0.048 ms - 21[0m
+[0mGET /api/telegram/bots/-5155708359 [32m200[0m 0.043 ms - 21[0m
+[0mGET /api/telegram/bots/-1003968061817 [32m200[0m 0.053 ms - 21[0m
+[0mGET /api/telegram/bots/-5169316413 [32m200[0m 0.041 ms - 21[0m
+[0mGET /api/telegram/bots/-5197370693 [32m200[0m 0.049 ms - 21[0m
+[0mGET /api/telegram/bots/-5012559503 [32m200[0m 0.055 ms - 21[0m
+[0mGET /api/telegram/bots/-5228979198 [32m200[0m 0.053 ms - 21[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/channels/events [32m200[0m 0.124 ms - -[0m
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [32m200[0m 8.320 ms - 14334[0m
+[0mGET /api/telegram/bots/-5116743354 [32m200[0m 0.146 ms - 21[0m
+[0mGET /api/telegram/bots/-1003752539559 [32m200[0m 0.048 ms - 21[0m
+[0mGET /api/telegram/bots/-5168034995 [32m200[0m 0.076 ms - 21[0m
+[0mGET /api/telegram/bots/-5024908938 [32m200[0m 0.049 ms - 21[0m
+[0mGET /api/telegram/bots/-5275137502 [32m200[0m 0.047 ms - 21[0m
+[0mGET /api/telegram/bots/-5034730971 [32m200[0m 0.081 ms - 21[0m
+[0mGET /api/telegram/bots/-5159996212 [32m200[0m 0.044 ms - 21[0m
+[0mGET /api/telegram/bots/-1003968061817 [32m200[0m 0.066 ms - 21[0m
+[0mGET /api/telegram/bots/-5103615103 [32m200[0m 0.057 ms - 21[0m
+[0mGET /api/telegram/bots/-5272630186 [32m200[0m 0.051 ms - 21[0m
+[0mGET /api/telegram/bots/-5169316413 [32m200[0m 0.049 ms - 21[0m
+[0mGET /api/telegram/bots/-5155708359 [32m200[0m 0.047 ms - 21[0m
+[0mGET /api/telegram/bots/-5197370693 [32m200[0m 0.043 ms - 21[0m
+[0mGET /api/telegram/bots/-5012559503 [32m200[0m 0.046 ms - 21[0m
+[0mGET /api/telegram/bots/-5228979198 [32m200[0m 0.055 ms - 21[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/session/-1003752539559 [32m200[0m 9.845 ms - 348[0m
+[0mGET /api/telegram/session/-1003752539559 [36m304[0m 3.349 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/session/-5168034995 [32m200[0m 11.550 ms - 306[0m
+[0mGET /api/telegram/session/-5116743354 [32m200[0m 7.730 ms - 339[0m
+[0mGET /api/telegram/session/-5034730971 [32m200[0m 4.341 ms - 339[0m
+[0mGET /api/telegram/session/-5024908938 [32m200[0m 2.858 ms - 339[0m
+[0mGET /api/telegram/session/-1003968061817 [32m200[0m 2.992 ms - 114[0m
+[0mGET /api/telegram/session/-5159996212 [32m200[0m 2.766 ms - 339[0m
+[0mGET /api/telegram/session/-5275137502 [32m200[0m 2.821 ms - 339[0m
+[0mGET /api/telegram/session/-5272630186 [32m200[0m 2.940 ms - 339[0m
+[0mGET /api/telegram/session/-5169316413 [32m200[0m 2.667 ms - 339[0m
+[0mGET /api/telegram/session/-5103615103 [32m200[0m 2.875 ms - 339[0m
+[0mGET /api/telegram/session/-5197370693 [32m200[0m 2.934 ms - 339[0m
+[0mGET /api/telegram/session/-5012559503 [32m200[0m 2.644 ms - 339[0m
+[0mGET /api/telegram/session/-5155708359 [32m200[0m 2.849 ms - 339[0m
+[0mGET /api/telegram/session/-5168034995 [36m304[0m 2.880 ms - -[0m
+[0mGET /api/telegram/session/-5116743354 [36m304[0m 2.637 ms - -[0m
+[0mGET /api/telegram/session/-5228979198 [32m200[0m 2.823 ms - 339[0m
+[0mGET /api/telegram/session/-5024908938 [36m304[0m 2.849 ms - -[0m
+[0mGET /api/telegram/session/-1003968061817 [36m304[0m 2.682 ms - -[0m
+[0mGET /api/telegram/session/-5034730971 [36m304[0m 2.919 ms - -[0m
+[0mGET /api/telegram/session/-5275137502 [36m304[0m 2.764 ms - -[0m
+[0mGET /api/telegram/session/-5272630186 [36m304[0m 2.667 ms - -[0m
+[0mGET /api/telegram/session/-5159996212 [36m304[0m 2.863 ms - -[0m
+[0mGET /api/telegram/session/-5103615103 [36m304[0m 2.958 ms - -[0m
+[0mGET /api/telegram/session/-5197370693 [36m304[0m 2.679 ms - -[0m
+[0mGET /api/telegram/session/-5169316413 [36m304[0m 2.871 ms - -[0m
+[0mGET /api/telegram/session/-5155708359 [36m304[0m 2.781 ms - -[0m
+[0mGET /api/telegram/session/-5228979198 [36m304[0m 2.742 ms - -[0m
+[0mGET /api/telegram/session/-5012559503 [36m304[0m 3.068 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/channels/events [32m200[0m 0.085 ms - -[0m
+[0mGET /api/telegram/stream/-1003752539559 [32m200[0m 0.659 ms - -[0m
+[0mGET /api/telegram/stream/-5116743354 [32m200[0m 4.250 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/stream/-5024908938 [32m200[0m 0.108 ms - -[0m
+[0mGET /api/telegram/stream/-5159996212 [32m200[0m 0.281 ms - -[0m
+[0mGET /api/telegram/stream/-1003968061817 [32m200[0m 0.018 ms - -[0m
+[0mGET /api/telegram/stream/-5275137502 [32m200[0m 0.111 ms - -[0m
+[0mGET /api/telegram/stream/-5168034995 [32m200[0m 14.514 ms - -[0m
+[0mGET /api/telegram/stream/-5034730971 [32m200[0m 4.538 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/stream/-5103615103 [32m200[0m 3.956 ms - -[0m
+[0mGET /api/telegram/stream/-5228979198 [32m200[0m 0.076 ms - -[0m
+[0mGET /api/telegram/stream/-5197370693 [32m200[0m 0.071 ms - -[0m
+[0mGET /api/telegram/stream/-5155708359 [32m200[0m 0.078 ms - -[0m
+[0mGET /api/telegram/stream/-5272630186 [32m200[0m 0.149 ms - -[0m
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [32m200[0m 8.786 ms - 14334[0m
+[0mGET /api/telegram/bots/-1003752539559 [36m304[0m 0.368 ms - -[0m
+[0mGET /api/telegram/bots/-5275137502 [36m304[0m 0.367 ms - -[0m
+[0mGET /api/telegram/bots/-5024908938 [36m304[0m 0.226 ms - -[0m
+[0mGET /api/telegram/bots/-5116743354 [36m304[0m 0.185 ms - -[0m
+[0mGET /api/telegram/bots/-5168034995 [36m304[0m 0.165 ms - -[0m
+[0mGET /api/telegram/bots/-5034730971 [36m304[0m 0.156 ms - -[0m
+[0mGET /api/telegram/bots/-5159996212 [36m304[0m 0.070 ms - -[0m
+[0mGET /api/telegram/bots/-1003968061817 [36m304[0m 0.060 ms - -[0m
+[0mGET /api/telegram/bots/-5103615103 [36m304[0m 0.055 ms - -[0m
+[0mGET /api/telegram/bots/-5272630186 [36m304[0m 0.048 ms - -[0m
+[0mGET /api/telegram/bots/-5169316413 [36m304[0m 0.060 ms - -[0m
+[0mGET /api/telegram/bots/-5155708359 [36m304[0m 0.042 ms - -[0m
+[0mGET /api/telegram/bots/-5197370693 [36m304[0m 0.048 ms - -[0m
+[0mGET /api/telegram/bots/-5012559503 [36m304[0m 0.044 ms - -[0m
+[0mGET /api/telegram/bots/-5228979198 [36m304[0m 0.059 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/session/-5168034995 [36m304[0m 11.679 ms - -[0m
+[0mGET /api/telegram/session/-5168034995 [36m304[0m 4.071 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[API POST /send] Incoming payload: { chatId: '-5168034995', text: 'DIRECT TEST FROM SERVER' }
+[API POST /send] Parsed values -> chatId: -5168034995, textLength: 23
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService][openclaw] inject_start {"rawChatId":"-5168034995","realChatId":"-5168034995","sessionKey":"agent:main:telegram:group:-5168034995","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","textLen":23,"requestStartedAt":1776446978435}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5168034995","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","spawnedPid":"1076350","stderrPreview":"","timing":{"spawnExecMs":2,"totalAckMs":11}}
+[API POST /send] Ack! messageId: session-native-cli-1776446978446, transport: session-native-cli, totalMs: 12, ackMs: 11
+[0mPOST /api/telegram/send [32m200[0m 12.176 ms - 388[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/stream/-5168034995 [32m200[0m 17.647 ms - -[0m
+[0mGET /api/channels/events [32m200[0m 0.081 ms - -[0m
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [36m304[0m 7.987 ms - -[0m
+[0mGET /api/telegram/bots/-5168034995 [36m304[0m 0.405 ms - -[0m
+[0mGET /api/telegram/bots/-1003752539559 [36m304[0m 0.086 ms - -[0m
+[0mGET /api/telegram/bots/-5116743354 [36m304[0m 0.077 ms - -[0m
+[0mGET /api/telegram/bots/-5024908938 [36m304[0m 0.079 ms - -[0m
+[0mGET /api/telegram/bots/-5034730971 [36m304[0m 0.107 ms - -[0m
+[0mGET /api/telegram/bots/-5275137502 [36m304[0m 0.059 ms - -[0m
+[0mGET /api/telegram/bots/-5159996212 [36m304[0m 0.068 ms - -[0m
+[0mGET /api/telegram/bots/-1003968061817 [36m304[0m 0.056 ms - -[0m
+[0mGET /api/telegram/bots/-5103615103 [36m304[0m 0.058 ms - -[0m
+[0mGET /api/telegram/bots/-5272630186 [36m304[0m 0.064 ms - -[0m
+[0mGET /api/telegram/bots/-5169316413 [36m304[0m 0.057 ms - -[0m
+[0mGET /api/telegram/bots/-5155708359 [36m304[0m 0.069 ms - -[0m
+[0mGET /api/telegram/bots/-5197370693 [36m304[0m 0.056 ms - -[0m
+[0mGET /api/telegram/bots/-5012559503 [36m304[0m 0.051 ms - -[0m
+[0mGET /api/telegram/bots/-5228979198 [36m304[0m 0.046 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/session/-5168034995 [36m304[0m 10.607 ms - -[0m
+[0mGET /api/telegram/session/-5168034995 [36m304[0m 4.833 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/stream/-5168034995 [32m200[0m 14.307 ms - -[0m
+[0mGET /api/channels/events [32m200[0m 0.047 ms - -[0m
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [36m304[0m 9.410 ms - -[0m
+[0mGET /api/telegram/bots/-5168034995 [36m304[0m 0.149 ms - -[0m
+[0mGET /api/telegram/bots/-1003752539559 [36m304[0m 0.051 ms - -[0m
+[0mGET /api/telegram/bots/-5116743354 [36m304[0m 0.045 ms - -[0m
+[0mGET /api/telegram/bots/-5024908938 [36m304[0m 0.043 ms - -[0m
+[0mGET /api/telegram/bots/-5275137502 [36m304[0m 0.064 ms - -[0m
+[0mGET /api/telegram/bots/-5034730971 [36m304[0m 0.046 ms - -[0m
+[0mGET /api/telegram/bots/-5159996212 [36m304[0m 0.054 ms - -[0m
+[0mGET /api/telegram/bots/-1003968061817 [36m304[0m 0.059 ms - -[0m
+[0mGET /api/telegram/bots/-5103615103 [36m304[0m 0.047 ms - -[0m
+[0mGET /api/telegram/bots/-5272630186 [36m304[0m 0.043 ms - -[0m
+[0mGET /api/telegram/bots/-5169316413 [36m304[0m 0.045 ms - -[0m
+[0mGET /api/telegram/bots/-5197370693 [36m304[0m 0.064 ms - -[0m
+[0mGET /api/telegram/bots/-5012559503 [36m304[0m 0.052 ms - -[0m
+[0mGET /api/telegram/bots/-5155708359 [36m304[0m 0.047 ms - -[0m
+[0mGET /api/telegram/bots/-5228979198 [36m304[0m 0.060 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/session/-5168034995 [36m304[0m 10.110 ms - -[0m
+[0mGET /api/telegram/session/-5168034995 [36m304[0m 4.636 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/stream/-5168034995 [32m200[0m 14.639 ms - -[0m
+[0mGET /api/channels/events [32m200[0m 0.126 ms - -[0m
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [32m200[0m 8.595 ms - 14334[0m
+[0mGET /api/telegram/bots/-1003752539559 [32m200[0m 0.141 ms - 21[0m
+[0mGET /api/telegram/bots/-5168034995 [32m200[0m 0.053 ms - 21[0m
+[0mGET /api/telegram/bots/-5116743354 [32m200[0m 0.389 ms - 21[0m
+[0mGET /api/telegram/bots/-5024908938 [32m200[0m 0.189 ms - 21[0m
+[0mGET /api/telegram/bots/-5275137502 [32m200[0m 0.155 ms - 21[0m
+[0mGET /api/telegram/bots/-5034730971 [32m200[0m 0.152 ms - 21[0m
+[0mGET /api/telegram/bots/-5159996212 [32m200[0m 0.181 ms - 21[0m
+[0mGET /api/telegram/bots/-1003968061817 [32m200[0m 0.163 ms - 21[0m
+[0mGET /api/telegram/bots/-5103615103 [32m200[0m 0.069 ms - 21[0m
+[0mGET /api/telegram/bots/-5272630186 [32m200[0m 0.087 ms - 21[0m
+[0mGET /api/telegram/bots/-5169316413 [32m200[0m 0.057 ms - 21[0m
+[0mGET /api/telegram/bots/-5155708359 [32m200[0m 0.050 ms - 21[0m
+[0mGET /api/telegram/bots/-5197370693 [32m200[0m 0.048 ms - 21[0m
+[0mGET /api/telegram/bots/-5012559503 [32m200[0m 0.046 ms - 21[0m
+[0mGET /api/telegram/bots/-5228979198 [32m200[0m 0.051 ms - 21[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/session/-5168034995 [32m200[0m 10.515 ms - 306[0m
+[0mGET /api/telegram/session/-5168034995 [36m304[0m 6.114 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService][openclaw] inject_start {"rawChatId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","realChatId":"-5168034995","sessionKey":"agent:main:telegram:group:-5168034995","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","textLen":62,"requestStartedAt":1776447064438}
+[TelegramService][openclaw] inject_http_fallback {"reason":"fetch failed","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","willTry":"cli-spawn"}
+[TelegramService][openclaw] inject_spawned {"transport":"session-native-cli","realChatId":"-5168034995","sessionId":"3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3","spawnedPid":"1076801","stderrPreview":"","timing":{"spawnExecMs":3,"totalAckMs":25}}
+[0mPOST /api/openclaw/session/3b74a1ea-e367-4ce0-a3b9-46aa7d0e7db3/send [32m200[0m 26.567 ms - 390[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/channels/events [32m200[0m 0.130 ms - -[0m
+[0mGET /api/telegram/stream/-5168034995 [32m200[0m 14.132 ms - -[0m
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [36m304[0m 10.577 ms - -[0m
+[0mGET /api/telegram/bots/-1003752539559 [36m304[0m 0.406 ms - -[0m
+[0mGET /api/telegram/bots/-5168034995 [36m304[0m 0.142 ms - -[0m
+[0mGET /api/telegram/bots/-5116743354 [36m304[0m 0.078 ms - -[0m
+[0mGET /api/telegram/bots/-5024908938 [36m304[0m 0.112 ms - -[0m
+[0mGET /api/telegram/bots/-5275137502 [36m304[0m 0.056 ms - -[0m
+[0mGET /api/telegram/bots/-5034730971 [36m304[0m 0.072 ms - -[0m
+[0mGET /api/telegram/bots/-5159996212 [36m304[0m 0.064 ms - -[0m
+[0mGET /api/telegram/bots/-1003968061817 [36m304[0m 0.046 ms - -[0m
+[0mGET /api/telegram/bots/-5272630186 [36m304[0m 0.049 ms - -[0m
+[0mGET /api/telegram/bots/-5103615103 [36m304[0m 0.049 ms - -[0m
+[0mGET /api/telegram/bots/-5169316413 [36m304[0m 0.054 ms - -[0m
+[0mGET /api/telegram/bots/-5155708359 [36m304[0m 0.064 ms - -[0m
+[0mGET /api/telegram/bots/-5197370693 [36m304[0m 0.055 ms - -[0m
+[0mGET /api/telegram/bots/-5012559503 [36m304[0m 0.048 ms - -[0m
+[0mGET /api/telegram/bots/-5228979198 [36m304[0m 0.057 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [36m304[0m 9.352 ms - -[0m
+[0mGET /api/telegram/bots/-1003752539559 [36m304[0m 0.141 ms - -[0m
+[0mGET /api/telegram/bots/-5168034995 [36m304[0m 0.070 ms - -[0m
+[0mGET /api/telegram/bots/-5116743354 [36m304[0m 0.068 ms - -[0m
+[0mGET /api/telegram/bots/-5024908938 [36m304[0m 0.040 ms - -[0m
+[0mGET /api/telegram/bots/-5275137502 [36m304[0m 0.049 ms - -[0m
+[0mGET /api/telegram/bots/-5034730971 [36m304[0m 0.061 ms - -[0m
+[0mGET /api/telegram/bots/-5159996212 [36m304[0m 0.058 ms - -[0m
+[0mGET /api/telegram/bots/-1003968061817 [36m304[0m 0.063 ms - -[0m
+[0mGET /api/telegram/bots/-5103615103 [36m304[0m 0.063 ms - -[0m
+[0mGET /api/telegram/bots/-5272630186 [36m304[0m 0.052 ms - -[0m
+[0mGET /api/telegram/bots/-5169316413 [36m304[0m 0.049 ms - -[0m
+[0mGET /api/telegram/bots/-5155708359 [36m304[0m 0.046 ms - -[0m
+[0mGET /api/telegram/bots/-5197370693 [36m304[0m 0.047 ms - -[0m
+[0mGET /api/telegram/bots/-5012559503 [36m304[0m 0.062 ms - -[0m
+[0mGET /api/telegram/bots/-5228979198 [36m304[0m 0.046 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+MARKER: GET /api/channels started
+MARKER: Local UI State loaded, length: 0
+MARKER: Fetching OPENCLAW_CONFIG_PATH
+MARKER: Fetching TELEGRAM_ROUTING_PATH
+MARKER [1]: Starting merge...
+MARKER [2]: Processing orphans...
+MARKER [3]: Building metadata...
+[0mGET /api/channels [36m304[0m 9.642 ms - -[0m
+[0mGET /api/telegram/bots/-1003752539559 [36m304[0m 0.414 ms - -[0m
+[0mGET /api/telegram/bots/-5168034995 [36m304[0m 0.048 ms - -[0m
+[0mGET /api/telegram/bots/-5116743354 [36m304[0m 0.061 ms - -[0m
+[0mGET /api/telegram/bots/-5024908938 [36m304[0m 0.057 ms - -[0m
+[0mGET /api/telegram/bots/-5275137502 [36m304[0m 0.039 ms - -[0m
+[0mGET /api/telegram/bots/-5034730971 [36m304[0m 0.049 ms - -[0m
+[0mGET /api/telegram/bots/-5159996212 [36m304[0m 0.057 ms - -[0m
+[0mGET /api/telegram/bots/-1003968061817 [36m304[0m 0.047 ms - -[0m
+[0mGET /api/telegram/bots/-5103615103 [36m304[0m 0.045 ms - -[0m
+[0mGET /api/telegram/bots/-5272630186 [36m304[0m 0.042 ms - -[0m
+[0mGET /api/telegram/bots/-5169316413 [36m304[0m 0.042 ms - -[0m
+[0mGET /api/telegram/bots/-5155708359 [36m304[0m 0.060 ms - -[0m
+[0mGET /api/telegram/bots/-5197370693 [36m304[0m 0.040 ms - -[0m
+[0mGET /api/telegram/bots/-5012559503 [36m304[0m 0.054 ms - -[0m
+[0mGET /api/telegram/bots/-5228979198 [36m304[0m 0.042 ms - -[0m
+[0mGET /api/telegram/bots/-1003752539559 [36m304[0m 0.393 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/session/-1003752539559 [32m200[0m 10.112 ms - 348[0m
+[0mGET /api/telegram/session/-1003752539559 [36m304[0m 3.386 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/bots/-5168034995 [36m304[0m 0.387 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/session/-5168034995 [36m304[0m 21.049 ms - -[0m
+[0mGET /api/telegram/session/-5168034995 [36m304[0m 5.185 ms - -[0m
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[TelegramService] Hydrated OpenClaw session index: 17 session UUIDs, 17 sessionFile paths (/home/claw-agentbox/.openclaw/agents/main/sessions/sessions.json).
+[0mGET /api/telegram/bots/-5168034995 [36m304[0m 0.445 ms - -[0m
+[0mGET /api/telegram/stream/-5168034995 [32m200[0m 15.207 ms - -[0m
+[0mGET /api/ide-project-summaries?telegramId=-5168034995 [32m200[0m 3.959 ms - 182[0m

@@ -1,7 +1,7 @@
 ---
 title: "Discovery: Channel Manager ↔ OpenClaw ↔ IDE workbench (config bridge)"
 status: draft
-last_modified: "2026-04-16"
+last_modified: "2026-04-18"
 ---
 
 **Siehe auch:** konsolidierte Master-Dokumentation [CHANNEL_MANAGER_DOCUMENTATION_16-04-2026.md](CHANNEL_MANAGER_DOCUMENTATION_16-04-2026.md) (§2.9 IDE-Bridge & APIs).
@@ -46,3 +46,12 @@ See `backend/services/ideConfigBridge.js`:
 
 - **Paid APIs:** none in this bridge.  
 - **Writing into `~/.openclaw` or `~/.cursor` from server:** disabled by default; exports are **read-only JSON** unless a future “apply” tool is added with explicit user consent.
+
+## Abgrenzung: IDE-Summary / A070 vs. operativer Chat-Spiegel (18.04.2026)
+
+| Spur | Rolle |
+|------|--------|
+| **OpenClaw Chat** (Tab) | **Session-nativer** Transcript-Mirror (SSE) — **kein** Ersatz für das Gateway; siehe [CHANNEL_MANAGER_SPECIFICATION.md](CHANNEL_MANAGER_SPECIFICATION.md) §3.4. |
+| **IDE project summary** (A070) | Markdown-Verdichtung aus dem Studio-Baum — **read-only** im MVP; **kein** zweiter Live-Chat. |
+
+**Traceability** (Projekt/Lineage neben TTG) ist **nicht** Gegenstand dieser Discovery-Datei; kanonisch: [TRACEABILITY_SCHEMA_V1.1.md](../../Studio_Framework/020_Standards_Definitions_Rules/010_Schema/TRACEABILITY_SCHEMA_V1.1.md). **Restaurations-/Proxy-Themen** (17.04.) gehören in [OPENCLAW_CHANNEL_MANAGER_RESTORATION_REPORT.md](OPENCLAW_CHANNEL_MANAGER_RESTORATION_REPORT.md), nicht hier.

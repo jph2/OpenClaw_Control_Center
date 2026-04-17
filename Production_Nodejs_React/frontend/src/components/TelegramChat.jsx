@@ -6,6 +6,13 @@ import { apiUrl } from '../utils/apiUrl';
 
 const RENDER_PLUGINS = [remarkGfm];
 
+/** Channel Manager chat — Look & Feel: accent as border/highlight only, not full user-bubble fill */
+const ACCENT = '#50e3c2';
+const BUBBLE_BG = '#2a2b36';
+const BUBBLE_TEXT = '#e0e0e0';
+const INLINE_CODE_BORDER = 'rgba(255,255,255,0.14)';
+const FENCED_BORDER = 'rgba(255,255,255,0.16)';
+
 // OPTIMIZED: Static helper functions defined outside component to prevent recreation on every render
 const cleanMessageTextStatic = (text, showSystem) => {
     if (showSystem) return text;
@@ -33,13 +40,49 @@ const isUntrustedSystemNoiseStatic = (text) => {
 };
 
 const RENDER_COMPONENTS = {
-    p: ({ node: _node, ...props }) => <p style={{ margin: '0 0 10px 0' }} {...props} />,
-    pre: ({ node: _node, ...props }) => <pre style={{ background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '6px', overflowX: 'auto', margin: '10px 0' }} {...props} />,
-    code: ({ node: _node, inline, className, children, ...props }) => inline ? <code style={{ background: 'rgba(0,0,0,0.15)', padding: '2px 4px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.9em' }} {...props}>{children}</code> : <code style={{ fontFamily: 'monospace', fontSize: '0.9em' }} className={className} {...props}>{children}</code>,
-    ul: ({ node: _node, ...props }) => <ul style={{ paddingLeft: '24px', marginBottom: '10px', marginTop: '0' }} {...props} />,
-    ol: ({ node: _node, ...props }) => <ol style={{ paddingLeft: '24px', marginBottom: '10px', marginTop: '0' }} {...props} />,
+    p: ({ node: _node, ...props }) => <p style={{ margin: '0 0 10px 0', color: BUBBLE_TEXT }} {...props} />,
+    pre: ({ node: _node, ...props }) => (
+        <pre
+            style={{
+                background: 'rgba(0,0,0,0.28)',
+                border: `1px solid ${FENCED_BORDER}`,
+                padding: '10px 12px',
+                borderRadius: '6px',
+                overflowX: 'auto',
+                margin: '10px 0',
+                color: BUBBLE_TEXT
+            }}
+            {...props}
+        />
+    ),
+    code: ({ node: _node, inline, className, children, ...props }) =>
+        inline ? (
+            <code
+                style={{
+                    background: 'rgba(0,0,0,0.22)',
+                    border: `1px solid ${INLINE_CODE_BORDER}`,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+                    fontSize: '12.5px',
+                    color: BUBBLE_TEXT
+                }}
+                {...props}
+            >
+                {children}
+            </code>
+        ) : (
+            <code style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontSize: '0.9em', color: BUBBLE_TEXT }} className={className} {...props}>
+                {children}
+            </code>
+        ),
+    ul: ({ node: _node, ...props }) => <ul style={{ paddingLeft: '24px', marginBottom: '10px', marginTop: '0', color: BUBBLE_TEXT }} {...props} />,
+    ol: ({ node: _node, ...props }) => <ol style={{ paddingLeft: '24px', marginBottom: '10px', marginTop: '0', color: BUBBLE_TEXT }} {...props} />,
     li: ({ node: _node, ...props }) => <li style={{ marginBottom: '4px' }} {...props} />,
-    a: ({ node: _node, ...props }) => <a style={{ color: '#50e3c2', textDecoration: 'none' }} {...props} />
+    a: ({ node: _node, ...props }) => <a style={{ color: ACCENT, textDecoration: 'none' }} {...props} />,
+    h1: ({ node: _node, ...props }) => <h1 style={{ color: BUBBLE_TEXT, fontSize: '1.15em', margin: '8px 0 6px' }} {...props} />,
+    h2: ({ node: _node, ...props }) => <h2 style={{ color: BUBBLE_TEXT, fontSize: '1.05em', margin: '8px 0 6px' }} {...props} />,
+    h3: ({ node: _node, ...props }) => <h3 style={{ color: BUBBLE_TEXT, fontSize: '1em', margin: '6px 0 4px' }} {...props} />
 };
 
 const MessageBubble = React.memo(({ msg }) => {
@@ -70,49 +113,66 @@ const MessageBubble = React.memo(({ msg }) => {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', marginBottom: '8px' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px', marginLeft: isMe ? 0 : '8px', marginRight: isMe ? '8px' : 0, fontWeight: 600 }}>
-                {msg.sender.replace(' (Gateway)', '')} {msg.isBot && <span style={{ background: '#50e3c2', color: '#000', padding: '1px 4px', borderRadius: '4px', fontSize: '9px', marginLeft: '4px', fontWeight: 'bold' }}>BOT</span>}
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '3px', marginLeft: isMe ? 0 : '8px', marginRight: isMe ? '8px' : 0, fontWeight: 600 }}>
+                {msg.sender.replace(' (Gateway)', '')} {msg.isBot && <span style={{ background: ACCENT, color: '#000', padding: '1px 4px', borderRadius: '4px', fontSize: '8px', marginLeft: '4px', fontWeight: 'bold' }}>BOT</span>}
             </div>
             <div style={{ 
-                background: isMe ? '#50e3c2' : '#2a2b36', 
-                color: isMe ? '#000' : '#e0e0e0',
+                background: BUBBLE_BG,
+                color: BUBBLE_TEXT,
+                border: isMe ? `1px solid ${ACCENT}` : '1px solid rgba(255,255,255,0.1)',
+                boxSizing: 'border-box',
                 opacity: isPending ? 0.72 : 1,
-                padding: '12px 16px', 
+                padding: '10px 14px 36px 14px',
                 borderRadius: '8px',
                 borderBottomRightRadius: isMe ? 0 : '8px',
                 borderBottomLeftRadius: isMe ? '8px' : 0,
                 maxWidth: '85%',
                 wordBreak: 'break-word',
-                lineHeight: '1.5',
+                fontSize: '10pt',
+                lineHeight: '1.45',
                 position: 'relative'
             }}>
-                <div style={{ position: 'absolute', top: '8px', right: '8px' }}>
+                <div style={{ position: 'absolute', bottom: '8px', right: '8px', zIndex: 2 }}>
                     <button 
+                        type="button"
                         onClick={() => copyToClipboard(msg.text)}
-                        style={{ background: 'rgba(0,0,0,0.1)', border: 'none', color: isMe ? '#000' : '#888', cursor: 'pointer', borderRadius: '4px', padding: '4px', display: 'flex', alignItems: 'center' }}
+                        style={{
+                            background: 'rgba(0,0,0,0.2)',
+                            border: `1px solid ${isMe ? 'rgba(80,227,194,0.35)' : 'rgba(255,255,255,0.12)'}`,
+                            color: '#a8b0c4',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center'
+                        }}
                         title="Copy as markdown"
                     >
                         <Copy size={14} />
                     </button>
                 </div>
-                <div style={{ paddingRight: '20px' }}>
+                <div style={{ paddingRight: '8px' }}>
                     {/* OPTIMIZED: Skip ReactMarkdown for plain text to prevent UI blocking */}
                     {/[*_`#\[\]\(\)!]/.test(msg.text) ? (
                         <ReactMarkdown remarkPlugins={RENDER_PLUGINS} components={RENDER_COMPONENTS}>
                             {msg.text}
                         </ReactMarkdown>
                     ) : (
-                        <span style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</span>
+                        <span style={{ whiteSpace: 'pre-wrap', color: BUBBLE_TEXT }}>{msg.text}</span>
                     )}
                 </div>
             </div>
-            <div style={{ fontSize: '10px', color: '#666', marginTop: '4px', marginLeft: isMe ? 0 : '8px', marginRight: isMe ? '8px' : 0 }}>
+            <div style={{ fontSize: '9px', color: '#666', marginTop: '3px', marginLeft: isMe ? 0 : '8px', marginRight: isMe ? '8px' : 0 }}>
                 {stamp}
             </div>
         </div>
     );
 }, (prevProps, nextProps) => {
-    return prevProps.msg.id === nextProps.msg.id && prevProps.msg.text === nextProps.msg.text;
+    return (
+        prevProps.msg.id === nextProps.msg.id &&
+        prevProps.msg.text === nextProps.msg.text &&
+        prevProps.msg.pending === nextProps.msg.pending
+    );
 });
 
 export default function TelegramChat({ channelId, channelName }) {

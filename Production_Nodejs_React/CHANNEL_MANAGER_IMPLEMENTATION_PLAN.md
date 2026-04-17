@@ -13,7 +13,7 @@ agent_index:
     phase5: "#5-phase-ui-polishing-persistence--unified-brain"
     phase6: "#6-phase-native-ide-telegram-integration-anti-gravity"
 created: "2026-04-12T01:07:00Z"
-last_modified: "2026-04-18T12:00:00Z"
+last_modified: "2026-04-18T20:00:00Z"
 author: "AntiGravity"
 provenance:
   git_repo: "OpenClaw_Control_Center"
@@ -27,7 +27,7 @@ tags: [implementation, channel_manager, telegram-hub, zod, private-ecosystem]
 **Release**: V1.8 | **Status**: Phase 6 & 8 (teilweise), MCP/Cursor operational | **Focus**: Rosetta-Sync, Gateway-Delivery, IDE-MCP, TTG bulk UI & Sub-Agent-CRUD, Integrations-Roadmap
 **GlobalID**: 20260417_1800_IMPLEMENTATION_v1.8
 
-**Last Updated:** 17.04.2026 (Sprint: Doku §3.6 / §12 — Backend↔OpenClaw↔IDE, TTG-Validierung; UI: zwei `<tr>` pro Zeile, Bulk nur „Manage Channels“, 1010px + Scroll)  
+**Last Updated:** 18.04.2026 (Doku: Spec §3.4a–e, Restore-Hardening 6.16, `occ-ctl`-Ist-Klarstellung, §12 toolResult/Send-Read)  
 **Framework:** Horizon Studio Framework  
 **Status:** active
 
@@ -145,6 +145,20 @@ Ziel: Bedienkomfort verbessern, Architektur-Lecks schließen und Wissens-Kontinu
   - **Agents-UI:** Modal „Sub-Agent anlegen“, Destroy-**X** pro Sub-Agent-Karte.  
   - **Dev UX:** React Query Retry/Backoff für `GET /api/channels`; `TelegramChat.jsx` — SSE-Reconnect-Backoff, gedrosselte `console.warn`-Häufigkeit.
 
+- [x] **Sub-Task 6.16: Repo-Hardening nach Restore / gelöschten Pfaden (17.04.2026)**  
+  **Typ:** Betrieb / Repo-Reparatur — **keine** ursprüngliche Architekturentscheidung; vollständig: [OPENCLAW_CHANNEL_MANAGER_RESTORATION_REPORT.md](OPENCLAW_CHANNEL_MANAGER_RESTORATION_REPORT.md).  
+  - Git-Wiederherstellung **`Production_Nodejs_React/frontend/`** und **`backend/`**; **`index.html`**, **`vite.config.js`**, Routen/Services.  
+  - **`channel_config.json`:** **`channels` / `agents` / `subAgents` immer Arrays**; **`ensureConfigExists`** korrigiert; **`normalizeToArray`**, **`normalizeParsedChannelConfig`** auf POST-Pfaden.  
+  - **Vite:** gemeinsamer **`apiProxy`** für **`server`** und **`preview`**; optional **`VITE_API_BASE_URL`**, **`frontend/src/utils/apiUrl.js`**, konsistente URLs für **`fetch`** / **`EventSource`**.  
+  - **Chat:** kein doppeltes Echo; Backend-Echo **`senderId: 'me'`**, Label „You (Channel Manager)“; Tool-/Copy-**z-index**.  
+  - **Agents-Tab:** Fallback aus Metadaten bei leeren **`agents`/`subAgents`**.
+
+- [ ] **Sub-Task 6.17: `toolResult`-Zeilen vs. user-facing Chat**  
+  **Spec:** [CHANNEL_MANAGER_SPECIFICATION.md](CHANNEL_MANAGER_SPECIFICATION.md) §3.4b. Sicherstellen, dass interne Tool-Transcript-Zeilen **nicht** als unmarkierte „normale“ Chat-Historie erscheinen (Regression wie in Architektur-Review 16.04).
+
+- [ ] **Sub-Task 6.18: Send-Pfad — session-native Parity mit Read-Pfad**  
+  **Spec:** §3.4c. Evidenz **`API_DIRECT_TEST_1814`**: API-Send kann **ohne** garantierte Zeile in derselben kanonischen Session-JSONL wie der Mirror enden. Ziel: **session-native Send-Binding** oder dokumentiertes Routing — bis dahin Erwartung in Spec/Doku klar halten.
+
 ## 7. Phase: Model Context Protocol (MCP) Server Integration (IDE Bridge) 🚀
 Ziel: Anbindung der IDE (AntiGravity / **Cursor**) an den Channel Manager über einen MCP-Server (stdio), sodass CASE ohne Bot-Tokens in der IDE in den Telegram-Kontext injizieren kann.
 
@@ -173,7 +187,8 @@ Ziel: Anbindung der IDE (AntiGravity / **Cursor**) an den Channel Manager über 
 ## 8. Phase: Gateway & MCP Port-Stabilisierung (AKTIVE PHASE 🛠️)
 Ziel: Behebung von Port-Konflikten (EADDRINUSE) und Stabilisierung der Port-Forwarding Architektur zwischen IDE, Backend und Frontend.
 
-- [x] **Sub-Task 8.1: Port-Standardisierung (Contract Fix)** (Port 3000, 5173, 4260 established via `occ-ctl.mjs` ✅).
+- [x] **Sub-Task 8.1: Port-Standardisierung (Contract Fix)** (Ports **3000 / 5173 / 4260** als Zielkonvention dokumentiert.)  
+  - **Ist-Repo 17.04.2026:** Ein zentrales **`occ-ctl.mjs`** im **Repo-Root** ist **nicht garantiert** (fehlender Arbeitsbaum / gelöschte Pfade). Start typisch: **`npm start`** (Backend) und **`npm run dev`** (Frontend) unter **`Production_Nodejs_React/`** — siehe [OPENCLAW_CHANNEL_MANAGER_RESTORATION_REPORT.md](OPENCLAW_CHANNEL_MANAGER_RESTORATION_REPORT.md). Wenn `occ-ctl` wieder eingeführt wird, diese Sub-Task als **Betriebsoption** dokumentieren.
 - [x] **Sub-Task 8.2: Deep-Clean Zombie-Prozesse** (Automated termination logic implemented in start/stop script ✅).
 - [ ] **Sub-Task 8.3: Validierung Test 4** (Sovereign MCP Bridge Verification).
   - Durchführung des Sovereign MCP-Bridge Tests (Send Telegram Reply) nach IDE-Reload.
@@ -194,9 +209,9 @@ Ziel: Granulare Steuerung (Whitelisting), auf welche in der IDE lokal installier
 ## 10. Phase: OpenClaw Control Center Integration 🌌
 Ziel: Schaffung eines "Single Point of Entry" zum Starten des Control Centers (Workbench + Channel Manager) und Dokumentation im Studio Framework.
 
-- [x] **Sub-Task 10.1: Zentrale Steuerung (`occ-ctl.mjs`)**
-  - Implementierung eines Controller-Scripts im Root der Extension.
-  - Funktionen: Port-Check (3000, 4260, 5173), automatische Bereinigung von Zombies, verwalteter Start von Backend/Frontend/Workbench.
+- [x] **Sub-Task 10.1: Zentrale Steuerung (`occ-ctl.mjs`) — Konzept / historischer Stand**
+  - **Zielbild:** Controller-Script im Repo-Root: Port-Check (3000, 4260, 5173), Zombie-Bereinigung, koordinierter Start von Backend/Frontend/Workbench.
+  - **17.04.2026:** Skript im Arbeitsbaum **nicht verfügbar** — Betrieb über **npm**-Scripts und Report [OPENCLAW_CHANNEL_MANAGER_RESTORATION_REPORT.md](OPENCLAW_CHANNEL_MANAGER_RESTORATION_REPORT.md). Wiederherstellung oder Ersatz (Makefile / Root-`package.json`) = offenes **Ops-Backlog**, nicht identisch mit Chat-Architektur.
 - [x] **Sub-Task 10.2: Dokumentation im Studio Framework**
   - Erstellung der [README_OpenClaw_Control_Center.md](file:///media/claw-agentbox/data/9999_LocalRepo/Studio_Framework/100_Framework_Reports_Dokus/README_OpenClaw_Control_Center.md).
   - Definition des Port-Contracts und der Start-Prozedur für TARS/AntiGravity/User.
@@ -234,9 +249,11 @@ Ziel: Umbenennung des Repositories in `OpenClaw_Control_Center` und Ablösung ha
 - [ ] **§12 / P1 — Gateway-Parity:** Abgleich geschriebener Felder mit OpenClaw-Schema (z. B. bekannte Sync-Skips im Code prüfen); ggf. separates Audit-Issue.
 - [x] **§12 / P1 — Chat-Spiegel vs. OpenClaw Web (Webchat-Metadaten):** Gateway-Bridge hat JSONL-Zeilen bisher nur zugeordnet, wenn User-Payload **`Conversation info` + `chat_id`** enthielt. **Webchat/OpenClaw-Control-UI** sendet oft nur **`Sender (untrusted metadata)`** ohne Telegram-ID — dann blieb der Puffer leer. **Fix:** `sessions.json` laden/beobachten (`sessionId` → Key `agent:main:telegram:group:<id>`), Zuordnung pro Session-Datei; Env **`OPENCLAW_SESSIONS_JSON_PATH`** optional. Implementierung: `backend/services/telegramService.js` (`hydrateOpenclawSessionIndex`).
 - [ ] **§12 / P1 — Parity: CM „OpenClaw Chat“ = OpenClaw-UI-Stream:** **Spec:** [CHANNEL_MANAGER_SPECIFICATION.md §3.4](CHANNEL_MANAGER_SPECIFICATION.md) — **Option A** (Session-Stream, nicht nur Telegram-Filter). **Spec Zusatz §3.4:** Primärmodell = **Telegram `group_id` + Session-Key** `agent:main:telegram:group:<id>`; **`sessionId` / `sessionFile` nur zur Laufzeit** aus `sessions.json` — **nicht** UUID als persistierten Kanal-Schlüssel.
+- [ ] **§12 / P1 — `toolResult` / interne Tool-Zeilen:** Spec §3.4b; Sub-Task **6.17**.
+- [ ] **§12 / P1 — Send vs. Read (session-native Send):** Spec §3.4c; Sub-Task **6.18**; Evidenz **`API_DIRECT_TEST_1814`**.
 - [x] **§12 / P1 — Session-Rebind (SSE / Gateway):** **Variante A:** bei jedem **`GET /api/telegram/stream/:chatId`** wird `refreshChatMirrorFromCanonicalSession` ausgeführt — `sessions.json` neu gelesen, Puffer aus kanonischer **`sessionFile`** (letzte ~800 Zeilen) für diesen Kanal gefüllt. **Gateway-Ingest:** nur Zeilen aus der **aktuellen** `sessionFile` pro Gruppe (`telegramGroupIdToSessionFile`). **Variante B (teilweise):** bei **`sessions.json`-Rebind** (Wechsel `sessionFile`): Puffer ersetzen, **`sessionRebound`**-Event → SSE **`SESSION_REBOUND`** + volle `messages`; Frontend `TelegramChat.jsx` behandelt wie `INIT`. Implementierung: `telegramService.js`, `routes/telegram.js`.
 
 **Referenz:** [CHANNEL_MANAGER_SPECIFICATION.md §3.6](CHANNEL_MANAGER_SPECIFICATION.md), [CHANNEL_MANAGER_IDE_BRIDGE_DISCOVERY.md](CHANNEL_MANAGER_IDE_BRIDGE_DISCOVERY.md).
 
 ---
-*Status: Phasen 1–5 erweitert (5.3 Outbound), Phase 6–8 teilweise (6.10/6.12/6.13/**6.14**/**6.15** Sprint 16.–17.04.2026), Phase 7 inkl. Cursor/SSH, Phase 10/11 teilweise. Sub-Task 6.9 Medien = Roadmap. §12 = Integrations-Backlog.*
+*Status: Phasen 1–5 erweitert (5.3 Outbound), Phase 6–8 teilweise (6.10/6.12/6.13/**6.14**/**6.15**/**6.16** Sprint 16.–17.04.2026), Phase 7 inkl. Cursor/SSH, Phase 10/11 teilweise. **6.16** = Restore/Hardening; **6.17–6.18** offen. Sub-Task 6.9 Medien = Roadmap. §12 = Integrations-Backlog.*

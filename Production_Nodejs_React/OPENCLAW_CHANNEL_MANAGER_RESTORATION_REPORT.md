@@ -3,6 +3,8 @@
 **Datum:** 2026-04-17  
 **Zweck:** Den Ist-Zustand, Diagnosen, erfolgreiche und fehlgeschlagene Ansätze sowie **konkrete Code-/Config-Änderungen** dokumentieren — für Abstimmung mit dem OpenClaw-Team, ohne parallele oder widersprüchliche Annahmen im Feld.
 
+**Siehe auch (Architektur vs. Betrieb):** Produkt- und Parity-„Ground Truth“ — [CHANNEL_MANAGER_SPECIFICATION.md](CHANNEL_MANAGER_SPECIFICATION.md) §3.4 und §3.4a–§3.4e; konsolidiert in [CHANNEL_MANAGER_DOCUMENTATION_16-04-2026.md](CHANNEL_MANAGER_DOCUMENTATION_16-04-2026.md) §2.13 (Architektur) vs. §2.14 (dieser Report).
+
 ---
 
 ## 1. Ausgangslage (was vorgefunden wurde)
