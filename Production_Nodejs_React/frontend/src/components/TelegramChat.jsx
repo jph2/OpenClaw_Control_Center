@@ -1,10 +1,36 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Send, Copy, Image } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { apiUrl } from '../utils/apiUrl';
 
 const RENDER_PLUGINS = [remarkGfm];
+
+// OPTIMIZED: Static helper functions defined outside component to prevent recreation on every render
+const cleanMessageTextStatic = (text, showSystem) => {
+    if (showSystem) return text;
+    
+    let cleaned = text;
+    cleaned = cleaned.replace(/\[\[reply_to_current\]\]\s*/g, '');
+    cleaned = cleaned.replace(/Conversation info \(untrusted metadata\):[\s\S]*?```json[\s\S]*?```\s*/g, '');
+    cleaned = cleaned.replace(/Sender \(untrusted metadata\):[\s\S]*?```json[\s\S]*?```\s*/g, '');
+    
+    return cleaned.trim();
+};
+
+const isUntrustedSystemNoiseStatic = (text) => {
+    const normalized = String(text || '').trim();
+    if (!normalized) return false;
+
+    return (
+        normalized.startsWith('System (untrusted):') ||
+        normalized.startsWith('Read HEARTBEAT.md if it exists') ||
+        normalized.includes('Exec completed (') ||
+        normalized.includes('Exec failed (') ||
+        normalized.includes('Exec completed') ||
+        normalized.includes('Exec failed')
+    );
+};
 
 const RENDER_COMPONENTS = {
     p: ({ node: _node, ...props }) => <p style={{ margin: '0 0 10px 0' }} {...props} />,
@@ -17,6 +43,8 @@ const RENDER_COMPONENTS = {
 };
 
 const MessageBubble = React.memo(({ msg }) => {
+    // Phase 1: Clean isMe heuristic - only use explicit senderRole
+    // No more name-based heuristics (includes('jan'), includes('user'))
     const isMe = msg.senderRole === 'user';
     const isPending = !!msg.pending;
     
@@ -92,7 +120,8 @@ export default function TelegramChat({ channelId, channelName }) {
     const [sessionBinding, setSessionBinding] = useState(null);
     const [sessionBindingError, setSessionBindingError] = useState(null);
     const [lastSendMeta, setLastSendMeta] = useState(null);
-    const [pendingMessages, setPendingMessages] = useState([]);
+    // Phase 1: Removed local optimistic append - no pendingMessages state
+    // Messages now come exclusively from canonical session stream
     const containerRef = useRef(null);
     /** Counts consecutive SSE failures (reset on onopen). Used to throttle console noise — onerror is normal during reconnects. */
     const sseFailStreakRef = useRef(0);
@@ -165,17 +194,15 @@ export default function TelegramChat({ channelId, channelName }) {
                 try {
                     const parsed = JSON.parse(event.data);
                     if (parsed.type === 'INIT' || parsed.type === 'SESSION_REBOUND') {
+                        // Phase 2: Only use canonical messages from session
                         const incoming = parsed.messages || [];
                         setMessages(incoming);
-                        setPendingMessages((prev) => prev.filter((pending) => !incoming.some((msg) => msg.senderRole === 'user' && msg.text?.includes(pending.reconcileText))));
                     } else if (parsed.type === 'MESSAGE') {
+                        // Phase 2: Deduplication - only add if not already present
                         setMessages((prev) => {
                             if (prev.find((m) => m.id === parsed.message.id)) return prev;
                             return [...prev, parsed.message];
                         });
-                        if (parsed.message?.senderRole === 'user') {
-                            setPendingMessages((prev) => prev.filter((pending) => !parsed.message.text?.includes(pending.reconcileText)));
-                        }
                     }
                 } catch (e) {
                     console.warn('Failed to parse SSE payload', e);
@@ -215,79 +242,62 @@ export default function TelegramChat({ channelId, channelName }) {
         };
     }, [channelId]);
 
-    const cleanMessageText = (text) => {
-        if (showSystemMessages) return text;
-        
-        let cleaned = text;
-        cleaned = cleaned.replace(/\[\[reply_to_current\]\]\s*/g, '');
-        cleaned = cleaned.replace(/Conversation info \(untrusted metadata\):[\s\S]*?```json[\s\S]*?```\s*/g, '');
-        cleaned = cleaned.replace(/Sender \(untrusted metadata\):[\s\S]*?```json[\s\S]*?```\s*/g, '');
-        
-        return cleaned.trim();
-    };
+    // Use static helpers for better performance
 
-    const isUntrustedSystemNoise = (text) => {
-        const normalized = String(text || '').trim();
-        if (!normalized) return false;
-
-        return (
-            normalized.startsWith('System (untrusted):') ||
-            normalized.startsWith('Read HEARTBEAT.md if it exists') ||
-            normalized.includes('Exec completed (') ||
-            normalized.includes('Exec failed (') ||
-            normalized.includes('Exec completed') ||
-            normalized.includes('Exec failed')
-        );
-    };
-
-    const visibleMessages = [...messages, ...pendingMessages].sort((a, b) => (a.date || 0) - (b.date || 0));
-
-    const filteredMessages = visibleMessages.filter(msg => {
-        if (showSystemMessages) return true;
-        
-        const text = msg.text || '';
-        if (text === 'HEARTBEAT_OK') return false;
-        if (text.startsWith('Read HEARTBEAT.md')) return false;
-        if (isUntrustedSystemNoise(text)) return false;
-        
-        return true;
-    }).map(msg => ({
-        ...msg,
-        displayChatText: cleanMessageText(msg.text || '')
-    })).filter(msg => msg.displayChatText.length > 0 || showSystemMessages);
+    // Phase 1: No pendingMessages - only canonical session messages
+    // OPTIMIZED: useMemo to prevent recalculation on every render
+    const filteredMessages = useMemo(() => {
+        return messages.filter(msg => {
+            if (showSystemMessages) return true;
+            
+            const text = msg.text || '';
+            if (text === 'HEARTBEAT_OK') return false;
+            if (text.startsWith('Read HEARTBEAT.md')) return false;
+            if (isUntrustedSystemNoiseStatic(text)) return false;
+            
+            return true;
+        }).map(msg => ({
+            ...msg,
+            displayChatText: cleanMessageTextStatic(msg.text || '', showSystemMessages)
+        })).filter(msg => msg.displayChatText.length > 0 || showSystemMessages);
+    }, [messages, showSystemMessages]);
 
     const handleSendMessage = async () => {
         if (!inputValue.trim() || isSending) return;
-        
-        const textToSend = inputValue.trim();
-        const pendingId = `pending-${Date.now()}`;
-        const pendingMessage = {
-            id: pendingId,
-            text: textToSend,
-            reconcileText: textToSend,
-            sender: 'You (Pending)',
-            senderId: 'user',
-            senderRole: 'user',
-            date: Date.now() / 1000,
-            isBot: false,
-            pending: true
-        };
 
+        const textToSend = inputValue.trim();
         setInputValue('');
         setIsSending(true);
-        setPendingMessages((prev) => [...prev, pendingMessage]);
-        
+
         try {
-            const res = await fetch(apiUrl('/api/telegram/send'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chatId: channelId, text: textToSend })
-            });
+            // Phase 4: Use native OpenClaw session send via HTTP API
+            // This eliminates CLI spawn overhead and provides faster ack
+            const resolved = sessionBinding;
+            let res;
+
+            if (resolved?.sessionId) {
+                // Native session send - preferred fast path
+                res = await fetch(apiUrl(`/api/openclaw/session/${resolved.sessionId}/send`), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: textToSend,
+                        sessionKey: resolved.sessionKey
+                    })
+                });
+            } else {
+                // Fallback to legacy route
+                res = await fetch(apiUrl('/api/telegram/send'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chatId: channelId, text: textToSend })
+                });
+            }
+
             if (!res.ok) throw new Error('Send failed');
             const data = await res.json();
             setLastSendMeta(data);
         } catch (err) {
-            setPendingMessages((prev) => prev.filter((msg) => msg.id !== pendingId));
             console.error(err);
             alert("Failed to send message.");
             setInputValue(textToSend); // restore on fail

@@ -42,6 +42,7 @@ app.get('/api/health', (req, res) => {
 import channelRoutes from './routes/channels.js';
 import workbenchRoutes from './routes/workbench.js';
 import telegramRoutes from './routes/telegram.js';
+import openclawRoutes from './routes/openclaw.js';
 import summariesRoutes from './routes/summaries.js';
 import exportsRoutes from './routes/exports.js';
 import { initTelegramService } from './services/telegramService.js';
@@ -49,6 +50,7 @@ import { initTelegramService } from './services/telegramService.js';
 app.use('/api/channels', channelRoutes);
 app.use('/api/workbench', workbenchRoutes);
 app.use('/api/telegram', telegramRoutes);
+app.use('/api/openclaw', openclawRoutes); // Native OpenClaw session routes
 app.use('/api/summaries', summariesRoutes);
 app.use('/api/ide-project-summaries', summariesRoutes);
 app.use('/api/exports', exportsRoutes);

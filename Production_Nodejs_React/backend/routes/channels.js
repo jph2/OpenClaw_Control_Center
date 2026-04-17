@@ -1,9 +1,9 @@
 import express from 'express';
-import fs from 'fs/promises';
+import fs from 'fs';
+import fsPromises from 'fs/promises';
 import path from 'path';
 import lockfile from 'proper-lockfile';
 import { z } from 'zod';
-import chokidar from 'chokidar';
 import { EventEmitter } from 'events';
 import { resolveSafe } from '../utils/security.js';
 import { scanWorkspaceSkillsCatalog, resolveWorkspaceSkillsDir } from '../services/workspaceSkillRegistry.js';
@@ -30,7 +30,7 @@ const BUNDLED_SKILL_CATALOG = {
 
 async function syncToOpenClawState(channelId, updates) {
     try {
-        const raw = await fs.readFile(OPENCLAW_JSON_PATH, 'utf8');
+        const raw = await fsPromises.readFile(OPENCLAW_JSON_PATH, 'utf8');
         const state = JSON.parse(raw);
 
         if (!state.channels?.telegram?.groups) return;
@@ -39,7 +39,7 @@ async function syncToOpenClawState(channelId, updates) {
         if (group) {
             // OpenClaw schema strictly denies 'model' inside telegram groups. Wait for proper API approach.
             // if (updates.model) group.model = updates.model;
-            // await fs.writeFile(OPENCLAW_JSON_PATH, JSON.stringify(state, null, 2));
+            // await fsPromises.writeFile(OPENCLAW_JSON_PATH, JSON.stringify(state, null, 2));
             console.log(`[Sync] Skipped syncing model (${updates.model}) to OpenClaw (unsupported schema property).`);
         }
     } catch (err) {
@@ -59,44 +59,94 @@ const getResolvedConfigPath = async () => {
     return resolved;
 };
 
-// Initialize Chokidar Watcher immediately when route is mounted
+// Initialize Config Polling (Chokidar causes EBADF errors)
 setTimeout(async () => {
     try {
         const configPath = await getResolvedConfigPath();
-        const watcher = chokidar.watch(configPath, {
-            persistent: true,
-            ignoreInitial: true,
-            awaitWriteFinish: { stabilityThreshold: 500, pollInterval: 100 }
-        });
-
-        watcher.on('change', () => {
-            console.log(`[Chokidar] Detected config change in ${configPath}. Pushing SSE hot-reload event...`);
-            configEvents.emit('configChange');
-        });
-        console.log(`[Chokidar] Active and watching: ${configPath}`);
+        let lastMtime = 0;
+        
+        const pollConfig = () => {
+            try {
+                if (fs.existsSync(configPath)) {
+                    const stat = fs.statSync(configPath);
+                    if (stat.mtimeMs > lastMtime) {
+                        lastMtime = stat.mtimeMs;
+                        console.log(`[Polling] Detected config change in ${configPath}. Pushing SSE hot-reload event...`);
+                        configEvents.emit('configChange');
+                    }
+                }
+            } catch (err) {
+                // Ignore errors
+            }
+        };
+        
+        setInterval(pollConfig, 10000); // Poll every 10s to reduce CPU load
+        pollConfig(); // Initial check
+        console.log(`[Polling] Active and watching: ${configPath}`);
     } catch (err) {
-        console.warn('[Chokidar] Failed to initialize watcher:', err.message);
+        console.warn('[Polling] Failed to initialize config watcher:', err.message);
     }
 }, 0);
 
-// Workspace skills: re-scan when SKILL.md is added/changed/deleted → same SSE as config (CONFIG_UPDATED).
+// Workspace skills polling (Chokidar causes EBADF errors)
 setTimeout(() => {
     try {
         const skillsDir = resolveWorkspaceSkillsDir();
-        const skillWatcher = chokidar.watch(skillsDir, {
-            persistent: true,
-            ignoreInitial: true,
-            depth: 3,
-            awaitWriteFinish: { stabilityThreshold: 400, pollInterval: 100 }
-        });
-        skillWatcher.on('all', (event, p) => {
-            if (!p || !p.includes(`${path.sep}SKILL.md`)) return;
-            console.log(`[Chokidar] Workspace skill file ${event}: ${p}`);
-            configEvents.emit('configChange');
-        });
-        console.log(`[Chokidar] Watching workspace skills: ${skillsDir}`);
+        const knownSkills = new Map(); // filePath -> mtime
+        
+        const pollSkills = () => {
+            try {
+                if (!fs.existsSync(skillsDir)) return;
+                
+                const scanDir = (dir) => {
+                    const entries = fs.readdirSync(dir, { withFileTypes: true });
+                    for (const entry of entries) {
+                        const fullPath = path.join(dir, entry.name);
+                        if (entry.isDirectory()) {
+                            scanDir(fullPath);
+                        } else if (entry.name === 'SKILL.md') {
+                            try {
+                                const stat = fs.statSync(fullPath);
+                                const known = knownSkills.get(fullPath);
+                                
+                                if (!known) {
+                                    // New skill file
+                                    knownSkills.set(fullPath, stat.mtimeMs);
+                                    console.log(`[Polling] Workspace skill file added: ${fullPath}`);
+                                    configEvents.emit('configChange');
+                                } else if (stat.mtimeMs > known) {
+                                    // Skill file changed
+                                    knownSkills.set(fullPath, stat.mtimeMs);
+                                    console.log(`[Polling] Workspace skill file changed: ${fullPath}`);
+                                    configEvents.emit('configChange');
+                                }
+                            } catch (err) {
+                                // Skip files we can't stat
+                            }
+                        }
+                    }
+                };
+                
+                scanDir(skillsDir);
+                
+                // Clean up deleted files
+                for (const [filePath] of knownSkills) {
+                    if (!fs.existsSync(filePath)) {
+                        knownSkills.delete(filePath);
+                        console.log(`[Polling] Workspace skill file deleted: ${filePath}`);
+                        configEvents.emit('configChange');
+                    }
+                }
+            } catch (err) {
+                // Ignore errors
+            }
+        };
+        
+        setInterval(pollSkills, 30000); // Poll every 30s to reduce CPU load (skills change rarely)
+        pollSkills(); // Initial scan
+        console.log(`[Polling] Watching workspace skills: ${skillsDir}`);
     } catch (err) {
-        console.warn('[Chokidar] Workspace skills watcher failed:', err.message);
+        console.warn('[Polling] Workspace skills watcher failed:', err.message);
     }
 }, 0);
 
@@ -266,10 +316,10 @@ const getConfigPath = async () => {
  */
 const ensureConfigExists = async (configPath) => {
     try {
-        await fs.access(configPath);
+        await fsPromises.access(configPath);
     } catch {
-        await fs.mkdir(path.dirname(configPath), { recursive: true });
-        await fs.writeFile(
+        await fsPromises.mkdir(path.dirname(configPath), { recursive: true });
+        await fsPromises.writeFile(
             configPath,
             JSON.stringify({ channels: [], agents: [], subAgents: [] }, null, 2),
             'utf8'
@@ -283,7 +333,7 @@ const ensureConfigExists = async (configPath) => {
 const readExternalJsonSafe = async (filePath) => {
     if (!filePath) return {};
     try {
-        const raw = await fs.readFile(filePath, 'utf8');
+        const raw = await fsPromises.readFile(filePath, 'utf8');
         return JSON.parse(raw);
     } catch (err) {
         console.warn(`[MARVIN-WARN] Failed to read or parse ${filePath}:`, err.message);
@@ -339,7 +389,7 @@ async function persistFullChannelConfig(body) {
     const configPath = await getConfigPath();
     const release = await lockfile.lock(configPath, { retries: 5 });
     try {
-        await fs.writeFile(configPath, JSON.stringify(payload, null, 2), 'utf8');
+        await fsPromises.writeFile(configPath, JSON.stringify(payload, null, 2), 'utf8');
         configEvents.emit('configChange');
     } finally {
         await release();
@@ -394,7 +444,7 @@ router.get('/', async (req, res, next) => {
         // 1. Get Local UI State
         const configPath = await getConfigPath();
         await ensureConfigExists(configPath);
-        const rawLocal = await fs.readFile(configPath, 'utf8');
+        const rawLocal = await fsPromises.readFile(configPath, 'utf8');
         const localState = JSON.parse(rawLocal);
         const localChannelsList = normalizeToArray(localState.channels);
         console.log("MARKER: Local UI State loaded, length:", localChannelsList.length);
@@ -534,7 +584,7 @@ router.post('/update', async (req, res, next) => {
         const release = await lockfile.lock(configPath, { retries: 5 });
 
         try {
-            const raw = await fs.readFile(configPath, 'utf8');
+            const raw = await fsPromises.readFile(configPath, 'utf8');
             const parsed = JSON.parse(raw);
             normalizeParsedChannelConfig(parsed);
 
@@ -612,7 +662,7 @@ router.post('/update', async (req, res, next) => {
             const finalState = ChannelConfigSchema.parse(parsed);
             assertStrictTtgChannelNames(finalState.channels);
 
-            await fs.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
+            await fsPromises.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
 
             // Sub-Task 1.5: Sovereign State Synchronization
             // Ensure model changes are pushed to the live OpenClaw Engine config
@@ -646,7 +696,7 @@ router.post('/updateAgent', async (req, res, next) => {
         const release = await lockfile.lock(configPath, { retries: 5 });
 
         try {
-            const raw = await fs.readFile(configPath, 'utf8');
+            const raw = await fsPromises.readFile(configPath, 'utf8');
             const parsed = JSON.parse(raw);
             normalizeParsedChannelConfig(parsed);
 
@@ -658,7 +708,7 @@ router.post('/updateAgent', async (req, res, next) => {
 
             parsed.channels = normalizeChannelsAssignedAgentTars(parsed.channels || []);
             const finalState = ChannelConfigSchema.parse(parsed);
-            await fs.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
+            await fsPromises.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
             res.json({ ok: true, message: 'Agent configuration updated atomically.' });
         } finally {
             await release();
@@ -681,7 +731,7 @@ router.post('/updateSubAgent', async (req, res, next) => {
         const release = await lockfile.lock(configPath, { retries: 5 });
 
         try {
-            const raw = await fs.readFile(configPath, 'utf8');
+            const raw = await fsPromises.readFile(configPath, 'utf8');
             const parsed = JSON.parse(raw);
             normalizeParsedChannelConfig(parsed);
 
@@ -695,7 +745,7 @@ router.post('/updateSubAgent', async (req, res, next) => {
 
             parsed.channels = normalizeChannelsAssignedAgentTars(parsed.channels || []);
             const finalState = ChannelConfigSchema.parse(parsed);
-            await fs.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
+            await fsPromises.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
             res.json({ ok: true, message: 'SubAgent configuration updated atomically.' });
         } finally {
             await release();
@@ -718,7 +768,7 @@ router.post('/createSubAgent', async (req, res, next) => {
         const release = await lockfile.lock(configPath, { retries: 5 });
 
         try {
-            const raw = await fs.readFile(configPath, 'utf8');
+            const raw = await fsPromises.readFile(configPath, 'utf8');
             const parsed = JSON.parse(raw);
             normalizeParsedChannelConfig(parsed);
 
@@ -755,7 +805,7 @@ router.post('/createSubAgent', async (req, res, next) => {
             parsed.subAgents.push(row);
             parsed.channels = normalizeChannelsAssignedAgentTars(parsed.channels || []);
             const finalState = ChannelConfigSchema.parse(parsed);
-            await fs.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
+            await fsPromises.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
             res.json({ ok: true, message: 'Sub-agent created.', subAgent: row });
         } finally {
             await release();
@@ -778,7 +828,7 @@ router.post('/deleteSubAgent', async (req, res, next) => {
         const release = await lockfile.lock(configPath, { retries: 5 });
 
         try {
-            const raw = await fs.readFile(configPath, 'utf8');
+            const raw = await fsPromises.readFile(configPath, 'utf8');
             const parsed = JSON.parse(raw);
             normalizeParsedChannelConfig(parsed);
 
@@ -800,7 +850,7 @@ router.post('/deleteSubAgent', async (req, res, next) => {
 
             parsed.channels = normalizeChannelsAssignedAgentTars(parsed.channels || []);
             const finalState = ChannelConfigSchema.parse(parsed);
-            await fs.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
+            await fsPromises.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
             res.json({ ok: true, message: 'Sub-agent removed.' });
         } finally {
             await release();
@@ -823,7 +873,7 @@ router.post('/reorderMainAgents', async (req, res, next) => {
         const release = await lockfile.lock(configPath, { retries: 5 });
 
         try {
-            const raw = await fs.readFile(configPath, 'utf8');
+            const raw = await fsPromises.readFile(configPath, 'utf8');
             const parsed = JSON.parse(raw);
             normalizeParsedChannelConfig(parsed);
 
@@ -853,7 +903,7 @@ router.post('/reorderMainAgents', async (req, res, next) => {
 
             parsed.channels = normalizeChannelsAssignedAgentTars(parsed.channels || []);
             const finalState = ChannelConfigSchema.parse(parsed);
-            await fs.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
+            await fsPromises.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
             res.json({ ok: true, message: 'Main agent order updated.' });
         } finally {
             await release();

@@ -10,6 +10,16 @@ import { scanHistory } from './historyScanner.mjs';
 const execAsync = promisify(exec);
 const DEFAULT_SESSIONS_ROOT = path.join(process.env.HOME || '/home/claw-agentbox', '.openclaw/agents/main/sessions');
 
+// Performance optimization: HTTP-based session send instead of CLI spawn
+// This eliminates per-message process spawn overhead (~500-2000ms)
+const GATEWAY_BASE_URL = process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:8080';
+const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || null;
+
+// Rate limiting for hydrateOpenclawSessionIndex to reduce CPU load
+let lastHydrateTime = 0;
+const HYDRATE_DEBOUNCE_MS = 2000; // Max once every 2 seconds
+let pendingHydrate = false;
+
 /** One-line log helper for openclaw CLI (no secrets; truncate). */
 function clip(s, max = 600) {
     return String(s || '')
@@ -26,6 +36,10 @@ export const telegramEvents = new EventEmitter();
 // In-memory message store for Phase 3.1 (Buffer per chat)
 const messageBuffer = new Map();
 const MAX_BUFFER_SIZE = 500;
+
+// Track processed message IDs to prevent duplicates from file replays
+const processedMessageIds = new Set();
+const MAX_PROCESSED_IDS = 2000; // Prevent unbounded growth
 
 /** Maps OpenClaw session file UUID → canonical Telegram group id (numeric string). */
 const sessionToCanonicalChat = new Map();
@@ -47,8 +61,26 @@ const DEFAULT_SESSIONS_JSON = () => path.join(DEFAULT_SESSIONS_ROOT, 'sessions.j
 /**
  * Re-read OpenClaw session index so gateway lines can resolve group id without per-line metadata.
  * Also tracks canonical sessionFile per Telegram group (OpenClaw UI parity).
+ * Rate-limited to reduce CPU load from frequent calls.
  */
-function hydrateOpenclawSessionIndex() {
+function hydrateOpenclawSessionIndex(force = false) {
+    const now = Date.now();
+    
+    // Rate limiting: skip if called too recently (unless forced)
+    if (!force && now - lastHydrateTime < HYDRATE_DEBOUNCE_MS) {
+        if (!pendingHydrate) {
+            pendingHydrate = true;
+            setTimeout(() => {
+                pendingHydrate = false;
+                hydrateOpenclawSessionIndex(true);
+            }, HYDRATE_DEBOUNCE_MS - (now - lastHydrateTime));
+        }
+        return;
+    }
+    
+    lastHydrateTime = now;
+    pendingHydrate = false;
+    
     const sessionsPath = process.env.OPENCLAW_SESSIONS_JSON_PATH || DEFAULT_SESSIONS_JSON();
     try {
         if (!fs.existsSync(sessionsPath)) {
@@ -182,11 +214,23 @@ export function refreshChatMirrorFromCanonicalSession(chatId) {
 
 export function resolveCanonicalSession(chatId) {
     hydrateOpenclawSessionIndex();
-    const key = normalizeChatIdForBuffer(String(chatId));
+    let key = normalizeChatIdForBuffer(String(chatId));
+    let inputSessionId = null;
+    
+    // Check if chatId is a UUID (session ID) - if so, resolve to Telegram group ID
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidPattern.test(key)) {
+        inputSessionId = key.toLowerCase();
+        const telegramGroupId = sessionUuidToTelegramGroupId.get(inputSessionId);
+        if (telegramGroupId) {
+            key = telegramGroupId;
+        }
+    }
+    
     const sessionFile = telegramGroupIdToSessionFile.get(key) || null;
 
     let sessionKey = null;
-    let sessionId = null;
+    let sessionId = inputSessionId; // Use the input UUID if it was a session ID
     let deliveryContext = null;
     const sessionsPath = process.env.OPENCLAW_SESSIONS_JSON_PATH || DEFAULT_SESSIONS_JSON();
 
@@ -354,84 +398,124 @@ export const initTelegramService = () => {
         const agentsDir = path.resolve(process.env.HOME || '/home/claw-agentbox', '.openclaw/agents');
         const sessionsJsonPath = process.env.OPENCLAW_SESSIONS_JSON_PATH || path.join(agentsDir, 'main/sessions/sessions.json');
 
-        if (fs.existsSync(sessionsJsonPath)) {
-            chokidar
-                .watch(sessionsJsonPath, {
-                    persistent: true,
-                    ignoreInitial: true,
-                    awaitWriteFinish: { stabilityThreshold: 400, pollInterval: 100 }
-                })
-                .on('add', () => hydrateOpenclawSessionIndex())
-                .on('change', () => hydrateOpenclawSessionIndex());
-        } else {
-            console.warn(`[TelegramService] sessions.json not found yet at ${sessionsJsonPath}; session→group map will stay empty until file exists.`);
-        }
-
-        console.log(`[TelegramService] Initializing Chokidar Gateway Listener on ${agentsDir} ...`);
-        
-        const watcher = chokidar.watch(agentsDir, {
-            persistent: true,
-            ignoreInitial: false,
-            usePolling: true,
-            interval: 500
-        });
-
-        watcher.on('add', (filePath, stats) => {
-            if (!filePath.endsWith('.jsonl') || !filePath.includes('/sessions/')) return;
-            
+        // Poll sessions.json for changes (Chokidar causes EBADF)
+        let lastSessionsJsonMtime = 0;
+        const pollSessionsJson = () => {
             try {
-                const data = fs.readFileSync(filePath, 'utf8');
-                const lines = data.split('\n').filter(l => l.trim() !== '');
-                // Read last 200 lines of any loaded JSONL
-                const recentLines = lines.slice(-200); 
-                
-                for (const line of recentLines) {
-                    try {
-                        const parsed = JSON.parse(line);
-                        if (parsed.type === 'message' && parsed.message) {
-                            processGatewayMessage(parsed, true, filePath);
-                        }
-                    } catch(e) { }
+                if (fs.existsSync(sessionsJsonPath)) {
+                    const stat = fs.statSync(sessionsJsonPath);
+                    if (stat.mtimeMs > lastSessionsJsonMtime) {
+                        lastSessionsJsonMtime = stat.mtimeMs;
+                        hydrateOpenclawSessionIndex(true);
+                    }
                 }
             } catch (err) {
-                console.error(`[Chokidar ADD Error] ${err.message}`);
+                // Ignore errors
             }
-            fileOffsets.set(filePath, stats ? stats.size : fs.statSync(filePath).size);
-        });
+        };
+        setInterval(pollSessionsJson, 5000); // Poll every 5s to reduce CPU load
+        pollSessionsJson(); // Initial check
 
-        watcher.on('change', (filePath, stats) => {
-            if (!filePath.endsWith('.jsonl') || !filePath.includes('/sessions/')) return;
-            
-            const currentSize = stats ? stats.size : fs.statSync(filePath).size;
-            const previousSize = fileOffsets.get(filePath) || 0;
-            
-            if (currentSize > previousSize) {
-                try {
-                    const fd = fs.openSync(filePath, 'r');
-                    const bufferSize = currentSize - previousSize;
-                    const buffer = Buffer.alloc(bufferSize);
+        // ==========================================
+        // PHASE 7: Simple Polling-Based Session Monitor
+        // ==========================================
+        // Chokidar causes EBADF errors on this system - using simple polling instead
+        const sessionsDir = path.join(agentsDir, 'main/sessions');
+        
+        console.log(`[TelegramService] Initializing simple polling monitor on ${sessionsDir} ...`);
+        
+        // Track known files and their sizes
+        const knownFiles = new Map(); // filePath -> { size, mtime }
+        
+        const pollSessions = () => {
+            try {
+                if (!fs.existsSync(sessionsDir)) return;
+                
+                const entries = fs.readdirSync(sessionsDir);
+                const jsonlFiles = entries.filter(f => f.endsWith('.jsonl'));
+                
+                for (const filename of jsonlFiles) {
+                    const filePath = path.join(sessionsDir, filename);
                     
-                    fs.readSync(fd, buffer, 0, bufferSize, previousSize);
-                    fs.closeSync(fd);
-                    
-                    fileOffsets.set(filePath, currentSize);
-                    const data = buffer.toString();
-                    const lines = data.split('\n').filter(l => l.trim() !== '');
-                    for (const line of lines) {
-                        try {
-                            const parsed = JSON.parse(line);
-                            if (parsed.type === 'message' && parsed.message) {
-                                processGatewayMessage(parsed, false, filePath);
+                    try {
+                        const stat = fs.statSync(filePath);
+                        const known = knownFiles.get(filePath);
+                        
+                        if (!known) {
+                            // New file - process initial content
+                            knownFiles.set(filePath, { size: stat.size, mtime: stat.mtimeMs });
+                            
+                            const data = fs.readFileSync(filePath, 'utf8');
+                            const lines = data.split('\n').filter(l => l.trim() !== '');
+                            const recentLines = lines.slice(-200);
+                            
+                            for (const line of recentLines) {
+                                try {
+                                    const parsed = JSON.parse(line);
+                                    if (parsed.type === 'message' && parsed.message) {
+                                        processGatewayMessage(parsed, true, filePath);
+                                    }
+                                } catch(e) { }
                             }
-                        } catch(e) { }
+                            
+                            fileOffsets.set(filePath, stat.size);
+                        } else if (stat.size > known.size) {
+                            // File grew - read new content
+                            const newSize = stat.size;
+                            const prevSize = known.size;
+                            
+                            try {
+                                const fd = fs.openSync(filePath, 'r');
+                                const bufferSize = newSize - prevSize;
+                                const buffer = Buffer.alloc(bufferSize);
+                                
+                                fs.readSync(fd, buffer, 0, bufferSize, prevSize);
+                                fs.closeSync(fd);
+                                
+                                knownFiles.set(filePath, { size: newSize, mtime: stat.mtimeMs });
+                                fileOffsets.set(filePath, newSize);
+                                
+                                const data = buffer.toString();
+                                const lines = data.split('\n').filter(l => l.trim() !== '');
+                                
+                                for (const line of lines) {
+                                    try {
+                                        const parsed = JSON.parse(line);
+                                        if (parsed.type === 'message' && parsed.message) {
+                                            processGatewayMessage(parsed, false, filePath);
+                                        }
+                                    } catch(e) { }
+                                }
+                            } catch (readErr) {
+                                // Skip this file on error
+                            }
+                        } else if (stat.size < known.size) {
+                            // File truncated - reset
+                            knownFiles.set(filePath, { size: stat.size, mtime: stat.mtimeMs });
+                            fileOffsets.set(filePath, stat.size);
+                        }
+                    } catch (err) {
+                        // Skip files we can't stat/read
                     }
-                } catch (err) {
-                    console.error(`[TelegramService] File Read Error (${path.basename(filePath)}):`, err.message);
                 }
-            } else if (currentSize < previousSize) {
-                fileOffsets.set(filePath, currentSize);
+                
+                // Clean up deleted files
+                for (const [filePath] of knownFiles) {
+                    if (!fs.existsSync(filePath)) {
+                        knownFiles.delete(filePath);
+                        fileOffsets.delete(filePath);
+                    }
+                }
+            } catch (err) {
+                // Directory might not exist
             }
-        });
+        };
+        
+        // Poll every 2 seconds - balance between responsiveness and CPU usage
+        setInterval(pollSessions, 2000);
+        
+        // Initial scan
+        pollSessions();
 
         console.log('[TelegramService] Phase 7 Gateway Listener active. Bridging session transcripts to React SSE.');
 
@@ -443,6 +527,20 @@ export const initTelegramService = () => {
 const processGatewayMessage = (data, isInit = false, filePath = '') => {
     const msgObj = buildMsgObjFromGatewayLine(data);
     if (!msgObj) return;
+
+    // Deduplication: Skip if we've already processed this exact message ID
+    if (processedMessageIds.has(msgObj.id)) {
+        return;
+    }
+    
+    // Add to processed set and maintain size limit
+    processedMessageIds.add(msgObj.id);
+    if (processedMessageIds.size > MAX_PROCESSED_IDS) {
+        // Remove oldest entries (simple approach: clear and start fresh if too large)
+        const entriesToKeep = Array.from(processedMessageIds).slice(-MAX_PROCESSED_IDS / 2);
+        processedMessageIds.clear();
+        entriesToKeep.forEach(id => processedMessageIds.add(id));
+    }
 
     const sessionUuid = extractSessionUuidFromPath(filePath);
     let telegramFromUser = extractTelegramGroupIdFromUserPayload(data);
@@ -482,6 +580,7 @@ const processGatewayMessage = (data, isInit = false, filePath = '') => {
     if (!messageBuffer.has(chatId)) messageBuffer.set(chatId, []);
     const chatBuffer = messageBuffer.get(chatId);
 
+    // Double-check deduplication within buffer
     if (!chatBuffer.find(m => m.id === msgObj.id)) {
         chatBuffer.push(msgObj);
         chatBuffer.sort((a,b) => a.date - b.date);
@@ -500,6 +599,49 @@ export const getMessagesForChat = (chatId) => {
     return messageBuffer.get(key) || [];
 };
 
+/**
+ * Send message via HTTP API to OpenClaw Gateway (fast path)
+ * Falls back to CLI spawn only if HTTP is unavailable
+ */
+async function sendViaHttpGateway(sessionId, message, sessionKey) {
+    // Use native fetch (Node.js 18+) or fall back to dynamic import
+    const fetchFn = globalThis.fetch;
+    if (!fetchFn) {
+        throw new Error('fetch not available - Node.js 18+ required for HTTP gateway');
+    }
+    
+    const url = `${GATEWAY_BASE_URL}/api/v1/sessions/${sessionId}/send`;
+    const headers = {
+        'Content-Type': 'application/json',
+        ...(GATEWAY_TOKEN && { 'Authorization': `Bearer ${GATEWAY_TOKEN}` })
+    };
+    const body = JSON.stringify({ message, sessionKey });
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    try {
+        const response = await fetchFn(url, {
+            method: 'POST',
+            headers,
+            body,
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Unknown error');
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+        
+        return await response.json();
+    } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+    }
+}
+
 export const sendMessageToChat = async (chatId, text) => {
     const requestStartedAt = Date.now();
     const canonical = resolveCanonicalSession(chatId);
@@ -514,16 +656,58 @@ export const sendMessageToChat = async (chatId, text) => {
         requestStartedAt
     });
 
-    const safeText = text.replace(/"/g, '\\"').replace(/\n/g, ' ');
-    if (!safeText.trim()) {
-        logOpenclawCli('inject_skip', { reason: 'empty_after_escape', realChatId: String(realChatId) });
+    if (!text || !text.trim()) {
+        logOpenclawCli('inject_skip', { reason: 'empty_message', realChatId: String(realChatId) });
         return { message_id: `ui-empty-${Date.now()}`, transport: 'noop', timing: { totalMs: Date.now() - requestStartedAt } };
     }
 
+    // PHASE 4: Native OpenClaw session send via HTTP (fast path)
+    // Eliminates per-message CLI spawn overhead
+    if (canonical.sessionId) {
+        try {
+            const httpStartedAt = Date.now();
+            const result = await sendViaHttpGateway(canonical.sessionId, text, canonical.sessionKey);
+            const httpDoneAt = Date.now();
+            
+            logOpenclawCli('inject_http_ok', {
+                transport: 'session-native-http',
+                realChatId: String(realChatId),
+                sessionId: canonical.sessionId,
+                timing: {
+                    httpCallMs: httpDoneAt - httpStartedAt,
+                    totalAckMs: httpDoneAt - requestStartedAt
+                }
+            });
+            
+            return {
+                message_id: result.messageId || `http-${httpDoneAt}`,
+                transport: 'session-native-http',
+                sessionKey: canonical.sessionKey,
+                sessionId: canonical.sessionId,
+                sessionFile: canonical.sessionFile,
+                timing: {
+                    totalAckMs: httpDoneAt - requestStartedAt,
+                    httpCallMs: httpDoneAt - httpStartedAt
+                }
+            };
+        } catch (httpErr) {
+            // HTTP failed - fall back to CLI spawn but log the attempt
+            logOpenclawCli('inject_http_fallback', {
+                reason: httpErr.message,
+                sessionId: canonical.sessionId,
+                willTry: 'cli-spawn'
+            });
+            // Continue to CLI fallback below
+        }
+    }
+
+    // CLI spawn fallback (legacy, slower)
+    const safeText = text.replace(/"/g, '\\"').replace(/\n/g, ' ');
     let cmd = null;
     let transport = null;
+    
     if (canonical.sessionId) {
-        transport = 'session-native';
+        transport = 'session-native-cli';
         cmd = `export PATH=$PATH:/home/claw-agentbox/.npm-global/bin && nohup openclaw agent --session-id "${canonical.sessionId}" --message "${safeText}" --json >/tmp/openclaw-cm-send-${canonical.sessionId}.log 2>&1 & echo $!`;
     } else {
         transport = 'legacy-telegram-deliver';

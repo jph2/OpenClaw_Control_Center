@@ -74,17 +74,32 @@ router.get('/stream/:chatId', (req, res) => {
 
 /**
  * POST /api/telegram/send
- * Legacy transition route. Current rebuild target is native OpenClaw session send.
+ * Native OpenClaw session send (Phase 4). Uses HTTP API when available, falls back to CLI spawn.
  */
 router.post('/send', apiLimiter, async (req, res, next) => {
+    const requestStartedAt = Date.now();
     console.log('[API POST /send] Incoming payload:', req.body);
     try {
         let { chatId, text } = SendMessageSchema.parse(req.body);
         console.log(`[API POST /send] Parsed values -> chatId: ${chatId}, textLength: ${text.length}`);
-        // Resolution to numeric Telegram id + buffer keys: sendMessageToChat + normalizeChatIdForBuffer
+        
         const result = await sendMessageToChat(chatId, text);
-        console.log(`[API POST /send] Ack! messageId: ${result.message_id}, transport: ${result.transport || 'unknown'}, ackMs: ${result.timing?.totalAckMs ?? 'n/a'}`);
-        res.json({ ok: true, messageId: result.message_id, transport: result.transport || null, sessionKey: result.sessionKey || null, sessionId: result.sessionId || null, sessionFile: result.sessionFile || null, spawnedPid: result.spawnedPid || null, timing: result.timing || null });
+        const totalMs = Date.now() - requestStartedAt;
+        
+        console.log(`[API POST /send] Ack! messageId: ${result.message_id}, transport: ${result.transport || 'unknown'}, totalMs: ${totalMs}, ackMs: ${result.timing?.totalAckMs ?? 'n/a'}`);
+        res.json({ 
+            ok: true, 
+            messageId: result.message_id, 
+            transport: result.transport || null, 
+            sessionKey: result.sessionKey || null, 
+            sessionId: result.sessionId || null, 
+            sessionFile: result.sessionFile || null, 
+            spawnedPid: result.spawnedPid || null, 
+            timing: { 
+                ...result.timing,
+                httpTotalMs: totalMs 
+            } 
+        });
     } catch (error) {
         console.error('[API POST /send] ERROR:', error.message || error);
         if (error instanceof z.ZodError) error.status = 400;
