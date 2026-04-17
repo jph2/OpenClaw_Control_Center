@@ -129,6 +129,7 @@ export default function TelegramChat({ channelId, channelName }) {
                 console.error(err);
                 setSessionBinding(null);
                 setSessionBindingError(err.message || 'Session resolve failed');
+                setLastSendMeta(null);
             });
 
         return () => {
