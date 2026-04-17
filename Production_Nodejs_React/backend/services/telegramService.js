@@ -15,11 +15,6 @@ const DEFAULT_SESSIONS_ROOT = path.join(process.env.HOME || '/home/claw-agentbox
 const GATEWAY_BASE_URL = process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:8080';
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || null;
 
-// Rate limiting for hydrateOpenclawSessionIndex to reduce CPU load
-let lastHydrateTime = 0;
-const HYDRATE_DEBOUNCE_MS = 2000; // Max once every 2 seconds
-let pendingHydrate = false;
-
 /** One-line log helper for openclaw CLI (no secrets; truncate). */
 function clip(s, max = 600) {
     return String(s || '')
@@ -61,26 +56,11 @@ const DEFAULT_SESSIONS_JSON = () => path.join(DEFAULT_SESSIONS_ROOT, 'sessions.j
 /**
  * Re-read OpenClaw session index so gateway lines can resolve group id without per-line metadata.
  * Also tracks canonical sessionFile per Telegram group (OpenClaw UI parity).
- * Rate-limited to reduce CPU load from frequent calls.
+ *
+ * Called once at startup and then only from the sessions.json chokidar watcher,
+ * so no internal rate-limiting is needed here.
  */
-function hydrateOpenclawSessionIndex(force = false) {
-    const now = Date.now();
-    
-    // Rate limiting: skip if called too recently (unless forced)
-    if (!force && now - lastHydrateTime < HYDRATE_DEBOUNCE_MS) {
-        if (!pendingHydrate) {
-            pendingHydrate = true;
-            setTimeout(() => {
-                pendingHydrate = false;
-                hydrateOpenclawSessionIndex(true);
-            }, HYDRATE_DEBOUNCE_MS - (now - lastHydrateTime));
-        }
-        return;
-    }
-    
-    lastHydrateTime = now;
-    pendingHydrate = false;
-    
+function hydrateOpenclawSessionIndex() {
     const sessionsPath = process.env.OPENCLAW_SESSIONS_JSON_PATH || DEFAULT_SESSIONS_JSON();
     try {
         if (!fs.existsSync(sessionsPath)) {
@@ -203,7 +183,8 @@ function buildMsgObjFromGatewayLine(parsed) {
  * Variant A: re-resolve canonical sessionFile from sessions.json and refill buffer (call on each SSE connect).
  */
 export function refreshChatMirrorFromCanonicalSession(chatId) {
-    hydrateOpenclawSessionIndex();
+    // The chokidar watcher on sessions.json keeps telegramGroupIdToSessionFile
+    // current, so we no longer hydrate from disk on every SSE connect.
     const key = normalizeChatIdForBuffer(String(chatId));
     const sessionFile = telegramGroupIdToSessionFile.get(key);
     if (!sessionFile) {
@@ -213,7 +194,9 @@ export function refreshChatMirrorFromCanonicalSession(chatId) {
 }
 
 export function resolveCanonicalSession(chatId) {
-    hydrateOpenclawSessionIndex();
+    // Index is kept current by the sessions.json chokidar watcher; the
+    // explicit per-call hydrate was a CPU hotspot when many routes chained
+    // through here (e.g. every POST /send).
     let key = normalizeChatIdForBuffer(String(chatId));
     let inputSessionId = null;
     
@@ -351,12 +334,175 @@ function extractTelegramGroupIdFromUserPayload(data) {
 let bot = null;         // TARS (Inbound)
 let relayBot = null;    // CASE / Shedly (Outbound)
 
-// Track file sizes to only read new lines
+// Track file sizes to only read new lines on each chokidar change event.
 const fileOffsets = new Map();
+
+// ==========================================================================
+// Chokidar-based session-file watching (Gateway-First, scoped)
+// ==========================================================================
+// Watch only the canonical session files currently bound to a Telegram
+// group (plus sessions.json itself). This replaces the former 2s / 5s
+// polling loops that drove measurable CPU and fan noise while idle — the
+// two setInterval loops were doing readdirSync + statSync on every tick.
+
+const watchedSessionFiles = new Set();
+let sessionFilesWatcher = null;
+let sessionsJsonWatcher = null;
+
+/**
+ * Lazily create the single chokidar instance we use for canonical session
+ * transcripts. The set of watched paths is managed by
+ * `reconcileWatchedSessionFiles` based on the current group → sessionFile
+ * index (so we never watch orphan files).
+ */
+function ensureSessionFilesWatcher() {
+    if (sessionFilesWatcher) return sessionFilesWatcher;
+    sessionFilesWatcher = chokidar.watch([], {
+        persistent: true,
+        ignoreInitial: true,
+        awaitWriteFinish: { stabilityThreshold: 80, pollInterval: 40 },
+        alwaysStat: false
+    });
+    sessionFilesWatcher.on('add', handleSessionFileAppend);
+    sessionFilesWatcher.on('change', handleSessionFileAppend);
+    sessionFilesWatcher.on('unlink', (filePath) => {
+        watchedSessionFiles.delete(filePath);
+        fileOffsets.delete(filePath);
+    });
+    sessionFilesWatcher.on('error', (err) => {
+        console.warn('[TelegramService] session files watcher error:', err.message);
+    });
+    return sessionFilesWatcher;
+}
+
+/**
+ * Diff the currently-watched session files against
+ * `telegramGroupIdToSessionFile`; add/seed newly-bound files and stop
+ * watching files that are no longer referenced by any group.
+ */
+function reconcileWatchedSessionFiles() {
+    const watcher = ensureSessionFilesWatcher();
+
+    const nextSet = new Set();
+    for (const filePath of telegramGroupIdToSessionFile.values()) {
+        if (filePath && typeof filePath === 'string') nextSet.add(filePath);
+    }
+
+    for (const filePath of nextSet) {
+        if (watchedSessionFiles.has(filePath)) continue;
+        watchedSessionFiles.add(filePath);
+        watcher.add(filePath);
+        seedSessionFileBuffer(filePath);
+    }
+
+    for (const filePath of Array.from(watchedSessionFiles)) {
+        if (nextSet.has(filePath)) continue;
+        watchedSessionFiles.delete(filePath);
+        try {
+            watcher.unwatch(filePath);
+        } catch {
+            /* best effort — chokidar may have already detached */
+        }
+        fileOffsets.delete(filePath);
+    }
+}
+
+/**
+ * Seed fileOffsets and replay the tail of a session JSONL so the
+ * in-memory buffer has recent history for this group on first watch.
+ * Matches the behaviour the old poller used on its "new file" path.
+ */
+function seedSessionFileBuffer(filePath, tailLines = 200) {
+    try {
+        if (!fs.existsSync(filePath)) {
+            fileOffsets.set(filePath, 0);
+            return;
+        }
+        const stat = fs.statSync(filePath);
+        fileOffsets.set(filePath, stat.size);
+
+        const raw = fs.readFileSync(filePath, 'utf8');
+        const lines = raw.split('\n').filter((l) => l.trim() !== '');
+        const recent = lines.slice(-tailLines);
+        for (const line of recent) {
+            try {
+                const parsed = JSON.parse(line);
+                if (parsed.type === 'message' && parsed.message) {
+                    processGatewayMessage(parsed, true, filePath);
+                }
+            } catch {
+                /* skip bad line */
+            }
+        }
+    } catch (err) {
+        console.warn(`[TelegramService] seedSessionFileBuffer failed for ${filePath}:`, err.message);
+    }
+}
+
+/**
+ * Chokidar change/add handler: read only the bytes appended since the
+ * last offset, parse complete lines, leave a trailing partial line for
+ * the next event. This keeps CPU proportional to actual writes rather
+ * than to the polling interval.
+ */
+function handleSessionFileAppend(filePath) {
+    try {
+        if (!fs.existsSync(filePath)) {
+            fileOffsets.delete(filePath);
+            return;
+        }
+        const stat = fs.statSync(filePath);
+        const prevOffset = fileOffsets.get(filePath) ?? 0;
+
+        if (stat.size < prevOffset) {
+            // File was truncated or rotated — reset and re-seed from tail.
+            fileOffsets.set(filePath, 0);
+            seedSessionFileBuffer(filePath);
+            return;
+        }
+        if (stat.size === prevOffset) return;
+
+        const delta = stat.size - prevOffset;
+        const buf = Buffer.alloc(delta);
+        const fd = fs.openSync(filePath, 'r');
+        try {
+            fs.readSync(fd, buf, 0, delta, prevOffset);
+        } finally {
+            fs.closeSync(fd);
+        }
+
+        const chunk = buf.toString('utf8');
+        const lastNewline = chunk.lastIndexOf('\n');
+        if (lastNewline < 0) {
+            // No complete line yet — wait for more bytes before advancing.
+            return;
+        }
+
+        const processable = chunk.slice(0, lastNewline);
+        // Advance the offset by the UTF-8 byte length of the complete
+        // lines plus the terminating \n. Partial trailing bytes stay
+        // unread and will be consumed on the next change event.
+        const consumedBytes = Buffer.byteLength(processable, 'utf8') + 1;
+        fileOffsets.set(filePath, prevOffset + consumedBytes);
+
+        const lines = processable.split('\n').filter((l) => l.trim() !== '');
+        for (const line of lines) {
+            try {
+                const parsed = JSON.parse(line);
+                if (parsed.type === 'message' && parsed.message) {
+                    processGatewayMessage(parsed, false, filePath);
+                }
+            } catch {
+                /* skip bad line */
+            }
+        }
+    } catch (err) {
+        console.warn(`[TelegramService] handleSessionFileAppend failed for ${filePath}:`, err.message);
+    }
+}
 
 export const initTelegramService = () => {
     hydrateChannelAliasesFromDiskSync();
-    hydrateOpenclawSessionIndex();
 
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const relayToken = process.env.RELAY_BOT_TOKEN || process.env.SHEDLY_BOT_TOKEN;
@@ -393,130 +539,48 @@ export const initTelegramService = () => {
         }
 
         // ==========================================
-        // PHASE 7: Gateway-First Filesystem Bridge
+        // PHASE 7: Gateway-First filesystem bridge (chokidar, scoped)
         // ==========================================
+        // Two previous setInterval loops (5s on sessions.json, 2s on the
+        // sessions directory) did readdirSync + statSync on every tick,
+        // driving CPU and fan noise while idle. We now watch only:
+        //   - sessions.json (to rebuild the group → sessionFile index)
+        //   - each canonical sessionFile actually bound to a group.
         const agentsDir = path.resolve(process.env.HOME || '/home/claw-agentbox', '.openclaw/agents');
         const sessionsJsonPath = process.env.OPENCLAW_SESSIONS_JSON_PATH || path.join(agentsDir, 'main/sessions/sessions.json');
 
-        // Poll sessions.json for changes (Chokidar causes EBADF)
-        let lastSessionsJsonMtime = 0;
-        const pollSessionsJson = () => {
-            try {
-                if (fs.existsSync(sessionsJsonPath)) {
-                    const stat = fs.statSync(sessionsJsonPath);
-                    if (stat.mtimeMs > lastSessionsJsonMtime) {
-                        lastSessionsJsonMtime = stat.mtimeMs;
-                        hydrateOpenclawSessionIndex(true);
-                    }
-                }
-            } catch (err) {
-                // Ignore errors
-            }
-        };
-        setInterval(pollSessionsJson, 5000); // Poll every 5s to reduce CPU load
-        pollSessionsJson(); // Initial check
+        // Hydrate the group → sessionFile index up front, then attach
+        // chokidar to the canonical files it references.
+        hydrateOpenclawSessionIndex();
+        reconcileWatchedSessionFiles();
 
-        // ==========================================
-        // PHASE 7: Simple Polling-Based Session Monitor
-        // ==========================================
-        // Chokidar causes EBADF errors on this system - using simple polling instead
-        const sessionsDir = path.join(agentsDir, 'main/sessions');
-        
-        console.log(`[TelegramService] Initializing simple polling monitor on ${sessionsDir} ...`);
-        
-        // Track known files and their sizes
-        const knownFiles = new Map(); // filePath -> { size, mtime }
-        
-        const pollSessions = () => {
-            try {
-                if (!fs.existsSync(sessionsDir)) return;
-                
-                const entries = fs.readdirSync(sessionsDir);
-                const jsonlFiles = entries.filter(f => f.endsWith('.jsonl'));
-                
-                for (const filename of jsonlFiles) {
-                    const filePath = path.join(sessionsDir, filename);
-                    
-                    try {
-                        const stat = fs.statSync(filePath);
-                        const known = knownFiles.get(filePath);
-                        
-                        if (!known) {
-                            // New file - process initial content
-                            knownFiles.set(filePath, { size: stat.size, mtime: stat.mtimeMs });
-                            
-                            const data = fs.readFileSync(filePath, 'utf8');
-                            const lines = data.split('\n').filter(l => l.trim() !== '');
-                            const recentLines = lines.slice(-200);
-                            
-                            for (const line of recentLines) {
-                                try {
-                                    const parsed = JSON.parse(line);
-                                    if (parsed.type === 'message' && parsed.message) {
-                                        processGatewayMessage(parsed, true, filePath);
-                                    }
-                                } catch(e) { }
-                            }
-                            
-                            fileOffsets.set(filePath, stat.size);
-                        } else if (stat.size > known.size) {
-                            // File grew - read new content
-                            const newSize = stat.size;
-                            const prevSize = known.size;
-                            
-                            try {
-                                const fd = fs.openSync(filePath, 'r');
-                                const bufferSize = newSize - prevSize;
-                                const buffer = Buffer.alloc(bufferSize);
-                                
-                                fs.readSync(fd, buffer, 0, bufferSize, prevSize);
-                                fs.closeSync(fd);
-                                
-                                knownFiles.set(filePath, { size: newSize, mtime: stat.mtimeMs });
-                                fileOffsets.set(filePath, newSize);
-                                
-                                const data = buffer.toString();
-                                const lines = data.split('\n').filter(l => l.trim() !== '');
-                                
-                                for (const line of lines) {
-                                    try {
-                                        const parsed = JSON.parse(line);
-                                        if (parsed.type === 'message' && parsed.message) {
-                                            processGatewayMessage(parsed, false, filePath);
-                                        }
-                                    } catch(e) { }
-                                }
-                            } catch (readErr) {
-                                // Skip this file on error
-                            }
-                        } else if (stat.size < known.size) {
-                            // File truncated - reset
-                            knownFiles.set(filePath, { size: stat.size, mtime: stat.mtimeMs });
-                            fileOffsets.set(filePath, stat.size);
-                        }
-                    } catch (err) {
-                        // Skip files we can't stat/read
-                    }
-                }
-                
-                // Clean up deleted files
-                for (const [filePath] of knownFiles) {
-                    if (!fs.existsSync(filePath)) {
-                        knownFiles.delete(filePath);
-                        fileOffsets.delete(filePath);
-                    }
-                }
-            } catch (err) {
-                // Directory might not exist
-            }
+        // Watcher on sessions.json → re-hydrate + reconcile on change.
+        // Coalesce bursts with a 200ms debounce because the gateway
+        // sometimes rewrites the file multiple times in quick succession.
+        let sessionsJsonDebounce = null;
+        const scheduleSessionsJsonRehydrate = () => {
+            if (sessionsJsonDebounce) return;
+            sessionsJsonDebounce = setTimeout(() => {
+                sessionsJsonDebounce = null;
+                hydrateOpenclawSessionIndex();
+                reconcileWatchedSessionFiles();
+            }, 200);
         };
-        
-        // Poll every 2 seconds - balance between responsiveness and CPU usage
-        setInterval(pollSessions, 2000);
-        
-        // Initial scan
-        pollSessions();
 
+        sessionsJsonWatcher = chokidar.watch(sessionsJsonPath, {
+            persistent: true,
+            ignoreInitial: true,
+            awaitWriteFinish: { stabilityThreshold: 150, pollInterval: 50 }
+        });
+        sessionsJsonWatcher.on('add', scheduleSessionsJsonRehydrate);
+        sessionsJsonWatcher.on('change', scheduleSessionsJsonRehydrate);
+        sessionsJsonWatcher.on('error', (err) => {
+            console.warn('[TelegramService] sessions.json watcher error:', err.message);
+        });
+
+        console.log(
+            `[TelegramService] Watching ${sessionsJsonPath} plus ${watchedSessionFiles.size} canonical session file(s).`
+        );
         console.log('[TelegramService] Phase 7 Gateway Listener active. Bridging session transcripts to React SSE.');
 
     } catch (err) {
