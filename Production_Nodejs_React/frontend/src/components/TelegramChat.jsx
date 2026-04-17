@@ -209,7 +209,6 @@ export default function TelegramChat({ channelId, channelName }) {
         if (showSystemMessages) return text;
         
         let cleaned = text;
-        // Function 2: Text cleaning
         cleaned = cleaned.replace(/\[\[reply_to_current\]\]\s*/g, '');
         cleaned = cleaned.replace(/Conversation info \(untrusted metadata\):[\s\S]*?```json[\s\S]*?```\s*/g, '');
         cleaned = cleaned.replace(/Sender \(untrusted metadata\):[\s\S]*?```json[\s\S]*?```\s*/g, '');
@@ -217,13 +216,27 @@ export default function TelegramChat({ channelId, channelName }) {
         return cleaned.trim();
     };
 
+    const isUntrustedSystemNoise = (text) => {
+        const normalized = String(text || '').trim();
+        if (!normalized) return false;
+
+        return (
+            normalized.startsWith('System (untrusted):') ||
+            normalized.startsWith('Read HEARTBEAT.md if it exists') ||
+            normalized.includes('Exec completed (') ||
+            normalized.includes('Exec failed (') ||
+            normalized.includes('Exec completed') ||
+            normalized.includes('Exec failed')
+        );
+    };
+
     const filteredMessages = messages.filter(msg => {
         if (showSystemMessages) return true;
         
         const text = msg.text || '';
-        // Function 1: Block system messages
         if (text === 'HEARTBEAT_OK') return false;
         if (text.startsWith('Read HEARTBEAT.md')) return false;
+        if (isUntrustedSystemNoise(text)) return false;
         
         return true;
     }).map(msg => ({
