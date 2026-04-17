@@ -501,6 +501,7 @@ export const getMessagesForChat = (chatId) => {
 };
 
 export const sendMessageToChat = async (chatId, text) => {
+    const requestStartedAt = Date.now();
     const canonical = resolveCanonicalSession(chatId);
     const realChatId = canonical.chatId;
 
@@ -509,37 +510,56 @@ export const sendMessageToChat = async (chatId, text) => {
         realChatId: String(realChatId),
         sessionKey: canonical.sessionKey,
         sessionId: canonical.sessionId,
-        textLen: String(text).length
+        textLen: String(text).length,
+        requestStartedAt
     });
 
     const safeText = text.replace(/"/g, '\\"').replace(/\n/g, ' ');
     if (!safeText.trim()) {
         logOpenclawCli('inject_skip', { reason: 'empty_after_escape', realChatId: String(realChatId) });
-        return { message_id: `ui-empty-${Date.now()}`, transport: 'noop' };
+        return { message_id: `ui-empty-${Date.now()}`, transport: 'noop', timing: { totalMs: Date.now() - requestStartedAt } };
     }
 
     let cmd = null;
     let transport = null;
     if (canonical.sessionId) {
         transport = 'session-native';
-        cmd = `export PATH=$PATH:/home/claw-agentbox/.npm-global/bin && openclaw agent --session-id "${canonical.sessionId}" --message "${safeText}" --json`;
+        cmd = `export PATH=$PATH:/home/claw-agentbox/.npm-global/bin && nohup openclaw agent --session-id "${canonical.sessionId}" --message "${safeText}" --json >/tmp/openclaw-cm-send-${canonical.sessionId}.log 2>&1 & echo $!`;
     } else {
         transport = 'legacy-telegram-deliver';
-        cmd = `export PATH=$PATH:/home/claw-agentbox/.npm-global/bin && openclaw agent --channel telegram --to "${realChatId}" --message "${safeText}" --deliver`;
+        cmd = `export PATH=$PATH:/home/claw-agentbox/.npm-global/bin && nohup openclaw agent --channel telegram --to "${realChatId}" --message "${safeText}" --deliver >/tmp/openclaw-cm-send-${realChatId}.log 2>&1 & echo $!`;
     }
 
     try {
-        const { stdout, stderr } = await execAsync(cmd, { maxBuffer: 10 * 1024 * 1024 });
-        logOpenclawCli('inject_ok', {
+        const spawnStartedAt = Date.now();
+        const { stdout, stderr } = await execAsync(cmd, { maxBuffer: 1024 * 1024 });
+        const ackedAt = Date.now();
+        const spawnedPid = String(stdout || '').trim().split('\n').pop()?.trim() || null;
+
+        logOpenclawCli('inject_spawned', {
             transport,
             realChatId: String(realChatId),
             sessionId: canonical.sessionId,
-            stdoutLen: (stdout || '').length,
-            stderrLen: (stderr || '').length,
-            stdoutPreview: clip(stdout, 800),
-            stderrPreview: clip(stderr, 400)
+            spawnedPid,
+            stderrPreview: clip(stderr, 400),
+            timing: {
+                spawnExecMs: ackedAt - spawnStartedAt,
+                totalAckMs: ackedAt - requestStartedAt
+            }
         });
-        console.log(`[TelegramService] openclaw agent finished via ${transport}.`);
+
+        return {
+            message_id: `${transport}-${ackedAt}`,
+            transport,
+            sessionKey: canonical.sessionKey,
+            sessionId: canonical.sessionId,
+            sessionFile: canonical.sessionFile,
+            spawnedPid,
+            timing: {
+                totalAckMs: ackedAt - requestStartedAt,
+                spawnExecMs: ackedAt - spawnStartedAt
+            }
+        };
     } catch (err) {
         logOpenclawCli('inject_err', {
             transport,
@@ -549,22 +569,14 @@ export const sendMessageToChat = async (chatId, text) => {
             stderrPreview: clip(err?.stderr, 400),
             stdoutPreview: clip(err?.stdout, 400)
         });
-        console.error('[TelegramService] openclaw agent failed:', err.message);
+        console.error('[TelegramService] openclaw agent failed to spawn:', err.message);
         const fail = new Error(
-            `OpenClaw CLI failed for chat ${realChatId} via ${transport}: ${clip(err?.message, 200)}`
+            `OpenClaw CLI spawn failed for chat ${realChatId} via ${transport}: ${clip(err?.message, 200)}`
         );
         fail.status = 502;
         fail.cause = err;
         throw fail;
     }
-
-    return {
-        message_id: `${transport}-${Date.now()}`,
-        transport,
-        sessionKey: canonical.sessionKey,
-        sessionId: canonical.sessionId,
-        sessionFile: canonical.sessionFile
-    };
 };
 
 let relayBotInfo = null;

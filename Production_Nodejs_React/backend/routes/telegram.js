@@ -83,8 +83,8 @@ router.post('/send', apiLimiter, async (req, res, next) => {
         console.log(`[API POST /send] Parsed values -> chatId: ${chatId}, textLength: ${text.length}`);
         // Resolution to numeric Telegram id + buffer keys: sendMessageToChat + normalizeChatIdForBuffer
         const result = await sendMessageToChat(chatId, text);
-        console.log(`[API POST /send] Success! messageId: ${result.message_id}, transport: ${result.transport || 'unknown'}`);
-        res.json({ ok: true, messageId: result.message_id, transport: result.transport || null, sessionKey: result.sessionKey || null, sessionId: result.sessionId || null, sessionFile: result.sessionFile || null });
+        console.log(`[API POST /send] Ack! messageId: ${result.message_id}, transport: ${result.transport || 'unknown'}, ackMs: ${result.timing?.totalAckMs ?? 'n/a'}`);
+        res.json({ ok: true, messageId: result.message_id, transport: result.transport || null, sessionKey: result.sessionKey || null, sessionId: result.sessionId || null, sessionFile: result.sessionFile || null, spawnedPid: result.spawnedPid || null, timing: result.timing || null });
     } catch (error) {
         console.error('[API POST /send] ERROR:', error.message || error);
         if (error instanceof z.ZodError) error.status = 400;
