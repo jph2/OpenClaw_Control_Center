@@ -96,10 +96,14 @@ const MessageBubble = React.memo(({ msg }) => {
                     </button>
                 </div>
                 <div style={{ paddingRight: '20px' }}>
-                    {/* eslint-disable no-unused-vars */}
-                    <ReactMarkdown remarkPlugins={RENDER_PLUGINS} components={RENDER_COMPONENTS}>
-                        {msg.text}
-                    </ReactMarkdown>
+                    {/* OPTIMIZED: Skip ReactMarkdown for plain text to prevent UI blocking */}
+                    {/[*_`#\[\]\(\)!]/.test(msg.text) ? (
+                        <ReactMarkdown remarkPlugins={RENDER_PLUGINS} components={RENDER_COMPONENTS}>
+                            {msg.text}
+                        </ReactMarkdown>
+                    ) : (
+                        <span style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</span>
+                    )}
                 </div>
             </div>
             <div style={{ fontSize: '10px', color: '#666', marginTop: '4px', marginLeft: isMe ? 0 : '8px', marginRight: isMe ? '8px' : 0 }}>
