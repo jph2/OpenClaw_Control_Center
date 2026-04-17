@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, startTransition } from 'react';
 import { Send, Copy, Image } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -189,20 +189,12 @@ export default function TelegramChat({ channelId, channelName }) {
     const containerRef = useRef(null);
     /** Counts consecutive SSE failures (reset on onopen). Used to throttle console noise — onerror is normal during reconnects. */
     const sseFailStreakRef = useRef(0);
-
-    // Auto-scroll to bottom
-    const scrollToBottom = () => {
-        if (containerRef.current) {
-            containerRef.current.scrollTo({
-                top: containerRef.current.scrollHeight,
-                behavior: "smooth"
-            });
-        }
-    };
-
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
+    /**
+     * Tracks whether the user's scroll position is anchored near the bottom.
+     * Updated on every user-initiated scroll. We auto-scroll on new messages
+     * only when this is true, so reading history is never interrupted.
+     */
+    const stuckToBottomRef = useRef(true);
 
     useEffect(() => {
         if (!channelId) {
@@ -210,6 +202,10 @@ export default function TelegramChat({ channelId, channelName }) {
             setSessionBindingError(null);
             return;
         }
+
+        // New channel → reset the scroll pin so the first INIT lands at bottom
+        // even if the user was scrolled up in the previously selected channel.
+        stuckToBottomRef.current = true;
 
         let cancelled = false;
 
@@ -259,15 +255,19 @@ export default function TelegramChat({ channelId, channelName }) {
                 if (event.data === ':ping') return;
                 try {
                     const parsed = JSON.parse(event.data);
+                    // Mark SSE-driven state updates as transitions so React
+                    // can keep the input responsive during bursts (typing,
+                    // button clicks) and coalesce renders when messages
+                    // arrive back-to-back.
                     if (parsed.type === 'INIT' || parsed.type === 'SESSION_REBOUND') {
-                        // Phase 2: Only use canonical messages from session
                         const incoming = parsed.messages || [];
-                        setMessages(incoming);
+                        startTransition(() => setMessages(incoming));
                     } else if (parsed.type === 'MESSAGE') {
-                        // Phase 2: Deduplication - only add if not already present
-                        setMessages((prev) => {
-                            if (prev.find((m) => m.id === parsed.message.id)) return prev;
-                            return [...prev, parsed.message];
+                        startTransition(() => {
+                            setMessages((prev) => {
+                                if (prev.find((m) => m.id === parsed.message.id)) return prev;
+                                return [...prev, parsed.message];
+                            });
                         });
                     }
                 } catch (e) {
@@ -329,6 +329,28 @@ export default function TelegramChat({ channelId, channelName }) {
             displayChatText: cleanMessageTextStatic(msg.text || '', showSystemMessages)
         })).filter(msg => msg.displayChatText.length > 0 || showSystemMessages);
     }, [messages, showSystemMessages]);
+
+    // Within this distance of the bottom we consider the user "pinned" and
+    // safe to auto-scroll on new messages. Anything larger → user is
+    // reading history and we leave their scroll position alone.
+    const SCROLL_PIN_THRESHOLD_PX = 80;
+
+    const handleContainerScroll = () => {
+        const el = containerRef.current;
+        if (!el) return;
+        const distanceFromBottom = el.scrollHeight - (el.scrollTop + el.clientHeight);
+        stuckToBottomRef.current = distanceFromBottom <= SCROLL_PIN_THRESHOLD_PX;
+    };
+
+    // Auto-scroll only when the *visible* (filtered) count changes and
+    // only if the user is anchored to the bottom. Uses behavior:'auto'
+    // to avoid the ~500ms smooth animation that made bursts feel laggy.
+    useEffect(() => {
+        if (!stuckToBottomRef.current) return;
+        const el = containerRef.current;
+        if (!el) return;
+        el.scrollTo({ top: el.scrollHeight, behavior: 'auto' });
+    }, [filteredMessages.length]);
 
     const handleSendMessage = async () => {
         if (!inputValue.trim() || isSending) return;
@@ -442,7 +464,7 @@ export default function TelegramChat({ channelId, channelName }) {
             </div>
             
             {/* Messages Area */}
-            <div ref={containerRef} style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto' }}>
+            <div ref={containerRef} onScroll={handleContainerScroll} style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto' }}>
                 {filteredMessages.length === 0 ? (
                     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
                         Waiting for messages in {channelName}...
