@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, Copy, Image } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { apiUrl } from '../utils/apiUrl';
 
 const RENDER_PLUGINS = [remarkGfm];
 
@@ -83,6 +84,9 @@ export default function TelegramChat({ channelId, channelName }) {
     const [isSending, setIsSending] = useState(false);
     const [showSystemMessages, setShowSystemMessages] = useState(false);
     const [pasteHint, setPasteHint] = useState(null);
+    const [sessionBinding, setSessionBinding] = useState(null);
+    const [sessionBindingError, setSessionBindingError] = useState(null);
+    const [lastSendMeta, setLastSendMeta] = useState(null);
     const containerRef = useRef(null);
     /** Counts consecutive SSE failures (reset on onopen). Used to throttle console noise — onerror is normal during reconnects. */
     const sseFailStreakRef = useRef(0);
@@ -101,6 +105,37 @@ export default function TelegramChat({ channelId, channelName }) {
         scrollToBottom();
     }, [messages]);
 
+    useEffect(() => {
+        if (!channelId) {
+            setSessionBinding(null);
+            setSessionBindingError(null);
+            return;
+        }
+
+        let cancelled = false;
+
+        fetch(apiUrl(`/api/telegram/session/${channelId}`))
+            .then(async (res) => {
+                if (!res.ok) throw new Error(`Session resolve failed (${res.status})`);
+                return res.json();
+            })
+            .then((data) => {
+                if (cancelled) return;
+                setSessionBinding(data);
+                setSessionBindingError(null);
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                console.error(err);
+                setSessionBinding(null);
+                setSessionBindingError(err.message || 'Session resolve failed');
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [channelId]);
+
     // Setup Server-Sent Events for live messages
     useEffect(() => {
         if (!channelId) return;
@@ -112,7 +147,7 @@ export default function TelegramChat({ channelId, channelName }) {
         let reconnectTimer = null;
 
         const connectSSE = () => {
-            eventSource = new EventSource(`/api/telegram/stream/${channelId}`);
+            eventSource = new EventSource(apiUrl(`/api/telegram/stream/${channelId}`));
 
             eventSource.onopen = () => {
                 sseFailStreakRef.current = 0;
@@ -203,12 +238,14 @@ export default function TelegramChat({ channelId, channelName }) {
         setIsSending(true);
         
         try {
-            const res = await fetch('/api/telegram/send', {
+            const res = await fetch(apiUrl('/api/telegram/send'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ chatId: channelId, text: textToSend })
             });
             if (!res.ok) throw new Error('Send failed');
+            const data = await res.json();
+            setLastSendMeta(data);
         } catch (err) {
             console.error(err);
             alert("Failed to send message.");
@@ -254,7 +291,7 @@ export default function TelegramChat({ channelId, channelName }) {
                     <span style={{ color: '#50e3c2' }}>#</span>
                     {channelName}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#888', cursor: 'pointer', userSelect: 'none' }}>
                         <input 
                             type="checkbox" 
@@ -263,9 +300,24 @@ export default function TelegramChat({ channelId, channelName }) {
                         />
                         Show System/Agent Internal Tasks
                     </label>
-                    <div style={{ fontSize: '11px', color: '#666', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>
-                        NATIVE CLIENT
+                    {sessionBinding?.sessionKey && (
+                        <div style={{ fontSize: '11px', color: '#8fb3ff', background: 'rgba(80,120,255,0.12)', padding: '2px 6px', borderRadius: '4px' }}>
+                            session {sessionBinding.sessionKey}
+                        </div>
+                    )}
+                    <div style={{ fontSize: '11px', color: sessionBinding?.sessionId ? '#50e3c2' : '#e0a030', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>
+                        {sessionBinding?.sessionId ? 'SESSION-NATIVE SEND READY' : 'LEGACY FALLBACK ACTIVE'}
                     </div>
+                    {lastSendMeta?.transport && (
+                        <div style={{ fontSize: '11px', color: '#666', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>
+                            last send {lastSendMeta.transport}
+                        </div>
+                    )}
+                    {sessionBindingError && (
+                        <div style={{ fontSize: '11px', color: '#ff8f8f', background: 'rgba(255,80,80,0.1)', padding: '2px 6px', borderRadius: '4px' }}>
+                            {sessionBindingError}
+                        </div>
+                    )}
                 </div>
             </div>
             
