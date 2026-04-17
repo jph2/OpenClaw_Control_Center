@@ -153,6 +153,7 @@ export default function TelegramChat({ channelId, channelName }) {
 
         let cancelled = false;
 
+        console.log('[TelegramChat] Resolving session for channel:', channelId);
         fetch(apiUrl(`/api/telegram/session/${channelId}`))
             .then(async (res) => {
                 if (!res.ok) throw new Error(`Session resolve failed (${res.status})`);
@@ -160,12 +161,13 @@ export default function TelegramChat({ channelId, channelName }) {
             })
             .then((data) => {
                 if (cancelled) return;
+                console.log('[TelegramChat] Session resolved:', data.sessionId ? 'OK' : 'No session', data);
                 setSessionBinding(data);
                 setSessionBindingError(null);
             })
             .catch((err) => {
                 if (cancelled) return;
-                console.error(err);
+                console.error('[TelegramChat] Session resolve error:', err);
                 setSessionBinding(null);
                 setSessionBindingError(err.message || 'Session resolve failed');
                 setLastSendMeta(null);
@@ -270,6 +272,7 @@ export default function TelegramChat({ channelId, channelName }) {
         if (!inputValue.trim() || isSending) return;
 
         const textToSend = inputValue.trim();
+        console.log('[TelegramChat] Sending message:', textToSend.substring(0, 50), 'Session:', sessionBinding?.sessionId ? 'YES' : 'NO');
         setInputValue('');
         setIsSending(true);
 
