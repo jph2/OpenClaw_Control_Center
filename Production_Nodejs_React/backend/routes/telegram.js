@@ -73,7 +73,7 @@ router.get('/stream/:chatId', (req, res) => {
 
 /**
  * POST /api/telegram/send
- * Send a message to Telegram
+ * Legacy transition route. Current rebuild target is native OpenClaw session send.
  */
 router.post('/send', apiLimiter, async (req, res, next) => {
     console.log('[API POST /send] Incoming payload:', req.body);

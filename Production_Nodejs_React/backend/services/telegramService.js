@@ -159,6 +159,7 @@ function buildMsgObjFromGatewayLine(parsed) {
         text,
         sender: role === 'assistant' ? 'TARS (Engine)' : role === 'toolResult' ? 'System (Tool)' : 'User (Telegram)',
         senderId: role,
+        senderRole: role,
         date: Math.floor(new Date(data.timestamp || Date.now()).getTime() / 1000),
         isBot: role === 'assistant' || role === 'toolResult',
         metrics: data.message.usage || null,
@@ -511,21 +512,7 @@ export const sendMessageToChat = async (chatId, text) => {
         throw fail;
     }
 
-    const localId = `ui-${Date.now()}`;
-    const uiMsg = {
-        id: localId,
-        text: text,
-        sender: 'You (Web-UI)',
-        senderId: 'user',
-        date: Math.floor(Date.now() / 1000),
-        isBot: false
-    };
-
-    if (!messageBuffer.has(bufferKey)) messageBuffer.set(bufferKey, []);
-    messageBuffer.get(bufferKey).push(uiMsg);
-    telegramEvents.emit('newMessage', { chatId: bufferKey, message: uiMsg });
-
-    return { message_id: localId };
+    return { message_id: `legacy-send-${Date.now()}` };
 };
 
 let relayBotInfo = null;

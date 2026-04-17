@@ -16,7 +16,7 @@ const RENDER_COMPONENTS = {
 };
 
 const MessageBubble = React.memo(({ msg }) => {
-    const isMe = msg.senderId === 'me' || (msg.sender && (msg.sender.toLowerCase() === 'you (frontend)' || msg.sender.toLowerCase().includes('jan') || msg.sender.toLowerCase().includes('user')));
+    const isMe = msg.senderRole === 'user';
     
     const formatNum = (n) => n > 1000 ? (n/1000).toFixed(1) + 'k' : n;
     const timestampStr = new Date(msg.date * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
@@ -209,7 +209,6 @@ export default function TelegramChat({ channelId, channelName }) {
                 body: JSON.stringify({ chatId: channelId, text: textToSend })
             });
             if (!res.ok) throw new Error('Send failed');
-            setMessages(prev => [...prev, { id: Date.now(), text: textToSend, sender: 'You (Frontend)', senderId: 'me', date: Date.now()/1000, isBot: false }]);
         } catch (err) {
             console.error(err);
             alert("Failed to send message.");
