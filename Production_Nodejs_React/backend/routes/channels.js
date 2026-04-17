@@ -198,6 +198,61 @@ function normalizeChannelsAssignedAgentTars(channels) {
 }
 
 /**
+ * `channel_config.json` must use `channels` as an array; legacy or broken files may use `{}`
+ * or a map — normalize so `.map()` / merge logic never throws.
+ */
+function normalizeToArray(value) {
+    if (Array.isArray(value)) return value;
+    if (value && typeof value === 'object' && value.constructor === Object) {
+        return Object.values(value);
+    }
+    return [];
+}
+
+/** After `JSON.parse` of channel_config.json — keeps POST handlers from calling `.findIndex` on `{}`. */
+function normalizeParsedChannelConfig(parsed) {
+    if (!parsed || typeof parsed !== 'object') return;
+    parsed.channels = normalizeToArray(parsed.channels);
+    parsed.agents = normalizeToArray(parsed.agents);
+    parsed.subAgents = normalizeToArray(parsed.subAgents);
+}
+
+/** When `agents` in JSON is empty, UI has nothing to render — seed from the same catalog as `metadata.mainAgents`. */
+function buildDefaultMainAgentsFromMetadata(metadata) {
+    const m = metadata?.mainAgents;
+    if (!m || typeof m !== 'object') return [];
+    const order = ['tars', 'marvin', 'case'];
+    return order
+        .map((id) => {
+            const row = m[id];
+            if (!row || typeof row !== 'object') return null;
+            return {
+                id,
+                name: String(row.name || id),
+                role: row.role ?? '',
+                description: row.quote ?? '',
+                color: row.color ?? '#50e3c2',
+                defaultSkills: Array.isArray(row.defaultSkills) ? row.defaultSkills : [],
+                inactiveSkills: []
+            };
+        })
+        .filter(Boolean);
+}
+
+function buildDefaultSubAgentsFromMetadata(metadata) {
+    const d = metadata?.subAgentsDict;
+    if (!d || typeof d !== 'object') return [];
+    return Object.entries(d).map(([id, row]) => ({
+        id,
+        name: String(row.name || id),
+        parent: row.parent || 'tars',
+        additionalSkills: Array.isArray(row.additionalSkills) ? row.additionalSkills : [],
+        inactiveSkills: [],
+        enabled: true
+    }));
+}
+
+/**
  * Helper to safely get the config path.
  */
 const getConfigPath = async () => {
@@ -214,7 +269,11 @@ const ensureConfigExists = async (configPath) => {
         await fs.access(configPath);
     } catch {
         await fs.mkdir(path.dirname(configPath), { recursive: true });
-        await fs.writeFile(configPath, JSON.stringify({ channels: {} }, null, 2), 'utf8');
+        await fs.writeFile(
+            configPath,
+            JSON.stringify({ channels: [], agents: [], subAgents: [] }, null, 2),
+            'utf8'
+        );
     }
 };
 
@@ -337,8 +396,9 @@ router.get('/', async (req, res, next) => {
         await ensureConfigExists(configPath);
         const rawLocal = await fs.readFile(configPath, 'utf8');
         const localState = JSON.parse(rawLocal);
-        console.log("MARKER: Local UI State loaded, length:", localState.channels?.length);
-        const localChannelsMap = new Map((localState.channels || []).map(c => [c.id, c]));
+        const localChannelsList = normalizeToArray(localState.channels);
+        console.log("MARKER: Local UI State loaded, length:", localChannelsList.length);
+        const localChannelsMap = new Map(localChannelsList.map((c) => [c.id, c]));
 
         // 2. Fetch OpenClaw Sovereign State (Point of Truth for Telegram Connections)
         console.log("MARKER: Fetching OPENCLAW_CONFIG_PATH");
@@ -423,10 +483,19 @@ router.get('/', async (req, res, next) => {
 
         const availableModels = openclawState?.agents?.defaults?.models || {};
 
+        let agents = normalizeToArray(localState.agents);
+        if (agents.length === 0) {
+            agents = buildDefaultMainAgentsFromMetadata(metadata);
+        }
+        let subAgents = normalizeToArray(localState.subAgents);
+        if (subAgents.length === 0) {
+            subAgents = buildDefaultSubAgentsFromMetadata(metadata);
+        }
+
         const normalizedData = {
             channels: mergedChannels,
-            agents: localState.agents || [],
-            subAgents: localState.subAgents || [],
+            agents,
+            subAgents,
             metadata: metadata,
             availableModels: availableModels
         };
@@ -467,10 +536,7 @@ router.post('/update', async (req, res, next) => {
         try {
             const raw = await fs.readFile(configPath, 'utf8');
             const parsed = JSON.parse(raw);
-
-            if (!parsed.channels) {
-                parsed.channels = [];
-            }
+            normalizeParsedChannelConfig(parsed);
 
             const channelIndex = parsed.channels.findIndex(c => c.id === payload.channelId);
 
@@ -582,8 +648,7 @@ router.post('/updateAgent', async (req, res, next) => {
         try {
             const raw = await fs.readFile(configPath, 'utf8');
             const parsed = JSON.parse(raw);
-
-            if (!parsed.agents) parsed.agents = [];
+            normalizeParsedChannelConfig(parsed);
 
             const agentIndex = parsed.agents.findIndex(a => a.id === payload.agentId);
             if (agentIndex > -1) {
@@ -618,8 +683,7 @@ router.post('/updateSubAgent', async (req, res, next) => {
         try {
             const raw = await fs.readFile(configPath, 'utf8');
             const parsed = JSON.parse(raw);
-
-            if (!parsed.subAgents) parsed.subAgents = [];
+            normalizeParsedChannelConfig(parsed);
 
             const subAgentIndex = parsed.subAgents.findIndex(a => a.id === payload.subAgentId);
             if (subAgentIndex > -1) {
@@ -656,7 +720,7 @@ router.post('/createSubAgent', async (req, res, next) => {
         try {
             const raw = await fs.readFile(configPath, 'utf8');
             const parsed = JSON.parse(raw);
-            if (!parsed.subAgents) parsed.subAgents = [];
+            normalizeParsedChannelConfig(parsed);
 
             const exists = parsed.subAgents.some((s) => s.id === payload.id);
             if (exists) {
@@ -716,7 +780,7 @@ router.post('/deleteSubAgent', async (req, res, next) => {
         try {
             const raw = await fs.readFile(configPath, 'utf8');
             const parsed = JSON.parse(raw);
-            if (!parsed.subAgents) parsed.subAgents = [];
+            normalizeParsedChannelConfig(parsed);
 
             const idx = parsed.subAgents.findIndex((s) => s.id === payload.subAgentId);
             if (idx === -1) {
@@ -729,12 +793,10 @@ router.post('/deleteSubAgent', async (req, res, next) => {
 
             parsed.subAgents.splice(idx, 1);
 
-            if (Array.isArray(parsed.channels)) {
-                parsed.channels = parsed.channels.map((c) => ({
-                    ...c,
-                    inactiveSubAgents: (c.inactiveSubAgents || []).filter((id) => id !== payload.subAgentId)
-                }));
-            }
+            parsed.channels = parsed.channels.map((c) => ({
+                ...c,
+                inactiveSubAgents: (c.inactiveSubAgents || []).filter((id) => id !== payload.subAgentId)
+            }));
 
             parsed.channels = normalizeChannelsAssignedAgentTars(parsed.channels || []);
             const finalState = ChannelConfigSchema.parse(parsed);
@@ -763,7 +825,7 @@ router.post('/reorderMainAgents', async (req, res, next) => {
         try {
             const raw = await fs.readFile(configPath, 'utf8');
             const parsed = JSON.parse(raw);
-            if (!parsed.agents || !Array.isArray(parsed.agents)) parsed.agents = [];
+            normalizeParsedChannelConfig(parsed);
 
             const agents = parsed.agents;
             const existingIds = new Set(agents.map((a) => a.id));

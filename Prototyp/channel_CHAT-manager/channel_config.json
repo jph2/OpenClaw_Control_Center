@@ -1,177 +1,32 @@
 {
-  "channels": [
-    {
-      "id": "-1003752539559",
-      "name": "TTG000_General_Chat",
-      "model": "moonshot/kimi-k2.5",
-      "skills": [
-        "weather"
-      ],
-      "assignedAgent": "tars",
-      "ideOverride": false,
-      "inactiveSubAgents": [],
-      "inactiveSkills": [],
-      "caseSkills": [
-        "ide-openclaw-memory-sync"
-      ],
-      "inactiveCaseSkills": []
-    },
-    {
-      "id": "-5168034995",
-      "name": "TTG001_Idea_Capture",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "assignedAgent": "tars"
-    },
-    {
-      "id": "-5116743354",
-      "name": "TTG010_General_Discovery_Plus_Research",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "assignedAgent": "tars"
-    },
-    {
-      "id": "-5024908938",
-      "name": "TTG020_omniUSD",
-      "model": "moonshot/kimi-k2.5",
-      "skills": [
-        "omniverse-extension-development",
-        "usd-development"
-      ],
-      "assignedAgent": "tars",
-      "ideOverride": false,
-      "inactiveSubAgents": [],
-      "inactiveSkills": [],
-      "caseSkills": [],
-      "inactiveCaseSkills": []
-    },
-    {
-      "id": "-5275137502",
-      "name": "TTG030_DCC_CAD",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [
-        "usd-development"
-      ],
-      "assignedAgent": "tars"
-    },
-    {
-      "id": "-5034730971",
-      "name": "TTG040_WebDev_Backend",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "assignedAgent": "tars"
-    },
-    {
-      "id": "-5159996212",
-      "name": "TTG050_WebDev_Frontend",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "assignedAgent": "tars"
-    },
-    {
-      "id": "-1003968061817",
-      "name": "TTG060_Social_Media",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "assignedAgent": "tars"
-    },
-    {
-      "id": "-5103615103",
-      "name": "TTG070_QA_Plus_Security",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [
-        "healthcheck"
-      ],
-      "assignedAgent": "tars"
-    },
-    {
-      "id": "-5272630186",
-      "name": "TTG500_OpenClaw_Governance",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [
-        "node-connect"
-      ],
-      "assignedAgent": "tars"
-    },
-    {
-      "id": "-5169316413",
-      "name": "TTG510_Upcoming_Skills",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "assignedAgent": "tars"
-    },
-    {
-      "id": "-5155708359",
-      "name": "TTG520_Agentic_Intelligence",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "assignedAgent": "tars"
-    },
-    {
-      "id": "-5197370693",
-      "name": "TTG700_Studio_Framework",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "assignedAgent": "tars"
-    },
-    {
-      "id": "-5012559503",
-      "name": "TTG800_Experimental_Box",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [
-        "clawflow"
-      ],
-      "assignedAgent": "tars"
-    },
-    {
-      "id": "-5228979198",
-      "name": "TTG900_troubleshooting",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "assignedAgent": "tars"
-    },
-    {
-      "id": "admin_panel",
-      "name": "New Channel admin_panel",
-      "model": "local-pc/google/gemma-4-26b-a4b",
-      "skills": [],
-      "assignedAgent": "tars",
-      "ideOverride": false,
-      "inactiveSubAgents": [],
-      "inactiveSkills": [],
-      "caseSkills": [],
-      "inactiveCaseSkills": []
-    }
-  ],
+  "channels": [],
   "agents": [
     {
       "id": "tars",
       "name": "TARS",
       "role": "Planner",
+      "description": "Direct, honest, useful. No fake certainty. Builds with architecture and rigor.",
       "color": "#50e3c2",
-      "defaultSkills": [
-        "clawflow"
-      ]
-    },
-    {
-      "id": "case",
-      "name": "CASE",
-      "role": "Synthesis",
-      "color": "#e3c450",
-      "defaultSkills": [
-        "clawflow",
-        "web_search",
-        "web_fetch"
-      ]
+      "defaultSkills": ["clawflow", "skill-creator", "clawhub"],
+      "inactiveSkills": []
     },
     {
       "id": "marvin",
       "name": "MARVIN",
       "role": "Critic",
+      "description": "Zero-trust reviewer. Assumes everything is broken. Finds failures before they find you.",
       "color": "#e35050",
-      "defaultSkills": [
-        "healthcheck"
-      ]
+      "defaultSkills": ["healthcheck", "node-connect"],
+      "inactiveSkills": []
+    },
+    {
+      "id": "case",
+      "name": "CASE",
+      "role": "Synthesis",
+      "description": "Synthesis role (SONIC → CASE): execution and IDE relay aligned with the harness; same triad as the IDE (TARS / MARVIN / CASE).",
+      "color": "#e3c450",
+      "defaultSkills": ["clawflow", "web_search", "web_fetch"],
+      "inactiveSkills": []
     }
   ],
   "subAgents": [
@@ -179,48 +34,41 @@
       "id": "researcher",
       "name": "Researcher",
       "parent": "tars",
-      "additionalSkills": [
-        "clawflow",
-        "healthcheck",
-        "omniverse-extension-development"
-      ]
+      "additionalSkills": ["web_search", "web_fetch"],
+      "inactiveSkills": [],
+      "enabled": true
+    },
+    {
+      "id": "coder",
+      "name": "Coder",
+      "parent": "case",
+      "additionalSkills": ["omniverse-extension-development", "usd-development"],
+      "inactiveSkills": [],
+      "enabled": true
+    },
+    {
+      "id": "reviewer",
+      "name": "Reviewer",
+      "parent": "marvin",
+      "additionalSkills": [],
+      "inactiveSkills": [],
+      "enabled": true
     },
     {
       "id": "documenter",
       "name": "Documenter",
       "parent": "tars",
-      "additionalSkills": [
-        "clawflow",
-        "healthcheck"
-      ]
-    },
-    {
-      "id": "coder",
-      "name": "Coder",
-      "parent": "tars",
-      "additionalSkills": [
-        "usd-development",
-        "ide-openclaw-memory-sync"
-      ]
-    },
-    {
-      "id": "reviewer",
-      "name": "Reviewer",
-      "parent": "tars"
+      "additionalSkills": ["notion"],
+      "inactiveSkills": [],
+      "enabled": true
     },
     {
       "id": "tester",
       "name": "Tester",
-      "parent": "tars"
-    },
-    {
-      "id": "TEST-SUBAGENT_V01",
-      "name": "TEST SUBAGENT_V01",
-      "parent": "tars",
-      "additionalSkills": [],
+      "parent": "marvin",
+      "additionalSkills": ["healthcheck"],
       "inactiveSkills": [],
-      "enabled": true,
-      "description": "TEST-SUBAGENT_V01TEST-SUBAGENT_V01TEST-SUBAGENT_V01TEST-SUBAGENT_V01"
+      "enabled": true
     }
   ]
 }

@@ -6,6 +6,7 @@ import TelegramChat from '../components/TelegramChat';
 import ChannelManagerChannelRow from '../components/ChannelManagerChannelRow';
 import { useWorkbenchStore } from './Workbench.jsx';
 import { formatSkillOptionLabel } from '../utils/formatSkillOptionLabel.js';
+import { apiUrl } from '../utils/apiUrl.js';
 
 // Constants have been moved to the Node.js backend.
 // The UI acts purely as a consumer of configurations.
@@ -24,7 +25,7 @@ export default function ChannelManager() {
     
     // Sub-Task 1.4: Hot-Reloading via SSE from Backend
     useEffect(() => {
-        const eventSource = new EventSource('/api/channels/events');
+        const eventSource = new EventSource(apiUrl('/api/channels/events'));
         eventSource.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
@@ -72,7 +73,7 @@ export default function ChannelManager() {
     const { data: configData, isLoading, refetch } = useQuery({
         queryKey: ['channels'],
         queryFn: async () => {
-            const res = await fetch('/api/channels');
+            const res = await fetch(apiUrl('/api/channels'));
             if (!res.ok) {
                 throw new Error(
                     res.status === 502
@@ -106,7 +107,7 @@ export default function ChannelManager() {
         mutationFn: async (payload) => {
             // Anti-Pattern 1 Fix: Ensure assignedAgent is undefined, not null
             if (payload.assignedAgent === null) payload.assignedAgent = undefined;
-            const res = await fetch('/api/channels/update', {
+            const res = await fetch(apiUrl('/api/channels/update'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -142,7 +143,7 @@ export default function ChannelManager() {
 
     const updateAgentMutation = useMutation({
         mutationFn: async (payload) => {
-            const res = await fetch('/api/channels/updateAgent', {
+            const res = await fetch(apiUrl('/api/channels/updateAgent'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -155,7 +156,7 @@ export default function ChannelManager() {
 
     const updateSubAgentMutation = useMutation({
         mutationFn: async (payload) => {
-            const res = await fetch('/api/channels/updateSubAgent', {
+            const res = await fetch(apiUrl('/api/channels/updateSubAgent'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -168,7 +169,7 @@ export default function ChannelManager() {
 
     const createSubAgentMutation = useMutation({
         mutationFn: async (payload) => {
-            const res = await fetch('/api/channels/createSubAgent', {
+            const res = await fetch(apiUrl('/api/channels/createSubAgent'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -184,7 +185,7 @@ export default function ChannelManager() {
 
     const deleteSubAgentMutation = useMutation({
         mutationFn: async (subAgentId) => {
-            const res = await fetch('/api/channels/deleteSubAgent', {
+            const res = await fetch(apiUrl('/api/channels/deleteSubAgent'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ subAgentId })
@@ -203,7 +204,7 @@ export default function ChannelManager() {
 
     const reorderMainAgentsMutation = useMutation({
         mutationFn: async (orderedAgentIds) => {
-            const res = await fetch('/api/channels/reorderMainAgents', {
+            const res = await fetch(apiUrl('/api/channels/reorderMainAgents'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ orderedAgentIds })
@@ -425,11 +426,11 @@ export default function ChannelManager() {
 
     // Header Actions
     const handleExport = () => {
-        window.location.href = '/api/channels/export';
+        window.location.href = apiUrl('/api/channels/export');
     };
 
     const handleReload = async () => {
-        await fetch('/api/channels/reload', { method: 'POST' });
+        await fetch(apiUrl('/api/channels/reload'), { method: 'POST' });
         refetch();
     };
 
@@ -444,7 +445,7 @@ export default function ChannelManager() {
             reader.onload = async (event) => {
                 try {
                     const json = JSON.parse(event.target.result);
-                    const res = await fetch('/api/channels/import', {
+                    const res = await fetch(apiUrl('/api/channels/import'), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(json)
