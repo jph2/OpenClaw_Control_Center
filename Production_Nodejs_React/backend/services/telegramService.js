@@ -8,6 +8,7 @@ import { promisify } from 'util';
 import { scanHistory } from './historyScanner.mjs';
 
 const execAsync = promisify(exec);
+const DEFAULT_SESSIONS_ROOT = path.join(process.env.HOME || '/home/claw-agentbox', '.openclaw/agents/main/sessions');
 
 /** One-line log helper for openclaw CLI (no secrets; truncate). */
 function clip(s, max = 600) {
@@ -41,8 +42,7 @@ const telegramGroupIdToSessionFile = new Map();
 /** Previous sessionFile per group — detect rebind and refresh buffer. */
 let previousGroupIdToSessionFile = new Map();
 
-const DEFAULT_SESSIONS_JSON = () =>
-    path.join(process.env.HOME || '/home/claw-agentbox', '.openclaw/agents/main/sessions/sessions.json');
+const DEFAULT_SESSIONS_JSON = () => path.join(DEFAULT_SESSIONS_ROOT, 'sessions.json');
 
 /**
  * Re-read OpenClaw session index so gateway lines can resolve group id without per-line metadata.
@@ -178,6 +178,40 @@ export function refreshChatMirrorFromCanonicalSession(chatId) {
         return;
     }
     replaceBufferFromSessionFile(key, sessionFile);
+}
+
+export function resolveCanonicalSession(chatId) {
+    hydrateOpenclawSessionIndex();
+    const key = normalizeChatIdForBuffer(String(chatId));
+    const sessionFile = telegramGroupIdToSessionFile.get(key) || null;
+
+    let sessionKey = null;
+    let sessionId = null;
+    let deliveryContext = null;
+    const sessionsPath = process.env.OPENCLAW_SESSIONS_JSON_PATH || DEFAULT_SESSIONS_JSON();
+
+    try {
+        if (fs.existsSync(sessionsPath)) {
+            const parsed = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+            const wantedKey = `agent:main:telegram:group:${key}`;
+            const entry = parsed[wantedKey];
+            if (entry) {
+                sessionKey = wantedKey;
+                sessionId = entry.sessionId || null;
+                deliveryContext = entry.deliveryContext || null;
+            }
+        }
+    } catch (e) {
+        console.warn('[TelegramService] resolveCanonicalSession failed:', e.message);
+    }
+
+    return {
+        chatId: key,
+        sessionKey,
+        sessionId,
+        sessionFile,
+        deliveryContext
+    };
 }
 
 /** UI / legacy aliases → canonical Telegram chat id (same numeric id as openclaw --to). */
@@ -467,52 +501,70 @@ export const getMessagesForChat = (chatId) => {
 };
 
 export const sendMessageToChat = async (chatId, text) => {
-    const realChatId = normalizeChatIdForBuffer(String(chatId));
-    const bufferKey = realChatId;
+    const canonical = resolveCanonicalSession(chatId);
+    const realChatId = canonical.chatId;
 
     logOpenclawCli('inject_start', {
-        bufferKey,
         rawChatId: String(chatId),
         realChatId: String(realChatId),
+        sessionKey: canonical.sessionKey,
+        sessionId: canonical.sessionId,
         textLen: String(text).length
     });
 
-    console.log(`[TelegramService] CLI Injection -> To: ${realChatId}, Text: "${text.substring(0, 50)}..."`);
     const safeText = text.replace(/"/g, '\\"').replace(/\n/g, ' ');
     if (!safeText.trim()) {
         logOpenclawCli('inject_skip', { reason: 'empty_after_escape', realChatId: String(realChatId) });
-        return { message_id: `ui-empty-${Date.now()}` };
+        return { message_id: `ui-empty-${Date.now()}`, transport: 'noop' };
     }
 
-    const cmd = `export PATH=$PATH:/home/claw-agentbox/.npm-global/bin && openclaw agent --channel telegram --to "${realChatId}" --message "${safeText}" --deliver`;
+    let cmd = null;
+    let transport = null;
+    if (canonical.sessionId) {
+        transport = 'session-native';
+        cmd = `export PATH=$PATH:/home/claw-agentbox/.npm-global/bin && openclaw agent --session-id "${canonical.sessionId}" --message "${safeText}" --json`;
+    } else {
+        transport = 'legacy-telegram-deliver';
+        cmd = `export PATH=$PATH:/home/claw-agentbox/.npm-global/bin && openclaw agent --channel telegram --to "${realChatId}" --message "${safeText}" --deliver`;
+    }
 
     try {
         const { stdout, stderr } = await execAsync(cmd, { maxBuffer: 10 * 1024 * 1024 });
         logOpenclawCli('inject_ok', {
+            transport,
             realChatId: String(realChatId),
+            sessionId: canonical.sessionId,
             stdoutLen: (stdout || '').length,
             stderrLen: (stderr || '').length,
             stdoutPreview: clip(stdout, 800),
             stderrPreview: clip(stderr, 400)
         });
-        console.log('[TelegramService] openclaw agent finished (exit 0).');
+        console.log(`[TelegramService] openclaw agent finished via ${transport}.`);
     } catch (err) {
         logOpenclawCli('inject_err', {
+            transport,
             realChatId: String(realChatId),
+            sessionId: canonical.sessionId,
             message: clip(err?.message, 400),
             stderrPreview: clip(err?.stderr, 400),
             stdoutPreview: clip(err?.stdout, 400)
         });
         console.error('[TelegramService] openclaw agent failed:', err.message);
         const fail = new Error(
-            `OpenClaw CLI failed for chat ${realChatId}: ${clip(err?.message, 200)}`
+            `OpenClaw CLI failed for chat ${realChatId} via ${transport}: ${clip(err?.message, 200)}`
         );
         fail.status = 502;
         fail.cause = err;
         throw fail;
     }
 
-    return { message_id: `legacy-send-${Date.now()}` };
+    return {
+        message_id: `${transport}-${Date.now()}`,
+        transport,
+        sessionKey: canonical.sessionKey,
+        sessionId: canonical.sessionId,
+        sessionFile: canonical.sessionFile
+    };
 };
 
 let relayBotInfo = null;

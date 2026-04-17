@@ -6,7 +6,8 @@ import {
     sendMessageToChat,
     getChatBots,
     normalizeChatIdForBuffer,
-    refreshChatMirrorFromCanonicalSession
+    refreshChatMirrorFromCanonicalSession,
+    resolveCanonicalSession
 } from '../services/telegramService.js';
 import { apiLimiter } from '../utils/rateLimiter.js';
 
@@ -82,14 +83,22 @@ router.post('/send', apiLimiter, async (req, res, next) => {
         console.log(`[API POST /send] Parsed values -> chatId: ${chatId}, textLength: ${text.length}`);
         // Resolution to numeric Telegram id + buffer keys: sendMessageToChat + normalizeChatIdForBuffer
         const result = await sendMessageToChat(chatId, text);
-        console.log(`[API POST /send] Success! messageId: ${result.message_id}`);
-        // Return telegram response structure to UI
-        res.json({ ok: true, messageId: result.message_id });
+        console.log(`[API POST /send] Success! messageId: ${result.message_id}, transport: ${result.transport || 'unknown'}`);
+        res.json({ ok: true, messageId: result.message_id, transport: result.transport || null, sessionKey: result.sessionKey || null, sessionId: result.sessionId || null, sessionFile: result.sessionFile || null });
     } catch (error) {
         console.error('[API POST /send] ERROR:', error.message || error);
         if (error instanceof z.ZodError) error.status = 400;
         next(error);
     }
+});
+
+/**
+ * GET /api/telegram/session/:chatId
+ * Resolve Channel Manager chat binding to canonical OpenClaw session identity.
+ */
+router.get('/session/:chatId', (req, res) => {
+    const resolved = resolveCanonicalSession(req.params.chatId);
+    res.json({ ok: true, ...resolved });
 });
 
 /**
