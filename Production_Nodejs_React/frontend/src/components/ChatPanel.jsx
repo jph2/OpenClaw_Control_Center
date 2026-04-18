@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useMemo, startTransition } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Send, Copy, Image, ChevronRight, Wrench } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { apiUrl } from '../utils/apiUrl';
+import { useChatSession } from '../hooks/useChatSession';
 
 const RENDER_PLUGINS = [remarkGfm];
 
@@ -385,146 +385,29 @@ const MessageBubble = React.memo(({ msg }) => {
     );
 });
 
-export default function TelegramChat({ channelId, channelName }) {
-    const [messages, setMessages] = useState([]);
+/** Render-only OpenClaw chat mirror; session + SSE live in `useChatSession`. */
+export default function ChatPanel({ channelId, channelName }) {
+    const {
+        messages,
+        sessionBinding,
+        sessionBindingError,
+        lastSendMeta,
+        isSending,
+        sendMessage
+    } = useChatSession(channelId);
+
     const [inputValue, setInputValue] = useState('');
-    const [isSending, setIsSending] = useState(false);
     const [showSystemMessages, setShowSystemMessages] = useState(false);
     const [pasteHint, setPasteHint] = useState(null);
-    const [sessionBinding, setSessionBinding] = useState(null);
-    const [sessionBindingError, setSessionBindingError] = useState(null);
-    const [lastSendMeta, setLastSendMeta] = useState(null);
-    // Phase 1: Removed local optimistic append - no pendingMessages state
-    // Messages now come exclusively from canonical session stream
+
     const containerRef = useRef(null);
-    /** Wrapper around the rendered message list. This is the element that
-     *  actually grows when new content is appended or markdown finishes
-     *  laying out. We observe its DOM mutations to trigger the auto-scroll
-     *  instead of relying on scroll-container resize events (which never
-     *  fire: the scroll container's border-box is fixed by `flex: 1`). */
     const messagesInnerRef = useRef(null);
-    /** Counts consecutive SSE failures (reset on onopen). Used to throttle console noise — onerror is normal during reconnects. */
-    const sseFailStreakRef = useRef(0);
-    /**
-     * Tracks whether the user's scroll position is anchored near the bottom.
-     * Updated on every user-initiated scroll. We auto-scroll on new messages
-     * only when this is true, so reading history is never interrupted.
-     */
     const stuckToBottomRef = useRef(true);
 
     useEffect(() => {
-        if (!channelId) {
-            setSessionBinding(null);
-            setSessionBindingError(null);
-            return;
-        }
-
-        // New channel → reset the scroll pin so the first INIT lands at bottom
-        // even if the user was scrolled up in the previously selected channel.
-        stuckToBottomRef.current = true;
-
-        let cancelled = false;
-
-        console.log('[TelegramChat] Resolving session for channel:', channelId);
-        fetch(apiUrl(`/api/telegram/session/${channelId}`))
-            .then(async (res) => {
-                if (!res.ok) throw new Error(`Session resolve failed (${res.status})`);
-                return res.json();
-            })
-            .then((data) => {
-                if (cancelled) return;
-                console.log('[TelegramChat] Session resolved:', data.sessionId ? 'OK' : 'No session', data);
-                setSessionBinding(data);
-                setSessionBindingError(null);
-            })
-            .catch((err) => {
-                if (cancelled) return;
-                console.error('[TelegramChat] Session resolve error:', err);
-                setSessionBinding(null);
-                setSessionBindingError(err.message || 'Session resolve failed');
-                setLastSendMeta(null);
-            });
-
-        return () => {
-            cancelled = true;
-        };
-    }, [channelId]);
-
-    // Setup Server-Sent Events for live messages
-    useEffect(() => {
         if (!channelId) return;
-
-        sseFailStreakRef.current = 0;
-
-        let shouldReconnect = true;
-        let eventSource = null;
-        let reconnectTimer = null;
-
-        const connectSSE = () => {
-            eventSource = new EventSource(apiUrl(`/api/telegram/stream/${channelId}`));
-
-            eventSource.onopen = () => {
-                sseFailStreakRef.current = 0;
-            };
-
-            eventSource.onmessage = (event) => {
-                if (event.data === ':ping') return;
-                try {
-                    const parsed = JSON.parse(event.data);
-                    // Mark SSE-driven state updates as transitions so React
-                    // can keep the input responsive during bursts (typing,
-                    // button clicks) and coalesce renders when messages
-                    // arrive back-to-back.
-                    if (parsed.type === 'INIT' || parsed.type === 'SESSION_REBOUND') {
-                        const incoming = parsed.messages || [];
-                        startTransition(() => setMessages(incoming));
-                    } else if (parsed.type === 'MESSAGE') {
-                        startTransition(() => {
-                            setMessages((prev) => {
-                                if (prev.find((m) => m.id === parsed.message.id)) return prev;
-                                return [...prev, parsed.message];
-                            });
-                        });
-                    }
-                } catch (e) {
-                    console.warn('Failed to parse SSE payload', e);
-                }
-            };
-
-            eventSource.onerror = () => {
-                const es = eventSource;
-                if (es) es.close();
-                if (!shouldReconnect) return;
-
-                sseFailStreakRef.current += 1;
-                const n = sseFailStreakRef.current;
-                // Browsers fire onerror on every drop; logging each one spams the console when many chats mount.
-                if (n === 1 || n % 5 === 0) {
-                    console.warn(
-                        `[Telegram SSE] stream ${channelId}: connection dropped (attempt ${n}, will reconnect). ` +
-                            'Normal if the API restarted or the tab was backgrounded.'
-                    );
-                }
-
-                const delayMs = Math.min(2500 * 1.4 ** Math.min(n - 1, 8), 20000);
-                if (reconnectTimer) clearTimeout(reconnectTimer);
-                reconnectTimer = setTimeout(connectSSE, delayMs);
-            };
-        };
-
-        connectSSE();
-
-        return () => {
-            shouldReconnect = false;
-            if (reconnectTimer) {
-                clearTimeout(reconnectTimer);
-                reconnectTimer = null;
-            }
-            if (eventSource) eventSource.close();
-        };
+        stuckToBottomRef.current = true;
     }, [channelId]);
-
-    // Use static helpers for better performance
 
     // OPTIMIZED: useMemo to prevent recalculation on every render
     // CRITICAL: Limit to last 100 messages to prevent UI blocking
@@ -616,44 +499,14 @@ export default function TelegramChat({ channelId, channelName }) {
         if (!inputValue.trim() || isSending) return;
 
         const textToSend = inputValue.trim();
-        console.log('[TelegramChat] Sending message:', textToSend.substring(0, 50), 'Session:', sessionBinding?.sessionId ? 'YES' : 'NO');
+        console.log('[ChatPanel] Sending message:', textToSend.substring(0, 50), 'Session:', sessionBinding?.sessionId ? 'YES' : 'NO');
         setInputValue('');
-        setIsSending(true);
 
-        try {
-            // Phase 4: Use native OpenClaw session send via HTTP API
-            // This eliminates CLI spawn overhead and provides faster ack
-            const resolved = sessionBinding;
-            let res;
-
-            if (resolved?.sessionId) {
-                // Native session send - preferred fast path
-                res = await fetch(apiUrl(`/api/openclaw/session/${resolved.sessionId}/send`), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: textToSend,
-                        sessionKey: resolved.sessionKey
-                    })
-                });
-            } else {
-                // Fallback to legacy route
-                res = await fetch(apiUrl('/api/telegram/send'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ chatId: channelId, text: textToSend })
-                });
-            }
-
-            if (!res.ok) throw new Error('Send failed');
-            const data = await res.json();
-            setLastSendMeta(data);
-        } catch (err) {
-            console.error(err);
-            alert("Failed to send message.");
-            setInputValue(textToSend); // restore on fail
-        } finally {
-            setIsSending(false);
+        const result = await sendMessage(textToSend);
+        if (!result.ok) {
+            console.error(result.error);
+            alert('Failed to send message.');
+            setInputValue(textToSend);
         }
     };
 

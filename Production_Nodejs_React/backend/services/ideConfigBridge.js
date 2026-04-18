@@ -46,13 +46,15 @@ export function buildCanonicalSnapshot(raw) {
 }
 
 /**
- * OpenClaw-oriented hints (merge manually into openclaw.json — no auto-write).
+ * OpenClaw-oriented hints for humans / tooling (not the same shape as on-disk openclaw.json).
+ * Automated merge of telegram group fields (`requireMention`, `skills`) uses
+ * `openclawApply.js` + POST `/api/exports/openclaw/apply`.
  */
 export function buildOpenClawProjection(snapshot) {
     return {
         kind: 'openclaw_merge_hints',
         version: 1,
-        note: 'Review before merging into ~/.openclaw/openclaw.json. Channel Manager remains SoT in Prototyp/channel_CHAT-manager/channel_config.json.',
+        note: 'Review before merging into ~/.openclaw/openclaw.json. Channel Manager remains SoT in Prototyp/channel_CHAT-manager/channel_config.json. For requireMention sync, use Apply to OpenClaw in the UI or POST /api/exports/openclaw/apply.',
         telegramGroups: snapshot.channels.map((c) => ({
             id: c.id,
             label: c.name,

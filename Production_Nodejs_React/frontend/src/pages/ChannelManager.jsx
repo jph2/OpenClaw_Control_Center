@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Download, Upload, RefreshCw, Save, Check, ChevronUp, ChevronDown, Plus, X } from 'lucide-react';
-import TelegramChat from '../components/TelegramChat';
+import { useQuery, useMutation, useQueryClient, useIsMutating } from '@tanstack/react-query';
+import { Download, Upload, RefreshCw, Save, Check, ChevronUp, ChevronDown, Plus, X, FileJson2 } from 'lucide-react';
 import ChannelManagerChannelRow from '../components/ChannelManagerChannelRow';
+import OpenClawApplyModal from '../components/OpenClawApplyModal.jsx';
 import { useWorkbenchStore } from './Workbench.jsx';
 import { formatSkillOptionLabel } from '../utils/formatSkillOptionLabel.js';
 import { apiUrl } from '../utils/apiUrl.js';
@@ -18,10 +18,21 @@ const ROW_HEIGHT_COLLAPSED = 260;
 /** Expanded height for bulk “all” actions (tuned for ~one viewport segment on 4K; was 1760 → 1460 → 1160 → 1010). */
 const ROW_HEIGHT_EXPANDED = 1010;
 
+/** Shared key so we can block „Apply to OpenClaw“ while config writes are in flight. */
+const CM_PERSIST_MUTATION_KEY = ['channel-manager-persist'];
+
 export default function ChannelManager() {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('channels');
+    const [openClawApplyOpen, setOpenClawApplyOpen] = useState(false);
+
+    const channelPersistInFlight = useIsMutating({ mutationKey: CM_PERSIST_MUTATION_KEY }) > 0;
+
+    /** Before Apply preview/write: align UI with server; disk is already updated when mutations settled. */
+    const prepareApplyToOpenClaw = useCallback(async () => {
+        await queryClient.refetchQueries({ queryKey: ['channels'] });
+    }, [queryClient]);
     
     // Sub-Task 1.4: Hot-Reloading via SSE from Backend
     useEffect(() => {
@@ -104,26 +115,41 @@ export default function ChannelManager() {
     }, [configData]);
 
     const mutation = useMutation({
+        mutationKey: CM_PERSIST_MUTATION_KEY,
         mutationFn: async (payload) => {
-            // Anti-Pattern 1 Fix: Ensure assignedAgent is undefined, not null
-            if (payload.assignedAgent === null) payload.assignedAgent = undefined;
+            const body = { ...payload };
+            if (body.assignedAgent === null) body.assignedAgent = undefined;
             const res = await fetch(apiUrl('/api/channels/update'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(body)
             });
-            if (!res.ok) throw new Error('Update failed');
-            return res.json();
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                const msg =
+                    data.message ||
+                    (typeof data.error === 'string' ? data.error : null) ||
+                    `Kanal-Update fehlgeschlagen (${res.status}).`;
+                const err = new Error(msg);
+                if (import.meta.env.DEV && data.details) {
+                    console.error('[channels/update]', data.details);
+                }
+                throw err;
+            }
+            return data;
         },
         onMutate: async (newChannel) => {
             await queryClient.cancelQueries({ queryKey: ['channels'] });
             const previousChannels = queryClient.getQueryData(['channels']);
             if (previousChannels?.data?.channels) {
-                queryClient.setQueryData(['channels'], old => ({
+                const { channelId, ...patch } = newChannel;
+                queryClient.setQueryData(['channels'], (old) => ({
                     ...old,
                     data: {
                         ...old.data,
-                        channels: old.data.channels.map(c => c.id === newChannel.channelId ? { ...c, ...newChannel } : c)
+                        channels: old.data.channels.map((c) =>
+                            c.id === channelId ? { ...c, ...patch } : c
+                        )
                     }
                 }));
             }
@@ -133,6 +159,7 @@ export default function ChannelManager() {
             if (context?.previousChannels) {
                 queryClient.setQueryData(['channels'], context.previousChannels);
             }
+            window.alert(err?.message || 'Kanal-Update fehlgeschlagen.');
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['channels'] });
@@ -142,6 +169,7 @@ export default function ChannelManager() {
     const backendChannels = configData?.data?.channels || [];
 
     const updateAgentMutation = useMutation({
+        mutationKey: CM_PERSIST_MUTATION_KEY,
         mutationFn: async (payload) => {
             const res = await fetch(apiUrl('/api/channels/updateAgent'), {
                 method: 'POST',
@@ -155,6 +183,7 @@ export default function ChannelManager() {
     });
 
     const updateSubAgentMutation = useMutation({
+        mutationKey: CM_PERSIST_MUTATION_KEY,
         mutationFn: async (payload) => {
             const res = await fetch(apiUrl('/api/channels/updateSubAgent'), {
                 method: 'POST',
@@ -168,6 +197,7 @@ export default function ChannelManager() {
     });
 
     const createSubAgentMutation = useMutation({
+        mutationKey: CM_PERSIST_MUTATION_KEY,
         mutationFn: async (payload) => {
             const res = await fetch(apiUrl('/api/channels/createSubAgent'), {
                 method: 'POST',
@@ -184,6 +214,7 @@ export default function ChannelManager() {
     });
 
     const deleteSubAgentMutation = useMutation({
+        mutationKey: CM_PERSIST_MUTATION_KEY,
         mutationFn: async (subAgentId) => {
             const res = await fetch(apiUrl('/api/channels/deleteSubAgent'), {
                 method: 'POST',
@@ -203,6 +234,7 @@ export default function ChannelManager() {
     });
 
     const reorderMainAgentsMutation = useMutation({
+        mutationKey: CM_PERSIST_MUTATION_KEY,
         mutationFn: async (orderedAgentIds) => {
             const res = await fetch(apiUrl('/api/channels/reorderMainAgents'), {
                 method: 'POST',
@@ -312,34 +344,34 @@ export default function ChannelManager() {
         deleteSubAgentMutation.mutate(sub.id);
     };
 
+    /** Only sends fields the server applies — avoids leaking GET-merge-only keys that can break Zod. */
     const handleUpdateChannel = (channelId, field, value) => {
-        let channel = backendChannels.find(c => c.id === channelId) || { id: channelId };
-        mutation.mutate({ ...channel, [field]: value, channelId: channelId });
+        mutation.mutate({ channelId, [field]: value });
     };
 
     
     const handleAddSkill = (channelId, skill) => {
-        let channel = backendChannels.find(c => c.id === channelId) || { id: channelId, skills: [] };
-        if (!channel.skills) channel.skills = [];
-        if (!channel.skills.includes(skill)) {
-            mutation.mutate({ ...channel, channelId, skills: [...channel.skills, skill] });
+        const channel = backendChannels.find(c => c.id === channelId);
+        const skills = channel?.skills || [];
+        if (!skills.includes(skill)) {
+            mutation.mutate({ channelId, skills: [...skills, skill] });
         }
     };
 
     const handleRemoveSkill = (channelId, skill) => {
-        let channel = backendChannels.find(c => c.id === channelId);
-        if (channel && channel.skills) {
-            mutation.mutate({ ...channel, channelId, skills: channel.skills.filter(s => s !== skill) });
+        const channel = backendChannels.find(c => c.id === channelId);
+        if (channel?.skills) {
+            mutation.mutate({ channelId, skills: channel.skills.filter(s => s !== skill) });
         }
     };
     
     const handleToggleSkill = (channelId, skill) => {
-        let channel = backendChannels.find(c => c.id === channelId);
+        const channel = backendChannels.find(c => c.id === channelId);
         if (channel) {
             let inactive = channel.inactiveSkills || [];
             if (inactive.includes(skill)) inactive = inactive.filter(s => s !== skill);
             else inactive = [...inactive, skill];
-            mutation.mutate({ ...channel, channelId, inactiveSkills: inactive });
+            mutation.mutate({ channelId, inactiveSkills: inactive });
         }
     };
     
@@ -467,9 +499,11 @@ export default function ChannelManager() {
     };
 
     const handleSave = () => {
-        // Since mutations auto-save to disk, this acts as a final sync check
         handleReload();
-        alert('All configurations are persisted to sovereign storage.');
+        window.alert(
+            'Hinweis: Kanal- und Agenten-Änderungen werden bei jeder Aktion sofort in channel_config.json geschrieben.\n\n' +
+                'Dieser Button aktualisiert nur die Anzeige (wie „Reload“). „Apply to OpenClaw“ ist dafür nicht nötig.'
+        );
     };
 
     /** Convenience: set every channel row height (and optionally the workspace tab) for all TTGs. */
@@ -1333,8 +1367,30 @@ export default function ChannelManager() {
                     <button onClick={handleExport}><Download size={14} style={{ marginRight: '6px', verticalAlign: 'text-bottom' }} /> Export</button>
                     <button onClick={handleImport}><Upload size={14} style={{ marginRight: '6px', verticalAlign: 'text-bottom' }} /> Import</button>
                     <button onClick={handleReload}><RefreshCw size={14} style={{ marginRight: '6px', verticalAlign: 'text-bottom' }} /> Reload</button>
-                    <button className="primary" onClick={handleSave} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                        type="button"
+                        onClick={handleSave}
+                        title="Nur Anzeige aktualisieren — Speichern auf die Platte passiert bei jeder Änderung automatisch."
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
                         <Save size={16} /> Save
+                    </button>
+                    <button
+                        type="button"
+                        className="primary"
+                        disabled={channelPersistInFlight}
+                        onClick={() => {
+                            if (channelPersistInFlight) return;
+                            setOpenClawApplyOpen(true);
+                        }}
+                        title={
+                            channelPersistInFlight
+                                ? 'Warten, bis alle Speichervorgänge fertig sind…'
+                                : 'channel_config.json → openclaw.json (Vorschau, Backup). Gateway wird nach erfolgreichem Apply neu gestartet.'
+                        }
+                    >
+                        <FileJson2 size={14} style={{ marginRight: '6px', verticalAlign: 'text-bottom' }} />
+                        Apply to OpenClaw…
                     </button>
                 </div>
             </header>
@@ -1349,7 +1405,11 @@ export default function ChannelManager() {
                     {activeTab === 'agents' && renderAgentsTab()}
                 </main>
             )}
-            
+            <OpenClawApplyModal
+                open={openClawApplyOpen}
+                onClose={() => setOpenClawApplyOpen(false)}
+                onBeforeApply={prepareApplyToOpenClaw}
+            />
         </div>
     );
 }

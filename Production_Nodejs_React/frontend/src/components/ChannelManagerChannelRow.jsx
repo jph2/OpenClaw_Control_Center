@@ -1,5 +1,5 @@
 import React, { Fragment, useLayoutEffect, useRef, useState } from 'react';
-import TelegramChat from './TelegramChat';
+import ChatPanel from './ChatPanel';
 import IdeProjectSummaryPanel from './IdeProjectSummaryPanel';
 import { formatSkillOptionLabel } from '../utils/formatSkillOptionLabel.js';
 import { formatTtgChannelName } from '../utils/formatTtgChannelName.js';
@@ -743,7 +743,7 @@ export default function ChannelManagerChannelRow({
                                 Same transcript stream as the OpenClaw gateway (SSE); not a second send path.
                             </div>
                             <div style={{ flex: 1, minHeight: 0 }}>
-                                <TelegramChat channelId={tg.id} channelName={formatTtgChannelName(tg.name) || tg.name} />
+                                <ChatPanel channelId={tg.id} channelName={formatTtgChannelName(tg.name) || tg.name} />
                             </div>
                         </div>
                     )}

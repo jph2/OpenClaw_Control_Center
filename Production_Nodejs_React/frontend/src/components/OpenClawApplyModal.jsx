@@ -45,7 +45,11 @@ const diffStyles = {
     contentText: { lineHeight: 1.35 }
 };
 
-export default function OpenClawApplyModal({ open, onClose }) {
+/**
+ * @param {object} props
+ * @param {() => Promise<void>} [props.onBeforeApply] — e.g. refetch channels so Apply reads the same state as the UI (disk is already written per edit).
+ */
+export default function OpenClawApplyModal({ open, onClose, onBeforeApply }) {
     const [loading, setLoading] = useState(false);
     const [applying, setApplying] = useState(false);
     const [error, setError] = useState(null);
@@ -65,6 +69,9 @@ export default function OpenClawApplyModal({ open, onClose }) {
         setLoading(true);
         setError(null);
         try {
+            if (typeof onBeforeApply === 'function') {
+                await onBeforeApply();
+            }
             const r = await fetch(apiUrl('/api/exports/openclaw/apply'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -83,7 +90,7 @@ export default function OpenClawApplyModal({ open, onClose }) {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [onBeforeApply]);
 
     useEffect(() => {
         if (open) {
@@ -97,6 +104,9 @@ export default function OpenClawApplyModal({ open, onClose }) {
         setApplying(true);
         setError(null);
         try {
+            if (typeof onBeforeApply === 'function') {
+                await onBeforeApply();
+            }
             const r = await fetch(apiUrl('/api/exports/openclaw/apply'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -109,8 +119,18 @@ export default function OpenClawApplyModal({ open, onClose }) {
             }
             await loadStatus();
             onClose();
+            const gr = data.gatewayRestart;
+            let extra = '';
+            if (gr?.ok) {
+                extra = '\n\nopenclaw-gateway.service wurde neu gestartet, damit das Gateway die neue openclaw.json lädt.';
+            } else if (gr?.skipped) {
+                extra =
+                    '\n\nHinweis: Gateway-Neustart übersprungen (CHANNEL_MANAGER_SKIP_GATEWAY_RESTART). Bitte manuell: systemctl --user restart openclaw-gateway.service';
+            } else if (gr?.error) {
+                extra = `\n\nGateway-Neustart fehlgeschlagen: ${gr.error}\nBitte manuell neu starten.`;
+            }
             window.alert(
-                'OpenClaw config updated. A timestamped .bak backup was created beside openclaw.json.'
+                'OpenClaw config updated. A timestamped .bak backup was created beside openclaw.json.' + extra
             );
         } catch (e) {
             setError(e.message);
@@ -137,7 +157,12 @@ export default function OpenClawApplyModal({ open, onClose }) {
             }
             await loadStatus();
             await loadPreview();
-            window.alert(`Restored from:\n${data.restoredFrom}`);
+            const gr = data.gatewayRestart;
+            let grMsg = '';
+            if (gr?.ok) grMsg = '\n\nGateway wurde neu gestartet.';
+            else if (gr?.skipped) grMsg = '\n\nGateway-Neustart übersprungen — ggf. manuell neu starten.';
+            else if (gr?.error) grMsg = `\n\nGateway-Neustart fehlgeschlagen: ${gr.error}`;
+            window.alert(`Restored from:\n${data.restoredFrom}${grMsg}`);
         } catch (e) {
             setError(e.message);
         } finally {
@@ -204,6 +229,13 @@ export default function OpenClawApplyModal({ open, onClose }) {
                             minWidth: 0
                         }}
                     >
+                        <strong style={{ color: '#9fd89f' }}>Speichern:</strong> Änderungen im Channel Manager werden bei
+                        jeder Aktion sofort in <code style={{ color: '#9ff0dc' }}>channel_config.json</code> geschrieben.
+                        Dieses Dialogfenster liest genau diese Datei und überträgt nach OpenClaw — ein separates „Save“
+                        vor dem Apply ist dafür <strong style={{ color: '#c8c8d0' }}>nicht nötig</strong>. „Save“ in der
+                        Kopfzeile aktualisiert nur die Anzeige (wie Reload).
+                        <br />
+                        <br />
                         <strong style={{ color: '#c8c8d0' }}>Merge slice (C1 + C1b.1 + C1b.2a):</strong> per channel,{' '}
                         <code style={{ color: '#9ff0dc' }}>requireMention</code> and{' '}
                         <code style={{ color: '#9ff0dc' }}>skills</code> are written into{' '}
@@ -211,8 +243,9 @@ export default function OpenClawApplyModal({ open, onClose }) {
                         <strong style={{ color: '#c8c8d0' }}>model</strong> + main-agent skills land as synthesized{' '}
                         <code style={{ color: '#9ff0dc' }}>agents.list[]</code> entries (id{' '}
                         <code style={{ color: '#9ff0dc' }}>{'<assignedAgent>-<groupIdSlug>'}</code>) with matching{' '}
-                        <code style={{ color: '#9ff0dc' }}>bindings[]</code> routes, both tagged{' '}
-                        <code style={{ color: '#9ff0dc' }}>managed-by: channel-manager</code>.{' '}
+                        <code style={{ color: '#9ff0dc' }}>bindings[]</code> routes. Ownership is marked as{' '}
+                        <code style={{ color: '#9ff0dc' }}>params._cm.managedBy = "channel-manager"</code> on agents
+                        (schema-legal) and <code style={{ color: '#9ff0dc' }}>comment</code> on bindings.{' '}
                         <strong style={{ color: '#50e3c2' }}>Operator-authored entries are never modified</strong>;{' '}
                         <code style={{ color: '#9ff0dc' }}>agents.defaults.*</code> stays operator-owned in this bundle
                         (opt-in later as C1b.2c). C1b.2a is{' '}
@@ -283,7 +316,12 @@ export default function OpenClawApplyModal({ open, onClose }) {
                             </ul>
                             <div style={{ marginTop: 6 }}>
                                 Remove or rename the conflicting entries in <code>openclaw.json</code> and refresh, or
-                                let CM claim them by adding{' '}
+                                let CM claim them. For <strong>agents</strong>, add{' '}
+                                <code>
+                                    "params": {'{'}"_cm": {'{'}"managedBy": "channel-manager", "source":
+                                    "&lt;groupId&gt;"{'}}'}
+                                </code>
+                                . For <strong>bindings</strong>, add{' '}
                                 <code>"comment": "managed-by: channel-manager; source: &lt;groupId&gt;"</code>.
                             </div>
                         </div>

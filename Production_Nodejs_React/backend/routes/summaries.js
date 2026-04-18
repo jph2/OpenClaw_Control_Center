@@ -4,6 +4,8 @@ import path from 'path';
 import { homedir } from 'os';
 import { z } from 'zod';
 import { resolveSafe } from '../utils/security.js';
+import { apiLimiter } from '../utils/rateLimiter.js';
+import { runMemoryPromote } from '../services/memoryPromote.js';
 
 const router = express.Router();
 /** Same router is mounted at `/api/summaries` and `/api/ide-project-summaries` (generic IDE project summary API). */
@@ -16,6 +18,35 @@ const SummaryWriteSchema = z.object({
     text: z.string(),
     createOnly: z.boolean().optional()
 });
+
+const MemoryPromoteSchema = z
+    .object({
+        dryRun: z.boolean().optional().default(true),
+        confirm: z.boolean().optional().default(false),
+        sourceRelativePath: z
+            .string()
+            .min(1)
+            .refine((s) => !s.includes('..') && !path.isAbsolute(s), 'invalid source path'),
+        destination: z.enum(['daily', 'MEMORY_MD']),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        memoryMdAck: z.boolean().optional().default(false)
+    })
+    .superRefine((val, ctx) => {
+        if (!val.dryRun && !val.confirm) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'confirm: true is required when dryRun is false',
+                path: ['confirm']
+            });
+        }
+        if (!val.dryRun && val.destination === 'MEMORY_MD' && !val.memoryMdAck) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'memoryMdAck: true is required to append to MEMORY.md',
+                path: ['memoryMdAck']
+            });
+        }
+    });
 
 function openclawMemoryDir() {
     const ws = process.env.OPENCLAW_WORKSPACE || path.join(homedir(), '.openclaw', 'workspace');
@@ -214,6 +245,35 @@ router.get('/memory', async (req, res, next) => {
 /**
  * GET /api/summaries/memory/file?relative=...
  */
+/**
+ * POST /api/summaries/promote
+ * Append A070 summary into `~/.openclaw/workspace/memory/YYYY-MM-DD.md` or `MEMORY.md` (Bundle C2).
+ * Default `dryRun: true` — preview duplicate + append text; set `dryRun: false` and `confirm: true` to write.
+ */
+router.post('/promote', apiLimiter, async (req, res, next) => {
+    try {
+        const body = MemoryPromoteSchema.parse(req.body);
+        const result = await runMemoryPromote({
+            sourceRelativePath: body.sourceRelativePath,
+            destination: body.destination,
+            date: body.date,
+            dryRun: body.dryRun,
+            confirm: body.confirm,
+            memoryMdAck: body.memoryMdAck,
+            operator: req.ip || null
+        });
+        res.json({ ok: true, ...result });
+    } catch (e) {
+        if (e instanceof z.ZodError) {
+            return res.status(400).json({ ok: false, error: 'Validation failed', details: e.flatten() });
+        }
+        if (e.status === 400 || e.status === 404) {
+            return res.status(e.status).json({ ok: false, error: e.message });
+        }
+        next(e);
+    }
+});
+
 router.get('/memory/file', async (req, res, next) => {
     try {
         const rel = req.query.relative;

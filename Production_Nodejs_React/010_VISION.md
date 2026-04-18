@@ -1,6 +1,6 @@
 # Channel Manager — Vision
 
-**Status:** normative · **Scope:** Production_Nodejs_React · **Last reviewed:** 2026-04-17
+**Status:** normative · **Scope:** Production_Nodejs_React · **Last reviewed:** 2026-04-18
 
 > This file answers **why** the Channel Manager exists and **what it is not**.
 > Architecture, current state and schedule are covered by
@@ -17,9 +17,15 @@ multi-agent system whose primary runtime is **OpenClaw** (the Harness).
 
 It is built to give the operator a single place where three things come together:
 
-1. **Configure channels** — which Telegram Topic Group (TTG) talks to which
-   main agent (TARS · MARVIN · CASE), with which sub-agents, which skills,
-   and which MCP servers.
+1. **Configure channels** — which Telegram Topic Group (TTG) is bound to **one
+   main agent**, with a **model** choice for that agent’s run on this channel,
+   **sub-agents** attached to the channel, and **skills** layered as **agent /
+   sub-agent defaults plus extra skills per channel** (the same TTG can give TARS
+   a different skill set than another TTG). MCP allowlisting narrows tools. The
+   operator’s **source of truth** for this picture is **`channel_config.json`**;
+   governed slices are **pushed into OpenClaw** only via explicit **Apply**
+   (preview, confirm, audit) — see §2.2, **Bundle C1** (shipped) and **C1b**
+   (roadmap §5.1).
 2. **Observe channels** — mirror the session-native OpenClaw transcript of the
    selected TTG so the operator can read the actual agent conversation without
    Telegram being the only window.
@@ -50,6 +56,14 @@ through explicit export endpoints and, for write operations, through an
 **Apply** action with diff preview. There is no background writer into
 `~/.openclaw` or `~/.cursor`.
 
+**Today (Bundle C1):** Apply merges **`requireMention`** into
+`channels.telegram.groups` in `openclaw.json`. **Bundle C1b** extends the merge
+to additional fields the OpenClaw schema allows (e.g. **model** under
+**`agents.*`**, **skills** on groups and/or agent allowlists), using a **versioned
+mapping table** — never ad hoc keys that the gateway rejects. Background:
+[`030_ROADMAP.md`](./030_ROADMAP.md) §5.1 and
+[`_archive/2026-04/CHANNEL_MANAGER_TelegramSync_RESEARCH.md`](./_archive/2026-04/CHANNEL_MANAGER_TelegramSync_RESEARCH.md) §2.4–2.5.
+
 ### 2.3 Separation of config, runtime, and memory
 
 Three domains with three different file owners:
@@ -62,11 +76,17 @@ Three domains with three different file owners:
 
 Cross-domain writes are always explicit, previewed and auditable.
 
-### 2.4 TARS-only per channel, not an engine picker
+### 2.4 One main agent per channel; model is not a second “engine switch”
 
-A channel is bound to **one main agent** (TARS in the default triad). Sub-agents
-provide skill specialization; MCP whitelisting narrows tool access; no UI
-dropdown switches the engine mid-stream (removed decision, see `040_DECISIONS.md`).
+A channel is bound to **one main agent** (typically **TARS** in the default
+triad). The operator may choose a **different LLM per channel** for that main
+agent’s runs; that is a **model** binding, not a second main-agent picker (see
+`040_DECISIONS.md` §ADR-007 — no triad **engine** dropdown on the channel).
+Sub-agents provide specialization; **skills** stack as defaults plus per-channel
+additions. **Channel Manager “sub-agents”** are configuration roles; **OpenClaw
+runtime sub-agents** (spawn sessions) and **external orchestration** (e.g.
+Paperclip) are different concepts — see `040_DECISIONS.md` §ADR-004 and the
+research note linked in §2.2.
 
 ### 2.5 Stable keys, ephemeral sessions
 
@@ -122,12 +142,17 @@ The following are intentionally **not** in scope for the current cycle:
 A run is "successful" if the operator can, on a fresh machine:
 
 1. Start the stack with one documented command.
-2. Configure a TTG, assign one main agent, one sub-agent, two skills, one MCP —
-   and see the mirrored `channel_config.json` on disk.
+2. Configure a TTG, assign one main agent, model choice, one sub-agent, layered
+   skills, and MCP scope — and see the mirrored `channel_config.json` on disk.
 3. Send a message from the Channel Manager UI and see the agent reply within
    the same panel within ~3s of the reply landing in the session JSONL.
-4. Promote an A070 summary into `memory/YYYY-MM-DD.md` after reviewing a
-   preview and a diff, with an audit entry.
-5. Never lose data to a silent write or a racing file poller.
+4. Use **Apply to OpenClaw** to merge governed fields from Channel Manager into
+   `openclaw.json` with preview, explicit confirm, backup, and undo (**C1**
+   shipped for `requireMention`; **C1b** broadens the merge — `030_ROADMAP.md`
+   §5.1).
+5. Promote an A070 summary into OpenClaw memory (`memory/YYYY-MM-DD.md` or
+   `MEMORY.md` with extra acknowledgement) after preview and confirm, with an
+   audit entry (**Bundle C2** — shipped; `030_ROADMAP.md` §6).
+6. Never lose data to a silent write or a racing file poller.
 
 If any of these breaks, we have a product regression, not a polish task.

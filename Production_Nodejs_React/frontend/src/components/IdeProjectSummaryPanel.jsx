@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import MemoryPromoteModal from './MemoryPromoteModal.jsx';
 
 const plugins = [remarkGfm];
 
@@ -21,6 +22,7 @@ export default function IdeProjectSummaryPanel({ channelId, channelName }) {
     const [draftText, setDraftText] = useState(
         `# Summary\n\n- Channel: ${channelName || channelId || 'n/a'}\n- Date: ${todaySlug()}\n\n`
     );
+    const [promoteOpen, setPromoteOpen] = useState(false);
 
     const { data, isLoading, error } = useQuery({
         queryKey: ['ide-project-summaries', channelId],
@@ -241,12 +243,41 @@ export default function IdeProjectSummaryPanel({ channelId, channelName }) {
                         <div style={{ color: 'var(--text-secondary)' }}>Select a file to preview full Markdown.</div>
                     )}
                     {selectedRel && fileData?.text && (
-                        <div className="markdown-preview">
-                            <ReactMarkdown remarkPlugins={plugins}>{fileData.text}</ReactMarkdown>
-                        </div>
+                        <>
+                            {panel === 'a070' && (
+                                <div style={{ marginBottom: 12 }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPromoteOpen(true)}
+                                        style={{
+                                            padding: '8px 14px',
+                                            fontSize: 12,
+                                            background: 'rgba(80,227,194,0.2)',
+                                            border: '1px solid rgba(80,227,194,0.45)',
+                                            color: '#50e3c2',
+                                            borderRadius: 6,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        Promote to OpenClaw memory…
+                                    </button>
+                                </div>
+                            )}
+                            <div className="markdown-preview">
+                                <ReactMarkdown remarkPlugins={plugins}>{fileData.text}</ReactMarkdown>
+                            </div>
+                        </>
                     )}
                 </div>
             </div>
+            <MemoryPromoteModal
+                open={promoteOpen}
+                sourceRelativePath={selectedRel || ''}
+                channelId={channelId}
+                queryClient={queryClient}
+                onClose={() => setPromoteOpen(false)}
+                onPromoted={() => setPromoteOpen(false)}
+            />
         </div>
     );
 }

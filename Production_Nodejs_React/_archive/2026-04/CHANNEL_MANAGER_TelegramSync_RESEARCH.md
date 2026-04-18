@@ -12,9 +12,10 @@ agent_index:
   routing:
     summary: "#executive-summary-short-story"
     technical: "#technical-analysis"
+    ecosystem: "#ecosystem-paperclip-openclaw-native"
     instruction: "#llm-continuation-contract-the-instruction-snippet"
 created: '2026-04-13T20:20:00Z'
-last_modified: '2026-04-13T20:35:00Z'
+last_modified: '2026-04-18T12:00:00Z'
 author: "AntiGravity"
 provenance:
   git_repo: "OpenClaw_Control_Center"
@@ -25,9 +26,9 @@ tags: [research, telegram-hub, session-sync, zod-hardening, implementation-spec,
 
 # 01 Research - Sovereign Telegram Hub Maturation
 
-**Version**: 1.1.0 | **Date**: 13.04.2026 | **Time**: 20:35 | **GlobalID**: 20260413_2035_RES_TelegramMaturation_v1.1
+**Version**: 1.2.0 | **Date**: 18.04.2026 | **Time**: 12:00 | **GlobalID**: 20260418_1200_RES_TelegramMaturation_v1.2
 
-**Last Updated:** 13.04.2026 20:35  
+**Last Updated:** 18.04.2026 12:00  
 **Framework:** OpenClaw UI Extensions (Research Phase)  
 **Status:** active
 
@@ -78,6 +79,24 @@ Real-time Feedback im Web darf nicht auf Telegram-Edits warten.
 Das OpenClaw-Verhalten ist "by design": Die Web UI zeigt das **Gateway-Transcript** (Source of Truth). Der Telegram-Agent selbst erhält jedoch nicht automatisch das gesamte Transcript wieder injiziert, sondern buffert über `historyLimit` (Default 50) nur pendente oder frische Nachrichten, um die Token-Kosten und das Kontextfenster extrem gering zu halten.
 - **Architektonischer Pivot:** Wir stoppen den Versuch, die Chat-Historie aus Telegram live herauszusaugen. Das Channel-Manager-Backend operiert jetzt "Gateway-First".
 
+<a id="ecosystem-paperclip-openclaw-native"></a>
+
+### 2.4 Ecosystem Context: Paperclip (external orchestration)
+
+**Paperclip** ist ein separater **MIT**-Stack (Node API + React UI), der mehrere Agent-Runtimes (u. a. OpenClaw über den Adapter **`openclaw_gateway`**) **orchestriert** — Ziele, Budgets, Tickets, Heartbeats, **kein** Ersatz für den OpenClaw-Gateway oder eingebetteten Core-Code. Integration erfolgt über **WebSocket-Gateway-Protokoll** und Invite-Flows; **Org-Hierarchie** (`reportsTo`) ist **Paperclip-Domain**, nicht OpenClaw `agents.list`. [[5]](#research-link-5)
+
+Diese Research-Datei bleibt **Channel-Manager-/Telegram-zentriert**; Paperclip ist nur **Rahmenwissen**, falls ein Betrieb später beide Systeme koppelt.
+
+### 2.5 OpenClaw Native Semantics: Agents, Sub-Agents, Skills
+
+**Agents (Multi-Agent):** Im Gateway ist ein Agent eine **isolierte** Einheit mit eigenem Workspace, `agentDir` und Session-Store unter `~/.openclaw/agents/<agentId>/sessions`. Routing erfolgt über **`agents.list`** und **Bindings**; Standard-Einzelagent typischerweise **`main`**. [[6]](#research-link-6)
+
+**Sub-Agents:** Keine eigenen Config-Einträge wie zweite Bots — **Spawn-Sessions** (z. B. `sessions_spawn`), Session-Key z. B. `agent:<agentId>:subagent:<uuid>`, gesteuert durch Policy (`subagents`, Tiefe, Sandbox). [[7]](#research-link-7)
+
+**Skills:** AgentSkills-kompatible `SKILL.md`-Ordner; Load-Precedence über mehrere Pfade; **Allowlists** pro Agent via `agents.defaults.skills` und `agents.list[].skills` (nicht-leere Liste **ersetzt** Defaults). [[8]](#research-link-8)
+
+**Implikation für TARS/CASE:** Kontinuität bleibt an **gemeinsamem `agentId`/Workspace** geknüpft; **Sub-Agent-Spawns** und **Paperclip-Org-Hierarchie** sind **verschiedene** Konzepte — in der UI/Doku klar trennen. [[6]](#research-link-6) [[7]](#research-link-7) [[5]](#research-link-5)
+
 ---
 
 ## 3. Implementation Specifications
@@ -117,9 +136,18 @@ Das OpenClaw-Verhalten ist "by design": Die Web UI zeigt das **Gateway-Transcrip
 
 ## Appendix: Link Registry (Preserved)
 
-1. [Session Management - OpenClaw](https://docs.openclaw.ai/concepts/session)
-2. [Memory Overview - OpenClaw](https://docs.openclaw.ai/concepts/memory)
-3. [GitHub Issue #23258 (Routing Defects)](https://github.com/openclaw/openclaw/issues/23258)
-4. [GitHub Issue #33859 (Delivery Inheritance)](https://github.com/openclaw/openclaw/issues/33859)
+Use `[[N]](#research-link-N)` in running text to cite this registry.
+
+1. <a id="research-link-1"></a>[Session Management - OpenClaw](https://docs.openclaw.ai/concepts/session)
+2. <a id="research-link-2"></a>[Memory Overview - OpenClaw](https://docs.openclaw.ai/concepts/memory)
+3. <a id="research-link-3"></a>[GitHub Issue #23258 (Routing Defects)](https://github.com/openclaw/openclaw/issues/23258)
+4. <a id="research-link-4"></a>[GitHub Issue #33859 (Delivery Inheritance)](https://github.com/openclaw/openclaw/issues/33859)
+5. <a id="research-link-5"></a>[paperclipai/paperclip (GitHub)](https://github.com/paperclipai/paperclip) — External orchestration; `openclaw_gateway` adapter (WebSocket).
+6. <a id="research-link-6"></a>[Multi-Agent Routing - OpenClaw](https://docs.openclaw.ai/concepts/multi-agent) — Isolated `agentId`, bindings, workspaces.
+7. <a id="research-link-7"></a>[Sub-agents - OpenClaw](https://docs.openclaw.ai/tools/subagents) — `sessions_spawn`, spawn session keys, policy.
+8. <a id="research-link-8"></a>[Skills - OpenClaw](https://docs.openclaw.ai/tools/skills) — Paths, precedence, `agents.defaults.skills` / `agents.list[].skills`.
+9. <a id="research-link-9"></a>[openclaw/openclaw (GitHub)](https://github.com/openclaw/openclaw) — Upstream repository.
+
+**Related discovery:** [CHANNEL_MANAGER_TelegramSync_DISCOVERY.md](./CHANNEL_MANAGER_TelegramSync_DISCOVERY.md) — zentrale Linkliste inkl. [Paperclip (28)](./CHANNEL_MANAGER_TelegramSync_DISCOVERY.md#link-28), [Multi-Agent (29)](./CHANNEL_MANAGER_TelegramSync_DISCOVERY.md#link-29), [Sub-agents (30)](./CHANNEL_MANAGER_TelegramSync_DISCOVERY.md#link-30), [Skills (31)](./CHANNEL_MANAGER_TelegramSync_DISCOVERY.md#link-31).
 
 ---

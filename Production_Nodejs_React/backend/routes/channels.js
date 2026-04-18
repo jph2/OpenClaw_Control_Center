@@ -189,7 +189,10 @@ const ChannelConfigSchema = z.object({
 const UpdateChannelSchema = z.object({
     channelId: z.string().min(1),
     /** Optional rename; validated when CHANNEL_MANAGER_STRICT_TTG_CHANNEL_NAMES is set. */
-    name: z.string().min(1).max(240).transform((s) => s.trim()).optional(),
+    name: z.preprocess(
+        (v) => (v === '' || v === null ? undefined : v),
+        z.string().min(1).max(240).transform((s) => s.trim()).optional()
+    ),
     skills: z.array(z.string()).nullish(),
     assignedAgent: z.string().nullish(),
     ideOverride: z.boolean().nullish(),
@@ -470,7 +473,7 @@ router.get('/', async (req, res, next) => {
             mergedChannels.push({
                 id: groupId,
                 name: routingInfo.name || localInfo.name || `TG Unknown (${groupId})`,
-                model: settings.model || localInfo.model || 'local-pc/google/gemma-4-26b-a4b',
+                model: settings.model || localInfo.model || 'lmstudio/google/gemma-4-26b-a4b',
                 skills: localInfo.skills || [],
                 assignedAgent: 'tars',
                 ideOverride: localInfo.ideOverride || false,
@@ -490,7 +493,7 @@ router.get('/', async (req, res, next) => {
             mergedChannels.push({
                 id: groupId,
                 name: localInfo.name || `Orphan (${groupId})`,
-                model: localInfo.model || 'local-pc/google/gemma-4-26b-a4b',
+                model: localInfo.model || 'lmstudio/google/gemma-4-26b-a4b',
                 skills: localInfo.skills || [],
                 assignedAgent: 'tars',
                 ideOverride: localInfo.ideOverride || false,
@@ -508,7 +511,7 @@ router.get('/', async (req, res, next) => {
         const dynamicModels = Object.entries(modelsObject).map(([id, info]) => ({
             id: id,
             name: info.alias || id,
-            desc: id.includes('local-pc') ? 'Sovereign Local Agent' : 'Cloud Connected Agent'
+            desc: id.includes('lmstudio') ? 'Sovereign Local Agent' : 'Cloud Connected Agent'
         }));
 
         const workspaceSkills = await scanWorkspaceSkillsCatalog();
@@ -648,7 +651,7 @@ router.post('/update', async (req, res, next) => {
                     skills: payload.skills || [],
                     assignedAgent: 'tars',
                     ideOverride: payload.ideOverride || false,
-                    model: payload.model || 'local-pc/google/gemma-4-26b-a4b',
+                    model: payload.model || 'lmstudio/google/gemma-4-26b-a4b',
                     inactiveSubAgents: payload.inactiveSubAgents || [],
                     inactiveSkills: payload.inactiveSkills || [],
                     caseSkills: payload.caseSkills || [],

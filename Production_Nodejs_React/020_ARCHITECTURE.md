@@ -1,8 +1,8 @@
 # Channel Manager — Architecture
 
-**Status:** normative · **Scope:** Production_Nodejs_React · **Last reviewed:** 2026-04-17
+**Status:** normative · **Scope:** Production_Nodejs_React · **Last reviewed:** 2026-04-18
 
-> Describes **what the system is today** (2026-04-17) and the boundaries it
+> Describes **what the system is today** (2026-04-18) and the boundaries it
 > should respect. For *why*, see [`010_VISION.md`](./010_VISION.md). For *when*, see
 > [`030_ROADMAP.md`](./030_ROADMAP.md). For *which tradeoff and why that one*, see
 > [`040_DECISIONS.md`](./040_DECISIONS.md).
@@ -68,7 +68,7 @@ chat-architecture concern.
 
 - `WORKSPACE_ROOT` — Studio workspace root (absolute path).
 - `STUDIO_FRAMEWORK_ROOT` — Studio Framework root (default `$WORKSPACE_ROOT/Studio_Framework`).
-- `VITE_API_BASE_URL` — optional; when set, the frontend uses direct backend URLs for `fetch` and `EventSource`.
+- `VITE_API_BASE_URL` — optional; when set, the **browser** uses this absolute origin for every `/api` URL from `apiUrl()` (including `EventSource`). Prefer **unset** when the browser is not on the same machine as the backend (see §2.4); then requests stay same-origin and Vite’s proxy forwards to Express.
 - `WORKBENCH_EXTRA_ROOTS`, `WORKBENCH_ALLOW_FS_ROOT` — additional allowed roots for the Workbench file view.
 - `CHANNEL_MANAGER_STRICT_TTG_CHANNEL_NAMES` — when `1`/`true`, the TTG name prefix is enforced at write time.
 - `OPENCLAW_SESSIONS_JSON_PATH` — optional override for `sessions.json` location.
@@ -79,6 +79,13 @@ Dev and Preview share one `apiProxy` with `timeout: 0` and `proxyTimeout: 0`
 for SSE. A `404` in the browser for `/api/channels/events` almost always means
 the request is hitting something other than Express on `:3000` (wrong static
 host, missing proxy, or backend not up). See `040_DECISIONS.md` §ADR-006.
+
+### 2.4 Remote browser vs dev laptop (SSH tunnel, Cursor)
+
+A common layout: **IDE/browser on a PC**, **Cursor (or shell) via SSH on the laptop** where `npm run dev` (Vite) and `npm start` (Express) actually run.
+
+- **`http://localhost:5173/channels` in the PC browser** refers to the **PC** until something forwards the laptop’s port **5173** to the PC. Use Cursor’s **Ports** view (forward **5173**; `Production_Nodejs_React/.vscode/settings.json` enables `remote.autoForwardPorts` to help), or SSH `LocalForward 5173 127.0.0.1:5173`, or open the **Network** URL from Vite’s startup banner (Vite uses `host: true` — reachable on LAN/Tailscale from other machines on that network).
+- **Do not set `VITE_API_BASE_URL=http://localhost:3000`** in that layout unless the browser can reach the backend on **that** host (e.g. you also forward **3000**). Otherwise `fetch` / SSE go to the PC’s loopback and fail. With `VITE_API_BASE_URL` unset, the UI uses relative `/api/...`; the **Vite dev proxy** on the laptop forwards those to `127.0.0.1:3000` on the laptop. See `frontend/src/utils/apiUrl.js` and `vite.config.js` (`apiProxy`).
 
 ---
 
@@ -99,22 +106,27 @@ Row sub-tabs per channel:
 
 1. **Configuration** — agents, sub-agents, skills, MCP whitelist, TTG name.
 2. **OpenClaw Chat** — session-native transcript (SSE stream).
-3. **TARS in IDE · IDE project summary** — A070 summaries list + renderer.
+3. **TARS in IDE · IDE project summary** — A070 summaries list + renderer +
+   **C2** promote to OpenClaw memory (modal).
 
 ### 3.2 Key frontend components
 
-- `TelegramChat.jsx` — mirror-only chat panel. Receives SSE `INIT` and
-  `newMessage` events, renders with `React.memo` bubbles. *Known hotspot,
-  scheduled for split in Bundle B.*
+- `ChatPanel.jsx` — mirror-only chat panel (render shell). Session resolve, SSE,
+  and send live in `useChatSession` (`frontend/src/hooks/useChatSession.js`).
+  Receives SSE `INIT` / `SESSION_REBOUND` / `MESSAGE`, renders memoized bubbles.
 - `ChannelManagerChannelRow.jsx` — two-`<tr>` layout (row + footer with
   Open/Collapse and resize handle), constants `ROW_HEIGHT_COLLAPSED=260`,
   `ROW_HEIGHT_EXPANDED=1010`. Row heights persist to `localStorage` under
   `ag-channel-row-heights`.
 - `IdeProjectSummaryPanel.jsx` — lists and renders A070 summaries from
-  `/api/ide-project-summaries` (alias `/api/summaries`).
+  `/api/ide-project-summaries` (alias `/api/summaries`); **C2:** opens
+  `MemoryPromoteModal.jsx` for `POST /api/summaries/promote`.
+- `MemoryPromoteModal.jsx` — **C2** destination picker, dry-run check, confirm append.
 - `utils/apiUrl.js` — single helper to compose URLs from optional
   `VITE_API_BASE_URL` or relative `/api/...` paths; used consistently for
   `fetch` and `EventSource`.
+- `OpenClawApplyModal.jsx` — **C1** preview/confirm/undo for writing merged
+  telegram group flags into `openclaw.json`.
 
 ### 3.3 State model
 
@@ -136,26 +148,27 @@ backend is restarting.
 | ----------------- | ------------------------------------------------------------------------------------------ |
 | `channels.js`     | `channel_config.json` read/write, agents/sub-agents CRUD, SSE hot-reload (`/events`), TTG  |
 |                   | validation, config normalization (`normalizeParsedChannelConfig`).                         |
-| `telegram.js`     | `GET /stream/:chatId` (SSE mirror), `POST /send` (legacy send alias).                      |
-| `openclaw.js`     | `POST /session/:sessionId/send` (native session send alias).                               |
-| `exports.js`      | `GET /api/exports/{canonical,openclaw,ide,cursor}` — read-only projections.                |
-| `summaries.js`    | `GET /api/summaries`, `GET /api/summaries/file` — A070 summaries (read-only).              |
+| `chat.js`         | Canonical `/api/chat/*` — session resolve, SSE mirror, send (`:groupId` + `/session/:id/…`). |
+| `telegram.js`     | Legacy `/api/telegram/*` aliases → `chat.js` handlers.                                     |
+| `openclaw.js`     | Legacy `/api/openclaw/*` aliases → `chat.js` handlers.                                       |
+| `exports.js`      | `GET /api/exports/{canonical,openclaw,ide,cursor}`; **Bundle C1:** `POST /openclaw/apply`, |
+|                   | `POST /openclaw/undo`, `GET /openclaw/apply-status` (merge + backup + audit).              |
+| `summaries.js`    | A070: `GET/POST /api/summaries`, `GET …/file`; memory index `GET …/memory`; **C2:** `POST …/promote`. |
 | `workbench.js`    | File-tree under allowed roots; respects `WORKBENCH_EXTRA_ROOTS` and FS-root flag.          |
 
-`telegram.js` and `openclaw.js` will be merged into `routes/chat.js` in
-**Bundle B / P4** (`/api/chat/:groupId/{session,stream,send}`), with the two
-existing mount paths kept as thin aliases for one release.
+**Bundle B / P4 (done):** `routes/chat.js` is canonical; `telegram.js` and
+`openclaw.js` are thin legacy aliases scheduled for removal after one release.
 
 ### 4.2 Services (`backend/services/`)
 
 | File                    | Current responsibility                                              | Bundle B target                                |
 | ----------------------- | ------------------------------------------------------------------- | ---------------------------------------------- |
-| `telegramService.js`    | god-object: session index, session tail, build UI message, session  | Split into `chat/{sessionIndex, sessionTail,   |
-|                         | send (CLI + dead HTTP fast path), channel alias resolution,         | messageModel, sessionSender, channelAliases}`. |
-|                         | SSE event emitter, polling timers.                                  |                                                |
+| `telegramService.js`    | Facade re-exporting `services/chat/*` (Bundle B / P5).            | Stable import path for routes + init.          |
 | `ideConfigBridge.js`    | `buildCanonicalSnapshot`, `buildOpenClawProjection`,                | Unchanged.                                     |
 |                         | `buildIdeWorkbenchBundle`, `buildCursorProjection`.                 |                                                |
+| `openclawApply.js`      | **C1 + C1b.1 + C1b.2a:** merge `channel_config` → `openclaw.json` `channels.telegram.groups` (`requireMention`, `skills`) **+** per-channel synthesized `agents.list[]` (id `<assignedAgent>-<groupIdSlug>`, model, skills) **+** matching `bindings[]` routes, all tagged `managed-by: channel-manager`; lock, backup, atomic write, audit (HTTP 409 on operator-owned collision), undo. | **C1b.2b (next):** orphan cleanup. **C1b.2c:** opt-in `agents.defaults.model`. **C1b.3:** sub-agent skill flavoring. |
 | `channelConfigWriter.js`| atomic writer for `channel_config.json`.                            | Unchanged.                                     |
+| `memoryPromote.js`      | **C2:** append A070 summary into OpenClaw `memory/*.md` or `MEMORY.md`; dedup, lock, audit. | Unchanged.                             |
 | `skillsRegistry.js`     | scans `OPENCLAW_WORKSPACE/skills`, exposes skill metadata.          | Add filter/sort API (Backlog).                 |
 
 ### 4.3 Session identity
@@ -196,10 +209,27 @@ Validation via Zod. Guardrails learned the hard way (see anti-patterns below):
 
 - `channel_config.json` is the only file this repo writes to without explicit
   user action, and only via the atomic writer.
-- `openclaw.json` is never written without an Apply confirmation (Bundle C1).
+- `openclaw.json` is never written without an Apply confirmation (Bundle C1;
+  **C1b** extends what the merge touches, not this rule — still preview, confirm,
+  backup, audit). **C1b.1** merges per-group **`skills`** plus **`requireMention`**.
+  **C1b.2a** adds per-channel **model** and main-agent **skills** via synthesized
+  `agents.list[]` entries (id `<assignedAgent>-<groupIdSlug>`) + matching
+  `bindings[]` routes, both tagged
+  `comment: "managed-by: channel-manager; source: <groupId>"`; operator-authored
+  rows (no marker) are preserved verbatim, and any synth-id or telegram-peer
+  collision against an operator-owned row refuses the write (HTTP 409). Channel
+  Manager’s **conceptual** model stays: one **main agent** per channel, **model**
+  and **skills** (base + per-channel extras) for that agent and for **CM
+  sub-agents**; **Apply** maps fields to OpenClaw **only** where the official
+  schema allows. Remaining C1b work: **C1b.2b** orphan cleanup, **C1b.2c** opt-in
+  `agents.defaults.model`, **C1b.3** sub-agent skill flavoring. See
+  `030_ROADMAP.md` §5.1,
+  `_archive/2026-04/CHANNEL_MANAGER_C1b.2_MODEL_MAPPING_SPEC.md`, and
+  `_archive/2026-04/CHANNEL_MANAGER_TelegramSync_RESEARCH.md` §2.4–2.5.
 - `~/.cursor/*` is never written in the background.
-- `~/.openclaw/workspace/memory/*` is never written without user confirmation
-  (Bundle C2).
+- `~/.openclaw/workspace/memory/*` and workspace `MEMORY.md` are written only
+  via **Promote to OpenClaw memory** (`POST /api/summaries/promote`, explicit
+  confirm) — Bundle C2.
 
 ---
 
@@ -209,7 +239,8 @@ Validation via Zod. Guardrails learned the hard way (see anti-patterns below):
 
 **Tools**
 
-- `send_telegram_reply(channel_id, message)` — proxies to `POST /api/telegram/send`.
+- `send_telegram_reply(channel_id, message)` — proxies to `POST /api/telegram/send`
+  (legacy alias of `POST /api/chat/:groupId/send` with body `{ text }` on the canonical route).
 - `change_agent_mode(tars|marvin|case)` — channel-scoped focus swap (no
   engine-dropdown semantics).
 
@@ -229,16 +260,19 @@ duplicate the same server id.
 
 ### 6.1 Read path (to UI)
 
-1. Browser opens `EventSource /api/telegram/stream/:chatId`.
-2. Backend resolves `chatId` → `sessionFile` (via `sessions.json`).
+1. Browser opens `EventSource /api/chat/:groupId/stream` (legacy alias:
+   `/api/telegram/stream/:chatId`).
+2. Backend resolves `groupId` / `chatId` → `sessionFile` (via `sessions.json`).
 3. Backend tails the canonical JSONL and emits SSE events: `INIT`,
-   `newMessage`, `SESSION_REBOUND`.
-4. Frontend renders through `TelegramChat.jsx` + memoized `MessageBubble`.
+   `MESSAGE`, `SESSION_REBOUND`.
+4. Frontend renders through `ChatPanel.jsx` + memoized `MessageBubble`.
 
 ### 6.2 Send path (from UI)
 
-1. Frontend `POST /api/telegram/send` (legacy alias) or
-   `POST /api/openclaw/session/:sessionId/send` (native alias).
+1. Frontend `POST /api/chat/session/:sessionId/send` when a session UUID is
+   known, else `POST /api/chat/:groupId/send` with body `{ text }`. Legacy
+   aliases: `POST /api/openclaw/session/:sessionId/send`,
+   `POST /api/telegram/send` (body `{ chatId, text }`).
 2. Backend `sendMessageToChat` runs the OpenClaw CLI:
    `openclaw agent --channel telegram --to <chatId> --message <text> --deliver`.
 3. Echo surfaces in the session JSONL → same SSE path as inbound.
@@ -259,9 +293,9 @@ duplicate the same server id.
   contributes to perceived latency.~~ **Resolved in Bundle A/P2**: scroll uses
   `behavior: 'auto'`, is keyed on `filteredMessages.length`, and is gated by a
   `stuckToBottomRef` so the user's reading position is preserved.
-- Inline `await import('../services/telegramService.js')` in `routes/openclaw.js`
-  is a circular-dependency smell scheduled to disappear with the route merge
-  in Bundle B/P4.
+- ~~Inline dynamic import in `routes/openclaw.js`~~ **Resolved in Bundle B/P4**:
+  canonical handlers live in `routes/chat.js`; `openclaw.js` and `telegram.js`
+  are thin legacy mounts.
 
 ---
 

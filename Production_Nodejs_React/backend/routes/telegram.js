@@ -1,118 +1,35 @@
+/**
+ * Legacy mount: `/api/telegram/*` — thin aliases to canonical handlers in `chat.js`.
+ * Scheduled for removal after one release; prefer `/api/chat/*`.
+ */
 import express from 'express';
 import { z } from 'zod';
-import {
-    telegramEvents,
-    getMessagesForChat,
-    sendMessageToChat,
-    normalizeChatIdForBuffer,
-    refreshChatMirrorFromCanonicalSession,
-    resolveCanonicalSession
-} from '../services/telegramService.js';
 import { apiLimiter } from '../utils/rateLimiter.js';
+import { handleGroupStream, handleGroupSession, handleGroupSend } from './chat.js';
 
 const router = express.Router();
 
-const SendMessageSchema = z.object({
+const LegacySendSchema = z.object({
     chatId: z.string().min(1),
     text: z.string().min(1)
 });
 
-/**
- * GET /api/telegram/stream/:chatId
- * SSE endpoint for live telegram messages for a specific chat
- */
-router.get('/stream/:chatId', (req, res) => {
-    const normalized = normalizeChatIdForBuffer(req.params.chatId);
+router.get('/stream/:chatId', (req, res) => handleGroupStream(req, res, req.params.chatId));
 
-    /** Re-resolve sessions.json → canonical sessionFile (Variant A); refill buffer from that JSONL. */
-    refreshChatMirrorFromCanonicalSession(normalized);
-
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.flushHeaders();
-
-    // Send initial backlog of messages
-    const backlog = getMessagesForChat(normalized);
-    if (backlog.length > 0) {
-        res.write(`data: ${JSON.stringify({ type: 'INIT', messages: backlog })}\n\n`);
-    }
-
-    // Listener for new live messages
-    const onNewMessage = (payload) => {
-        if (normalizeChatIdForBuffer(payload.chatId) === normalized) {
-            res.write(`data: ${JSON.stringify({ type: 'MESSAGE', message: payload.message })}\n\n`);
-        }
-    };
-
-    telegramEvents.on('newMessage', onNewMessage);
-
-    const onSessionRebound = (payload) => {
-        if (normalizeChatIdForBuffer(String(payload.chatId)) !== normalized) return;
-        const msgs = getMessagesForChat(normalized);
-        res.write(
-            `data: ${JSON.stringify({
-                type: 'SESSION_REBOUND',
-                chatId: normalized,
-                sessionFile: payload.sessionFile || null,
-                messages: msgs
-            })}\n\n`
-        );
-    };
-    telegramEvents.on('sessionRebound', onSessionRebound);
-
-    // Keep alive to prevent proxies from closing
-    const keepAlive = setInterval(() => res.write(':ping\n\n'), 30000);
-
-    req.on('close', () => {
-        telegramEvents.off('newMessage', onNewMessage);
-        telegramEvents.off('sessionRebound', onSessionRebound);
-        clearInterval(keepAlive);
-    });
-});
-
-/**
- * POST /api/telegram/send
- * Native OpenClaw session send (Phase 4). Uses HTTP API when available, falls back to CLI spawn.
- */
-router.post('/send', apiLimiter, async (req, res, next) => {
-    const requestStartedAt = Date.now();
-    console.log('[API POST /send] Incoming payload:', req.body);
+router.post('/send', apiLimiter, (req, res, next) => {
+    console.log('[API POST /api/telegram/send] Incoming payload:', req.body);
     try {
-        let { chatId, text } = SendMessageSchema.parse(req.body);
-        console.log(`[API POST /send] Parsed values -> chatId: ${chatId}, textLength: ${text.length}`);
-        
-        const result = await sendMessageToChat(chatId, text);
-        const totalMs = Date.now() - requestStartedAt;
-        
-        console.log(`[API POST /send] Ack! messageId: ${result.message_id}, transport: ${result.transport || 'unknown'}, totalMs: ${totalMs}, ackMs: ${result.timing?.totalAckMs ?? 'n/a'}`);
-        res.json({ 
-            ok: true, 
-            messageId: result.message_id, 
-            transport: result.transport || null, 
-            sessionKey: result.sessionKey || null, 
-            sessionId: result.sessionId || null, 
-            sessionFile: result.sessionFile || null, 
-            spawnedPid: result.spawnedPid || null, 
-            timing: { 
-                ...result.timing,
-                httpTotalMs: totalMs 
-            } 
-        });
+        const { chatId, text } = LegacySendSchema.parse(req.body);
+        console.log(`[API POST /api/telegram/send] Parsed values -> chatId: ${chatId}, textLength: ${text.length}`);
+        req.body = { text };
+        return handleGroupSend(req, res, next, chatId);
     } catch (error) {
-        console.error('[API POST /send] ERROR:', error.message || error);
+        console.error('[API POST /api/telegram/send] ERROR:', error.message || error);
         if (error instanceof z.ZodError) error.status = 400;
-        next(error);
+        return next(error);
     }
 });
 
-/**
- * GET /api/telegram/session/:chatId
- * Resolve Channel Manager chat binding to canonical OpenClaw session identity.
- */
-router.get('/session/:chatId', (req, res) => {
-    const resolved = resolveCanonicalSession(req.params.chatId);
-    res.json({ ok: true, ...resolved });
-});
+router.get('/session/:chatId', (req, res) => handleGroupSession(req, res, req.params.chatId));
 
 export default router;

@@ -40,7 +40,8 @@ later).
 lines). WebSocket adds bidirectional framing we do not need and brings in
 state negotiation, heartbeats, and reconnection complexity (AP-05).
 
-**Decision.** All push channels (`/api/channels/events`, `/api/telegram/stream/:id`)
+**Decision.** All push channels (`/api/channels/events`, `/api/chat/:groupId/stream`;
+legacy `/api/telegram/stream/:id`)
 are SSE with `Content-Type: text/event-stream` and long-lived proxy timeouts
 (`timeout: 0`, `proxyTimeout: 0` in Vite).
 
@@ -107,7 +108,11 @@ Apply** action (Bundle C1). No background writer into `~/.openclaw/` or
 `~/.cursor/`.
 
 **Consequences.** Operator always sees what will change before it changes.
-Backup + atomic write + audit are mandatory on every Apply path.
+Backup + atomic write + audit are mandatory on every Apply path. **Bundle C1b**
+extends the *merge slice* into `openclaw.json` (and related targets) using the
+same explicit Apply UX; the mapping table and OpenClaw version pin live in
+`030_ROADMAP.md` §5.1 and implementation, with a new ADR only if an irrevocable
+merge rule is locked (e.g. skills replace vs union semantics).
 
 ---
 

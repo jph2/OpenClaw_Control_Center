@@ -18,10 +18,11 @@
 | Cursor Summary tab                  | Read-only MVP live; A070 list + renderer                                                         |
 | IDE Bridge (MCP)                    | Live for `send_telegram_reply` and `change_agent_mode`                                           |
 | Exports (read-only projections)    | Live: `/api/exports/{canonical,openclaw,ide,cursor}`                                             |
-| Config Apply to `openclaw.json`     | Not yet exposed (Bundle C1)                                                                      |
-| Summary promotion to memory/        | Not yet exposed (Bundle C2)                                                                      |
+| Config Apply to `openclaw.json`     | **C1 + C1b.1 + C1b.2a:** `requireMention` + per-group `skills` + per-channel synthesized `agents.list[]` (`<assignedAgent>-<groupIdSlug>`, model, skills) + matching `bindings[]` routes tagged `managed-by: channel-manager`; operator-owned entries never touched; preview modal surfaces per-channel effective model / skills and any operator-owned collisions (write refused on collision). Orphan cleanup = C1b.2b. `agents.defaults.*` opt-in = C1b.2c. |
+| Summary promotion to memory/        | **Live (C2):** `POST /api/summaries/promote` + IDE tab modal (daily `memory/*.md` or `MEMORY.md`) |
 | `occ-ctl.mjs`                       | Not in tree; `npm start` / `npm run dev` are the current entrypoints                              |
 | **Bundle A (performance + cleanup)**| **Closed 2026-04-18** — P1 fan-kill, P2 latency, P2b scroll v3, P3 dead code, P4 tool accordion, CLI Node-24 fix |
+| **Bundle B (refactor)**             | **Closed 2026-04-18** — P5 chat service split, P4 `/api/chat/*` + legacy route aliases                          |
 
 ---
 
@@ -154,6 +155,12 @@ payload on click.
 **Goal:** split the god objects so Bundle C can be built on clean seams.
 Keep external API stable; mount aliases for one release.
 
+**In plain terms:** Bundle B is “housekeeping”: it does not add operator-facing
+features, but it cuts the chat stack into testable pieces and one coherent HTTP
+surface so C1/C2 (writes into `openclaw.json` and memory) do not land on a
+monolith. When B is done, you should see the same UI behavior with clearer file
+boundaries and documented `/api/chat/*` routes.
+
 ### B / P5 — Service split
 
 Split `telegramService.js` into focused modules under `backend/services/chat/`:
@@ -167,6 +174,9 @@ Split `telegramService.js` into focused modules under `backend/services/chat/`:
 Frontend: extract `useChatSession(groupId)` hook; rename `TelegramChat.jsx`
 to `ChatPanel.jsx` (render-only).
 
+- ✅ **Done 2026-04-18** — modules under `backend/services/chat/`, facade
+  `telegramService.js`, `useChatSession` + `ChatPanel.jsx`.
+
 ### B / P4 — Route consolidation
 
 Merge `routes/telegram.js` and `routes/openclaw.js` into `routes/chat.js`
@@ -174,6 +184,9 @@ exposing `/api/chat/:groupId/{session,stream,send}`. Delete the dynamic
 `await import` workaround in `routes/openclaw.js`. Keep `/api/telegram/*`
 and `/api/openclaw/session/*/send` mounted as thin aliases for **one**
 release, then remove.
+
+- ✅ **Done 2026-04-18** — canonical `routes/chat.js` + thin alias routers;
+  frontend uses `/api/chat/*`; MCP still uses legacy `POST /api/telegram/send`.
 
 **Acceptance:**
 
@@ -190,27 +203,70 @@ OpenClaw Gateway's `openclaw.json`, safely.
 
 ### Backend
 
-- `POST /api/exports/openclaw/apply` with:
-  - `dryRun: true` as default.
-  - JSON-schema check of the projected object.
-  - File lock on `~/.openclaw/openclaw.json`.
-  - Timestamped backup (`openclaw.json.<ts>.bak`).
-  - Atomic write (temp file + `rename`).
-  - Audit entry (who, when, diff hash).
-  - One-click undo: restore from the last `.bak`.
+- ✅ `POST /api/exports/openclaw/apply` — landed 2026-04-18.
+  - `dryRun: true` default; `dryRun: false` + `confirm: true` required to write.
+  - Zod validation of merged document (`channels.telegram.groups` sanity + passthrough).
+  - File lock (`proper-lockfile`) on `OPENCLAW_CONFIG_PATH` or `~/.openclaw/openclaw.json`.
+  - Timestamped backup (`openclaw.json.<iso>.bak`), rotate after **10**.
+  - Atomic write (temp + `rename`).
+  - Append-only audit: `channel-manager-openclaw-apply-audit.jsonl` beside `openclaw.json`.
+  - **Merge scope:** for each channel in `channel_config.json`, upsert
+    `channels.telegram.groups[<id>].requireMention` from `require_mention` and
+    `channels.telegram.groups[<id>].skills` from `skills` (**C1b.1**, deduped ids); do not
+    remove gateway-only groups; do not touch `botToken` / `gateway` / other keys.
+- ✅ `POST /api/exports/openclaw/undo` with `{ confirm: true }` — restores newest `.bak`.
+- ✅ `GET /api/exports/openclaw/apply-status` — `canUndo`, backup count, destination path.
 
 ### Frontend
 
-- **Apply** button on the Configuration tab.
-- Modal with a readable diff between disk and projection, schema errors, and
-  destination path.
-- "Undo last apply" button while a recent `.bak` is present.
+- ✅ Header action **Apply to OpenClaw…** (Manage Channels) opens `OpenClawApplyModal`.
+- ✅ Redacted side-by-side diff, destination path, **Confirm apply**, **Undo last apply**, refresh.
 
 **Acceptance:**
 
 - No apply can happen without explicit Confirm in the dialog.
 - Backups accumulate to a bounded number (rotate after N).
 - Schema failure blocks write.
+
+**Follow-ups:**
+
+- **Bundle C1b (§5.1)** — group `skills` shipped as **C1b.1**; remaining: model / `agents.*`, sub-agent policy, richer validation.
+- Optional separate JSON Schema file for stricter validation.
+
+---
+
+## 5.1. Bundle C1b — Master config → OpenClaw (extended Apply)
+
+**Status:** in progress · **Depends on:** C1 (apply pipeline, audit, undo) · **Blocks:** nothing in the A → B chain; can run in parallel with **C2** once staffed.
+
+**Shipped (C1b.1 — 2026-04-18):** `channels.telegram.groups[id].skills` is merged from `channel_config.json` `channels[].skills` (deduped string ids) together with `requireMention`, via the same Apply / undo / audit path. Empty CM list → empty `skills` array on the group in `openclaw.json`.
+
+**Shipped (C1b.2a — 2026-04-18):** Per-channel **model** + main-agent **skills allowlist** now ride the same Apply pipeline, written as synthesized `agents.list[]` entries (id `<assignedAgent>-<groupIdSlug>`, e.g. `tars-5168034995`) plus matching `bindings[] { type: 'route', match: { channel: 'telegram', peer: { kind: 'group', id } } }`. Every CM-emitted entry carries `comment: "managed-by: channel-manager; source: <groupId>"`. Operator-authored entries are detected by the absence of that marker and are **never** modified. Synth-id and telegram-peer collisions against operator-owned rows are surfaced to the UI; a write with any collision is refused (HTTP 409). Additive-first: stale CM-marked rows are not removed in this phase — that's **C1b.2b**. See spec: [`_archive/2026-04/CHANNEL_MANAGER_C1b.2_MODEL_MAPPING_SPEC.md`](./_archive/2026-04/CHANNEL_MANAGER_C1b.2_MODEL_MAPPING_SPEC.md) (sign-off: §9).
+
+**Next (C1b.2b):** orphan cleanup — remove CM-marked `agents.list[]` / `bindings[]` entries whose `source: <groupId>` no longer appears in `channel_config.json`.
+**Next (C1b.2c — opt-in):** let CM manage `agents.defaults.model` when the operator explicitly ticks a "CM controls workspace default" toggle.
+
+**Goal:** align operator expectations with reality: **Channel Manager** is the single place to define per-channel **agent model**, **sub-agent / skill policy**, and related knobs that OpenClaw’s gateway actually honors, then **push** them through the same explicit **Apply** path (preview, confirm, backup, audit) already used for `requireMention`.
+
+**Background (for implementers):** OpenClaw-native semantics for **multi-agent routing**, **spawn sub-agents** (policy / session keys), **skills** allowlists, and the boundary vs **Paperclip** (external orchestration) are summarized with doc links in [`_archive/2026-04/CHANNEL_MANAGER_TelegramSync_RESEARCH.md`](./_archive/2026-04/CHANNEL_MANAGER_TelegramSync_RESEARCH.md) §2.4–2.5 — use when building the C1b mapping table and ADR-004 wording.
+
+**Why a separate bundle:** C1 deliberately merged only `requireMention` after schema regressions (e.g. forbidden keys crashing the engine). C1b requires a **documented mapping** from `channel_config.json` fields to **`openclaw.json` (and any gateway fields)** per OpenClaw version, plus clarity on **ADR-004** (CM sub-agents vs runtime sub-agents vs workspace skills — what gets written vs what stays UI-only).
+
+**Scope (draft — refine before implementation):**
+
+1. **Inventory** — list which Channel Manager Configuration fields must become OpenClaw truth (model id, tools/MCP allowlists, group overrides vs `agents.defaults`, etc.).
+2. **Contract** — confirm with OpenClaw schema or team which paths are legal; add validation so Apply **never** emits invalid JSON.
+3. **Merge implementation** — extend `openclawApply.js` (or successor) with field-level merge rules; preserve gateway-only keys; same lock/backup/audit semantics as C1.
+4. **UI** — extend **Apply to OpenClaw** preview so operators see **all** fields in the merge slice (not only `requireMention`); optional toggles per category if rollout is phased.
+5. **Docs** — update `010_VISION.md` / `020_ARCHITECTURE.md` and add or amend **ADR** when the mapping is locked.
+
+**Acceptance (high level):**
+
+- After Apply + gateway reload (or documented procedure), **OpenClaw chat shows the model (and other pushed settings)** that Channel Manager shows for that channel, modulo documented exceptions.
+- No silent writes; failed Zod/schema validation never truncates `openclaw.json`.
+- ADR-004 consequences remain explicit in UI labels and in the merge spec (“written to OpenClaw” vs “Channel Manager only”).
+
+**Out of scope for C1b unless re-scoped:** changing OpenClaw runtime to spawn CM “sub-agents” as native sub-agents; triad sliders; engine-per-message picker (see §8).
 
 ---
 
@@ -219,31 +275,33 @@ OpenClaw Gateway's `openclaw.json`, safely.
 **Goal:** let the operator explicitly carry an IDE/Cursor summary into
 OpenClaw's memory space.
 
+**Status:** shipped 2026-04-18.
+
 ### Backend
 
-- `POST /api/summaries/promote` writing into
-  `~/.openclaw/workspace/memory/YYYY-MM-DD.md` with:
+- ✅ `POST /api/summaries/promote` (also `/api/ide-project-summaries/promote`) —
+  reads source under **Studio A070**, appends into:
+  - `~/.openclaw/workspace/memory/YYYY-MM-DD.md` (daily), or
+  - `~/.openclaw/workspace/MEMORY.md` (workspace root; extra `memoryMdAck`).
   - Append semantics, not replace.
-  - De-duplication (skip if the exact block already exists).
-  - `MEMORY.md` **only** as an explicit destination opt-in.
-  - Audit entry.
+  - De-duplication via stable `<!-- CM_PROMOTE_<sha256> -->` marker (skip if present).
+  - Audit: `channel-manager-memory-promote-audit.jsonl` under the OpenClaw workspace.
+  - `dryRun: true` (default) for preview; `dryRun: false` + `confirm: true` to write.
+  - File lock (`proper-lockfile`) on the destination markdown.
 
 ### Frontend
 
-- **Promote to OpenClaw memory** button on each summary entry in the Cursor
-  Summary tab.
-- Modal:
-  - Destination selector (default: today's daily file).
-  - Full preview of the text to be written.
-  - Dedup warning when the block already exists in the destination.
-  - Confirm / Cancel.
+- ✅ **Promote to OpenClaw memory…** on the **TARS in IDE** tab when an A070 file
+  is selected (`MemoryPromoteModal.jsx`).
+- Modal: destination (daily date picker vs `MEMORY.md`), **Check destination** dry
+  run, append preview, duplicate warning, **Confirm promote**.
 
 **Default mode:** manual-with-preview (see `040_DECISIONS.md` §ADR-014).
 
 **Acceptance:**
 
-- Nothing lands in `memory/` without an explicit click.
-- `MEMORY.md` requires an additional opt-in from the destination selector.
+- Nothing lands in memory without an explicit click and confirm.
+- `MEMORY.md` requires checkbox acknowledgement before confirm.
 
 ---
 
@@ -338,9 +396,12 @@ path for A.
 
 - **Phase 0** — landed.
 - **Bundle A** — landed as three commits (P1, P2, P3) in that order.
-- **Bundle B** — one PR; `/api/telegram/*` aliases kept for **one release**,
-  then removed in the following PR.
-- **Bundle C1, C2** — one PR each, blocked on B.
+- **Bundle B** — closed 2026-04-18 (P5 + P4). `/api/telegram/*` and
+  `/api/openclaw/*` remain as **one-release** thin aliases; remove in the
+  following PR after clients migrate.
+- **Bundle C1** — apply MVP landed 2026-04-18 (`requireMention` merge + UI).
+- **Bundle C1b** — in progress (§5.1): **C1b.1** group `skills` merge landed 2026-04-18; **C1b.2 spec signed-off 2026-04-18**; **C1b.2a** (additive upsert of per-channel `agents.list[]` + `bindings[]`) landed 2026-04-18. Remaining: **C1b.2b** orphan cleanup, **C1b.2c** opt-in `agents.defaults.model`, **C1b.3** sub-agent skill flavoring.
+- **Bundle C2** — landed 2026-04-18 (summary → memory promote + modal).
 
 Each PR updates `030_ROADMAP.md` (moves its block to "done") and appends a new
 entry to `040_DECISIONS.md` only if it contains an irrevocable architectural

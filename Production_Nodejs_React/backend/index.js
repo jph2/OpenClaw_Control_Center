@@ -41,6 +41,7 @@ app.get('/api/health', (req, res) => {
 // G5: Global Sanitized Error Handler (Mask Stack Traces in Production)
 import channelRoutes from './routes/channels.js';
 import workbenchRoutes from './routes/workbench.js';
+import chatRoutes from './routes/chat.js';
 import telegramRoutes from './routes/telegram.js';
 import openclawRoutes from './routes/openclaw.js';
 import summariesRoutes from './routes/summaries.js';
@@ -49,8 +50,9 @@ import { initTelegramService } from './services/telegramService.js';
 
 app.use('/api/channels', channelRoutes);
 app.use('/api/workbench', workbenchRoutes);
+app.use('/api/chat', chatRoutes);
 app.use('/api/telegram', telegramRoutes);
-app.use('/api/openclaw', openclawRoutes); // Native OpenClaw session routes
+app.use('/api/openclaw', openclawRoutes);
 app.use('/api/summaries', summariesRoutes);
 app.use('/api/ide-project-summaries', summariesRoutes);
 app.use('/api/exports', exportsRoutes);

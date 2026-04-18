@@ -13,9 +13,11 @@ agent_index:
     architecture: "#1-architektur-der-souveranitat-asymmetrisches-relay"
     technical_debt: "#2-kritische-punkte--technische-schulden"
     topology: "#4-topology-blueprint-private-ecosystem"
+    paperclip: "#paperclip-ai-unternehmens-orchestration-beziehung-zu-openclaw"
+    openclaw_agents_skills: "#openclaw-native-agenten-sub-agents-und-skills-upstream-modell"
     appendix: "#appendix-raw-findings-the-gathering-reservoir"
 created: '2026-04-13T19:30:00Z'
-last_modified: '2026-04-13T20:38:00Z'
+last_modified: '2026-04-18T12:00:00Z'
 directives:
   - "CRITICAL: The Appendix / Raw Findings section is APPEND-ONLY."
   - "NEVER DELETE, SUMMARIZE OR TRUNCATE raw dump sources."
@@ -29,9 +31,9 @@ tags: [discovery, architecture, telegram-hub, zod, stabilization, context-contin
 
 # 00 Discovery - Sovereign Channel Manager & Telegram Hub
 
-**Version**: 1.3.0 | **Date**: 13.04.2026 | **Time**: 20:38 | **GlobalID**: 20260413_2038_DIS_SovereignHub_v1.3
+**Version**: 1.4.0 | **Date**: 18.04.2026 | **Time**: 12:00 | **GlobalID**: 20260418_1200_DIS_SovereignHub_v1.4
 
-**Last Updated:** 13.04.2026 20:38  
+**Last Updated:** 18.04.2026 12:00  
 **Framework:** OpenClaw UI Extensions (Discovery Phase)  
 **Status:** active
 
@@ -173,15 +175,181 @@ Before generating `*_RESEARCH.md`, verify at minimum:
 
 ---
 
+## Paperclip: AI-Unternehmens-Orchestrierung (Beziehung zu OpenClaw)
+
+**Paperclip** ([paperclipai/paperclip](https://github.com/paperclipai/paperclip)) ist ein **MIT-lizenzierter** Control-Plane-Stack: **Node.js-Server** (Express API, Orchestration) plus **React-UI**. Es ist **kein Ersatz** für den OpenClaw-Gateway oder das Agent-Runtime-Modell, sondern eine **Meta-Schicht** für „Unternehmen aus Agenten“: Ziele, Budgets, Tickets, **Heartbeats**, Governance und **Multi-Company-Isolation** in Postgres. [[28]](#link-28)
+
+**Positionierung (Produkt):** In der offiziellen Lesart ist **OpenClaw der Mitarbeiter**, **Paperclip das Unternehmen** — Paperclip koordiniert mehrere Agent-Runtimes (u. a. OpenClaw, Claude Code, Codex, Cursor) über einen gemeinsamen Arbeitsplan, ohne die interne Prompt-/Tool-Logik eines einzelnen Agents zu definieren. [[28]](#link-28)
+
+### Repository- und Code-Struktur (Überblick)
+
+| Bereich | Pfad / Paket | Rolle |
+|--------|----------------|-------|
+| API & Orchestration | `server/` | REST, Join-Invites, Tasks, Budgets, Activity-Log |
+| Dashboard | `ui/` | React/Vite Board |
+| Datenmodell | `packages/db/` | Drizzle, Postgres, company-scoped |
+| Adapter | `packages/adapters/*` | Pro Runtime ein Adapter-Paket |
+| OpenClaw | `packages/adapters/openclaw-gateway/` | **Nur** Gateway-Protokoll über WebSocket |
+| Shared | `packages/shared/`, `packages/adapter-utils/` | Typen, Wake-Prompts, Ausführungs-Utilities |
+
+**Wichtig:** OpenClaw wird **nicht** als Source eingebunden oder „fork-injiziert“. Integration ist **ausschließlich** über den **Adapter-Typ** `openclaw_gateway` und das **Gateway-WebSocket-Protokoll** (`ws://` / `wss://`).
+
+### Agenten, „Sub“-Agenten und Hierarchie
+
+- **Paperclip-Agent** = ein **company-scoped** Datensatz mit Rolle, `adapterType` (z. B. `openclaw_gateway`, `claude_local`, …), Budget und **optional** `reportsTo` (Vorgesetzter).
+- **Hierarchie** entsteht durch **`reportsTo`** (Manager-Kette), **Zyklus-Prüfung** im Agent-Service und **Org-Chart** (Export/Visualisierung). Das sind **Paperclip-Begriffe**, keine eingebetteten OpenClaw-`sessions_spawn`-„Sub-Agents“ im Sinne des Gateways.
+- **Delegation** läuft über **Tickets/Issues**, **Heartbeats** und **Wake-Prompts** in die jeweilige Runtime — nicht durch eine spezielle „Paperclip-API in OpenClaw Core“.
+
+### Skills: Zuweisung und Laufzeit
+
+- **Company Skills:** Im Backend gibt es ein **Skills-System** (u. a. `company_skills`, Import/Keys aus Registries wie `skills.sh`); Skills sind **pro Company** verwaltet.
+- **Lokale CLI-Adapter** (z. B. Claude): Adapter können **Skills** in die **jeweilige Runtime** spiegeln (z. B. unter `~/.claude/skills`) und „desired“ vs. „installed“ abbilden — **Paperclip steuert** die Materialisierung.
+- **OpenClaw-Gateway-Adapter:** Die UI **deaktiviert** die Verwaltung von Skills für `openclaw_gateway`-Agenten („in OpenClaw verwalten“). **OpenClaw** bleibt **Source of Truth** für Skills/Tools im Workspace; Paperclip **injiziert** hier kein paralleles Skill-Bundle in den Gateway-Code.
+- **Paperclip-Skill für OpenClaw:** Im Onboarding-Flow wird beschrieben, dass OpenClaw nach dem Join **API-Key** und **Paperclip-Skill** nutzt (`skills/paperclip/` im Upstream), damit der Agent **Paperclip-APIs** (z. B. Invite, Tasks) bedienen kann — das ist **Konfiguration auf OpenClaw-Seite**, nicht ein Patch am OpenClaw-Framework.
+
+### OpenClaw-Anbindung (technischer Vertrag)
+
+Der Adapter **`@paperclipai/adapter-openclaw-gateway`** dokumentiert u. a.:
+
+- **Transport:** WebSocket, **Gateway-Protokoll** (u. a. `connect.challenge`, `req connect`, `req agent`, `req agent.wait`, Stream `event agent`).
+- **Auth:** `x-openclaw-token` (oder Legacy `x-openclaw-auth`), `Authorization: Bearer`, optional **Device-Pairing** (Ed25519, `device.pair.*`).
+- **Session:** `sessionKeyStrategy` `issue` | `fixed` | `run`, `sessionKey` bei `fixed`; Auflösung wird als `agent.sessionKey` gesendet.
+- **Wake:** Nachricht inkl. Paperclip-Kontext (`runId`, Task/Issue, Wake-Reason) über `renderPaperclipWakePrompt` / Payload-Templates aus **adapter-utils**.
+
+**Onboarding (Invite):** `POST /api/companies/:companyId/openclaw/invite-prompt` erzeugt einen **Invite**; der Operator fügt den **Prompt in OpenClaw** ein; bei Annahme liefert OpenClaw u. a. `adapterType: "openclaw_gateway"`, `agentDefaultsPayload.url` (WS), `headers["x-openclaw-token"]`; nach Board-Freigabe folgen **Pairing** (optional einmalig) und **persistente** `devicePrivateKeyPem`. Siehe Upstream `packages/adapters/openclaw-gateway/doc/ONBOARDING_AND_TEST_PLAN.md`.
+
+### Abgrenzung für dieses Discovery
+
+Für **Sovereign Channel Manager / Telegram** bleibt OpenClaw der **Gateway und Workspace**. Paperclip ist ein **optionaler** externer „Betriebs-Layer“ für Multi-Agent-Ziele und Kosten — **kein** Ersatz für Bridging/Mirroring-Analyse oder Channel-Config in `openclaw.json`. Verbindungspunkt ist **nur** der dokumentierte **Gateway-Adapter** + **Invite-/Skills-Onboarding**, nicht eine Code-Verschmelzung der Repositories.
+
+---
+
+## OpenClaw: Native Agenten, Sub-Agents und Skills (Upstream-Modell)
+
+Dieses Kapitel fasst das **offizielle OpenClaw-Modell** zusammen (nicht Paperclip). Quelle ist die Upstream-Dokumentation und das Repository [openclaw/openclaw](https://github.com/openclaw/openclaw) [[24]](#link-24).
+
+### Multi-Agent („Agenten“ im Gateway-Sinne)
+
+- Ein **Agent** ist eine **vollständig isolierte** Einheit: eigenes **Workspace**, eigenes **`agentDir`** (Auth, Modelle), eigene **Sessions** unter `~/.openclaw/agents/<agentId>/sessions`. Konfiguration über `agents.list`; **Bindings** routen eingehende Kanäle/Konten auf einen **`agentId`**. Standard-Einzelagent: **`main`**, Session-Keys z. B. `agent:main:<sessionKey>`. [[29]](#link-29)
+- **Zuweisung** = Routing + Dateisystem/Config, **kein** externes „Org-Chart“-Objekt wie bei Paperclip [[28]](#link-28).
+
+### Sub-Agents (Spawn-Sessions)
+
+- **Sub-Agents** sind **keine** zusätzlichen Zeilen in `agents.list`, sondern **gestartete Hintergrund-Läufe** aus einer bestehenden Session: eigenes Session-Key-Muster u. a. `agent:<agentId>:subagent:<uuid>`. Steuerung über **Session-Tools** (z. B. `sessions_spawn`), Slash **`/subagents spawn`**, plus Policy (`agents.defaults.subagents`, `allowAgents`, `maxSpawnDepth`, Sandbox-Regeln). [[30]](#link-30)
+- **Zuweisung** = Tool-Parameter + Allowlists/Tiefenlimits, nicht „einstellen“ wie ein zweiter Telegram-Bot.
+
+### Skills
+
+- Skills sind **AgentSkills-kompatible** Ordner mit `SKILL.md`; OpenClaw lädt aus mehreren Pfaden mit **fester Precedence** (`<workspace>/skills` hat Vorrang vor geteilten Pfaden). [[31]](#link-31)
+- **Sichtbarkeit pro Agent:** optional **`agents.defaults.skills`** und **`agents.list[].skills`** — eine **nicht-leere** per-Agent-Liste **ersetzt** die Defaults (kein Merge); `[]` = keine Skills. [[31]](#link-31)
+- Installation aus der Registry: z. B. **`openclaw skills install`** / ClawHub; Plugins können Skills über `openclaw.plugin.json` mitliefern. [[31]](#link-31)
+
+### Abgrenzung zum Channel-Manager-Kontext
+
+Für **TARS/CASE** und Telegram bleibt maßgeblich: **gleicher Workspace / gleicher `agentId`**, wenn **Kontinuität** gewollt ist; **Sub-Agent-Spawns** sind ein **anderes Konzept** als das **Paperclip-`reportsTo`**-Modell — beide können koexistieren, dürfen aber **nicht** begrifflich vermischt werden.
+
+---
+
 ## Links
+
+### Project documents (relative paths)
 
 1. <a id="link-1"></a>[ARCHITECTURE.md](./ARCHITECTURE.md) - Definitive System-Übersicht.
 2. <a id="link-2"></a>[IMPLEMENTATION_PLAN.md](./CHANNEL_MANAGER_IMPLEMENTATION_PLAN.md) - Roadmap der Phasen 1-6.
 3. <a id="link-3"></a>[DOCUMENTATION_13-04-2026.md](./CHANNEL_MANAGER_DOCUMENTATION_13-04-2026.md) - Jüngste Zod-Stabilisierung.
+
+---
+
+### OpenClaw docs — concepts & channels (main distilled citations)
+
 4. <a id="link-4"></a>[Memory Overview](https://docs.openclaw.ai/concepts/memory) - Offizielle Informationen zur Speicher-Architektur.
 5. <a id="link-5"></a>[Messages Architecture](https://docs.openclaw.ai/concepts/messages) - Synchronisation und Buffering.
 6. <a id="link-6"></a>[Telegram Hub Limits](https://docs.openclaw.ai/channels/telegram) - Token Limits & Buffer.
 7. <a id="link-7"></a>[WebChat Framework](https://docs.openclaw.ai/web/webchat) - Normalized Transcript Rows.
+
+---
+
+### OpenClaw docs — session, groups, reference, tooling
+
+8. <a id="link-8"></a>[Session Management](https://docs.openclaw.ai/concepts/session) - Routing, `sessionKey`, IDE vs. Chat.
+9. <a id="link-9"></a>[Groups (channels)](https://docs.openclaw.ai/channels/groups) - Gruppen-Sessions und Isolation.
+10. <a id="link-10"></a>[Session management & compaction (reference)](https://docs.openclaw.ai/reference/session-management-compaction) - Persistenz, JSONL, Gateway als Quelle.
+11. <a id="link-11"></a>[Model providers](https://docs.openclaw.ai/concepts/model-providers) - Provider vs. Kanal (z. B. Antigravity).
+12. <a id="link-12"></a>[Testing (help)](https://docs.openclaw.ai/help/testing) - Tooling / Test-Hinweise in der Doku.
+13. <a id="link-13"></a>[Gateway security](https://docs.openclaw.ai/gateway/security) - Sicherheits- und Isolationsthemen.
+
+---
+
+### OpenClaw LLM corpus
+
+14. <a id="link-14"></a>[OpenClaw LLM corpus (`llms-full.txt`)](https://docs.openclaw.ai/llms-full.txt) - Volltext für Session-/Tooling-Kontext.
+
+---
+
+### openclawdir (plugin catalog)
+
+15. <a id="link-15"></a>[Plugin: Session Bridge (openclawdir)](https://openclawdir.com/plugins/session-bridge-openclaw-59m9mu) - Drittanbieter-Plugin-Katalog.
+16. <a id="link-16"></a>[Plugin: Cross-session sync (openclawdir)](https://openclawdir.com/plugins/cross-session-sync-a4ilu2) - Bridging-Plugin.
+
+---
+
+### Outbound session mirroring (two mirrors)
+
+17. <a id="link-17"></a>[Outbound session mirroring (open-claw.bot)](https://open-claw.bot/docs/cli/refactor/outbound-session-mirroring/) - CLI/Docs zu Mirroring.
+18. <a id="link-18"></a>[Outbound session mirroring (Fossies mirror)](https://fossies.org/linux/openclaw/docs/refactor/outbound-session-mirroring.md) - Upstream-Dok im Linux-Tree.
+
+---
+
+### Giskard (security analysis)
+
+19. <a id="link-19"></a>[Giskard: OpenClaw security / leakage / prompt injection](https://www.giskard.ai/knowledge/openclaw-security-vulnerabilities-include-data-leakage-and-prompt-injection-risks) - Externe Risiko-Zusammenfassung.
+20. <a id="link-20"></a>[Giskard: Cross-session leak](https://www.giskard.ai/knowledge/cross-session-leak-when-your-ai-assistant-becomes-a-data-breach) - Cross-Session-Datenabfluss.
+
+---
+
+### NordLayer
+
+21. <a id="link-21"></a>[NordLayer: OpenClaw security risks](https://nordlayer.com/blog/openclaw-security-risks/) - Externer Sicherheits-Überblick.
+
+---
+
+### Tacnode
+
+22. <a id="link-22"></a>[Tacnode: OpenClaw and the context gap](https://tacnode.io/post/openclaw-and-the-context-gap) - Kontext-/Memory-Gap.
+
+---
+
+### Open WebUI
+
+23. <a id="link-23"></a>[Open WebUI: Connect an OpenClaw agent](https://docs.openwebui.com/getting-started/quick-start/connect-an-agent/openclaw/) - Web-Frontend vs. Telegram.
+
+---
+
+### GitHub (upstream repo & issues)
+
+24. <a id="link-24"></a>[openclaw/openclaw (GitHub)](https://github.com/openclaw/openclaw) - Upstream-Repository.
+25. <a id="link-25"></a>[Issue #23258: chat.send / webchat delivery](https://github.com/openclaw/openclaw/issues/23258) - Routing/Bridging-Fall.
+26. <a id="link-26"></a>[Issue #33859: ACP delivery inheritance](https://github.com/openclaw/openclaw/issues/33859) - Delivery-Context über Sessions.
+
+---
+
+### Open VSX (IDE extension)
+
+27. <a id="link-27"></a>[Open VSX: agentclaw (Anti-Gravity)](https://open-vsx.org/extension/TureAutoAcceptAntiGravity/agentclaw) - IDE-Erweiterung aus dem Appendix.
+
+---
+
+### Paperclip (upstream project)
+
+28. <a id="link-28"></a>[paperclipai/paperclip](https://github.com/paperclipai/paperclip) - Open-Source-Orchestrierung für Multi-Agent-„Unternehmen“; Gateway-Adapter `openclaw_gateway` (WebSocket), nicht eingebetteter OpenClaw-Code.
+
+---
+
+### OpenClaw upstream (native agents, sub-agents, skills)
+
+29. <a id="link-29"></a>[Multi-Agent Routing](https://docs.openclaw.ai/concepts/multi-agent) - Isolierte Agenten, Bindings, `agents.list`, Pfade pro `agentId`.
+30. <a id="link-30"></a>[Sub-agents](https://docs.openclaw.ai/tools/subagents) - `sessions_spawn`, Session-Keys, Policy/Tiefe/Sandbox.
+31. <a id="link-31"></a>[Skills](https://docs.openclaw.ai/tools/skills) - Pfade, Precedence, `agents.defaults.skills` / `agents.list[].skills` Allowlists.
 
 ---
 
@@ -781,6 +949,18 @@ flowchart LR
 ```
 
 The first diagram is the recommended setup. The second shows the risky shared-agent version.
+
+----
+
+#### 8. Structured reference — Paperclip vs. OpenClaw upstream (2026-04-18)
+
+Distilled cross-links (siehe auch Hauptkörper und `## Links`):
+
+- **Paperclip** — Control-Plane für „AI-Unternehmen“, OpenClaw nur über Adapter `openclaw_gateway` (WS); Org-Hierarchie = Paperclip `reportsTo`. [[28]](#link-28)
+- **OpenClaw Multi-Agent** — isolierte Workspaces/Sessions pro `agentId`, Bindings für Kanal-Routing. [[29]](#link-29)
+- **OpenClaw Sub-Agents** — Spawn-Sessions (`sessions_spawn`, Key `agent:<agentId>:subagent:<uuid>`), nicht Konfig-„Unter-Agenten“. [[30]](#link-30)
+- **OpenClaw Skills** — `SKILL.md`-Ordner, Pfad-Precedence, Allowlists `agents.defaults.skills` / `agents.list[].skills`. [[31]](#link-31)
+- **Upstream-Repo** — [openclaw/openclaw](https://github.com/openclaw/openclaw). [[24]](#link-24)
 
 ----
 
