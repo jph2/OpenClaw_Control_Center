@@ -49,7 +49,18 @@ const safeStringifyToolInput = (input) => {
  */
 const ToolCallChip = ({ call }) => {
     const [open, setOpen] = useState(false);
-    const hasInput = call?.input != null && (typeof call.input !== 'object' || Object.keys(call.input || {}).length > 0);
+    // Treat any non-null scalar (string/number/bool) as printable input;
+    // only collapse an object check to "has at least one own key" so the
+    // chip doesn't go dead on `{"command": "..."}` payloads. Previously
+    // the chip relied on `b.input` which the current gateway build
+    // writes under `b.arguments`, and the button ended up permanently
+    // disabled.
+    const input = call?.input;
+    const hasInput =
+        input != null &&
+        (typeof input !== 'object'
+            ? String(input).length > 0
+            : Object.keys(input).length > 0);
     return (
         <div style={{ marginTop: '6px' }}>
             <button

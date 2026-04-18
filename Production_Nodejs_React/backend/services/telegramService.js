@@ -2,11 +2,71 @@ import { EventEmitter } from 'events';
 import chokidar from 'chokidar';
 import fs from 'fs';
 import path from 'path';
-import { exec } from 'child_process';
+import { exec, execSync } from 'child_process';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 const DEFAULT_SESSIONS_ROOT = path.join(process.env.HOME || '/home/claw-agentbox', '.openclaw/agents/main/sessions');
+
+// Resolve a Node binary that satisfies the openclaw CLI's minimum version
+// (currently >=22.12). This is cached on first call. The box happens to
+// ship with /usr/bin/node pointing at Node 24 (nodesource), but Cursor's
+// bundled Node 20 lives earlier on PATH, so `#!/usr/bin/env node` inside
+// the CLI shebang ends up picking 20 and the CLI immediately bails with
+// "Node.js v22.12+ is required". We sidestep this by invoking the CLI
+// script explicitly with a Node >=22 binary we resolved ourselves.
+let _openclawRuntimeCache = null;
+function resolveOpenclawRuntime() {
+    if (_openclawRuntimeCache) return _openclawRuntimeCache;
+
+    const nodeCandidates = [
+        process.env.OPENCLAW_NODE_BIN,
+        '/usr/bin/node',
+        '/usr/local/bin/node'
+    ].filter(Boolean);
+
+    let nodeBin = null;
+    let nodeVersion = null;
+    for (const candidate of nodeCandidates) {
+        try {
+            const out = execSync(`${candidate} --version`, {
+                encoding: 'utf8',
+                stdio: ['ignore', 'pipe', 'ignore']
+            }).trim();
+            const major = parseInt(String(out).replace(/^v/, '').split('.')[0], 10);
+            if (Number.isFinite(major) && major >= 22) {
+                nodeBin = candidate;
+                nodeVersion = out;
+                break;
+            }
+        } catch (_) {
+            // candidate missing or not executable; try next
+        }
+    }
+
+    const cliCandidates = [
+        process.env.OPENCLAW_CLI_SCRIPT,
+        '/home/claw-agentbox/.npm-global/lib/node_modules/openclaw/openclaw.mjs'
+    ].filter(Boolean);
+    let cliScript = null;
+    for (const candidate of cliCandidates) {
+        try {
+            if (fs.existsSync(candidate)) {
+                cliScript = candidate;
+                break;
+            }
+        } catch (_) { /* ignore */ }
+    }
+
+    _openclawRuntimeCache = { nodeBin, nodeVersion, cliScript };
+    logOpenclawCli('runtime_resolved', {
+        nodeBin,
+        nodeVersion,
+        cliScript,
+        fallbackToPath: !(nodeBin && cliScript)
+    });
+    return _openclawRuntimeCache;
+}
 
 /** One-line log helper for openclaw CLI (no secrets; truncate). */
 function clip(s, max = 600) {
@@ -175,10 +235,14 @@ function buildMsgObjFromGatewayLine(parsed) {
         if (b.type === 'text') {
             text += b.text + '\n';
         } else if (b.type === 'toolCall') {
+            // Different gateway builds have shipped the args under
+            // different keys; accept all of them and normalize to
+            // `input` for the frontend. Real data today uses
+            // `arguments` (`{"command": "..."}`).
             toolCalls.push({
                 id: b.id || null,
                 name: b.name || 'tool',
-                input: b.input ?? null
+                input: b.input ?? b.arguments ?? b.args ?? null
             });
         } else if (b.type === 'toolResult') {
             toolResults.push({
@@ -689,15 +753,32 @@ export const sendMessageToChat = async (chatId, text) => {
     // try/catch added ~5s of HTTP timeout to every failed attempt.
     // Removed in Bundle A/P3.
     const safeText = text.replace(/"/g, '\\"').replace(/\n/g, ' ');
+    const runtime = resolveOpenclawRuntime();
+    // Build the CLI invocation. When we have an explicit Node >=22 binary
+    // and the resolved CLI script, invoke them directly so the shebang's
+    // `env node` doesn't get stuck on Cursor's bundled Node 20. Otherwise
+    // fall back to the PATH-based invocation (pre-fix behavior) so this
+    // doesn't hard-fail on unfamiliar machines.
+    const useExplicitRuntime = Boolean(runtime.nodeBin && runtime.cliScript);
+    const invocation = useExplicitRuntime
+        ? `"${runtime.nodeBin}" "${runtime.cliScript}"`
+        : 'openclaw';
+    const pathAugmentation = useExplicitRuntime
+        ? ''
+        : 'export PATH=$PATH:/home/claw-agentbox/.npm-global/bin && ';
+
     let cmd = null;
     let transport = null;
-    
+    let logPath = null;
+
     if (canonical.sessionId) {
         transport = 'session-native-cli';
-        cmd = `export PATH=$PATH:/home/claw-agentbox/.npm-global/bin && nohup openclaw agent --session-id "${canonical.sessionId}" --message "${safeText}" --json >/tmp/openclaw-cm-send-${canonical.sessionId}.log 2>&1 & echo $!`;
+        logPath = `/tmp/openclaw-cm-send-${canonical.sessionId}.log`;
+        cmd = `${pathAugmentation}nohup ${invocation} agent --session-id "${canonical.sessionId}" --message "${safeText}" --json >${logPath} 2>&1 & echo $!`;
     } else {
         transport = 'legacy-telegram-deliver';
-        cmd = `export PATH=$PATH:/home/claw-agentbox/.npm-global/bin && nohup openclaw agent --channel telegram --to "${realChatId}" --message "${safeText}" --deliver >/tmp/openclaw-cm-send-${realChatId}.log 2>&1 & echo $!`;
+        logPath = `/tmp/openclaw-cm-send-${realChatId}.log`;
+        cmd = `${pathAugmentation}nohup ${invocation} agent --channel telegram --to "${realChatId}" --message "${safeText}" --deliver >${logPath} 2>&1 & echo $!`;
     }
 
     try {
@@ -711,12 +792,35 @@ export const sendMessageToChat = async (chatId, text) => {
             realChatId: String(realChatId),
             sessionId: canonical.sessionId,
             spawnedPid,
+            nodeBin: runtime.nodeBin,
+            nodeVersion: runtime.nodeVersion,
             stderrPreview: clip(stderr, 400),
             timing: {
                 spawnExecMs: ackedAt - spawnStartedAt,
                 totalAckMs: ackedAt - requestStartedAt
             }
         });
+
+        // The shebang-based invocation used to die asynchronously with
+        // "Node.js v22.12+ is required" inside the redirected log file,
+        // while we kept returning a clean 200. Peek at the log shortly
+        // after spawn so any future startup failure is surfaced. This
+        // runs async and never blocks the ack.
+        setTimeout(() => {
+            try {
+                if (!logPath || !fs.existsSync(logPath)) return;
+                const snapshot = fs.readFileSync(logPath, 'utf8');
+                if (/Node\.js v\d+\.\d+\+? is required|Cannot find module|Error: |TypeError: |SyntaxError: /i.test(snapshot)) {
+                    logOpenclawCli('inject_cli_startup_error', {
+                        transport,
+                        sessionId: canonical.sessionId,
+                        spawnedPid,
+                        logPath,
+                        excerpt: clip(snapshot, 500)
+                    });
+                }
+            } catch (_) { /* best-effort */ }
+        }, 300);
 
         return {
             message_id: `${transport}-${ackedAt}`,
