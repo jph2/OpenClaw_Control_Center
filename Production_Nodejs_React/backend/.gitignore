@@ -1,0 +1,5 @@
+# Runtime + local-only artifacts. None of these belong in version control.
+node_modules/
+.env
+*.log
+validation_log.txt

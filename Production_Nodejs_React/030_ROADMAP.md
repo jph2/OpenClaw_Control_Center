@@ -1,6 +1,6 @@
 # Channel Manager — Roadmap
 
-**Status:** normative · **Scope:** Production_Nodejs_React · **Last reviewed:** 2026-04-17
+**Status:** normative · **Scope:** Production_Nodejs_React · **Last reviewed:** 2026-04-18
 
 > The roadmap lists what is **done**, what is **in flight**, and what is
 > **explicitly not yet in scope**. Long prose about *why* each decision was
@@ -9,18 +9,19 @@
 
 ---
 
-## 1. Snapshot (2026-04-17)
+## 1. Snapshot (2026-04-18)
 
-| Area                                | State                                                                  |
-| ----------------------------------- | ---------------------------------------------------------------------- |
-| Configuration tab                   | Functional; TTG CRUD, sub-agent CRUD, skills list, row heights persist |
-| OpenClaw Chat mirror                | Functional; chokidar-scoped watchers, CLI send, dead code purged        |
-| Cursor Summary tab                  | Read-only MVP live; A070 list + renderer                               |
-| IDE Bridge (MCP)                    | Live for `send_telegram_reply` and `change_agent_mode`                 |
-| Exports (read-only projections)    | Live: `/api/exports/{canonical,openclaw,ide,cursor}`                   |
-| Config Apply to `openclaw.json`     | Not yet exposed (Bundle C1)                                            |
-| Summary promotion to memory/        | Not yet exposed (Bundle C2)                                            |
-| `occ-ctl.mjs`                       | Not in tree; `npm start` / `npm run dev` are the current entrypoints   |
+| Area                                | State                                                                                            |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Configuration tab                   | Functional; TTG CRUD, sub-agent CRUD, skills list, row heights persist                            |
+| OpenClaw Chat mirror                | Functional; auto-scroll v3 live, tool chips collapsible, CLI routed through Node 24, dead code purged |
+| Cursor Summary tab                  | Read-only MVP live; A070 list + renderer                                                         |
+| IDE Bridge (MCP)                    | Live for `send_telegram_reply` and `change_agent_mode`                                           |
+| Exports (read-only projections)    | Live: `/api/exports/{canonical,openclaw,ide,cursor}`                                             |
+| Config Apply to `openclaw.json`     | Not yet exposed (Bundle C1)                                                                      |
+| Summary promotion to memory/        | Not yet exposed (Bundle C2)                                                                      |
+| `occ-ctl.mjs`                       | Not in tree; `npm start` / `npm run dev` are the current entrypoints                              |
+| **Bundle A (performance + cleanup)**| **Closed 2026-04-18** — P1 fan-kill, P2 latency, P2b scroll v3, P3 dead code, P4 tool accordion, CLI Node-24 fix |
 
 ---
 
