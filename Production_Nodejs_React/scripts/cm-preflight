@@ -1,0 +1,200 @@
+#!/usr/bin/env bash
+# cm-preflight — verify the LM Studio path end-to-end before complaining
+# that "OpenClaw still uses the wrong model".
+#
+# Checks (each step is non-fatal: we report status and keep going):
+#   1. openclaw config validate                  (gateway accepts JSON)
+#   2. agents.defaults.model.fallbacks contains  (no orphan slugs)
+#      lmstudio/google/gemma-4-26b-a4b
+#   3. channel_config.json has no `local-pc/...` (ADR-017)
+#   4. LM Studio /v1/models reachable + lists    (server up + model loaded)
+#      google/gemma-4-26b-a4b
+#   5. openclaw infer model run --model          (full round-trip; n_ctx OK)
+#      lmstudio/google/gemma-4-26b-a4b --prompt …
+#   6. systemctl --user is-active openclaw-gateway.service
+#
+# Exit code: 0 if every required check passed, 1 otherwise.
+# Required = 1, 2, 3, 4, 6. Step 5 is informational (uses real tokens).
+#
+# Tunables via env:
+#   LMSTUDIO_BASE_URL   default http://100.104.23.43:1234/v1
+#   LMSTUDIO_MODEL_ID   default google/gemma-4-26b-a4b
+#   OPENCLAW_JSON       default ~/.openclaw/openclaw.json
+#   CHANNEL_CONFIG      default ../Prototyp/channel_CHAT-manager/channel_config.json
+#                       (relative to this repo's root)
+#   SKIP_INFER          set to 1 to skip step 5 (no token spend)
+
+set -uo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+LMSTUDIO_BASE_URL="${LMSTUDIO_BASE_URL:-http://100.104.23.43:1234/v1}"
+LMSTUDIO_MODEL_ID="${LMSTUDIO_MODEL_ID:-google/gemma-4-26b-a4b}"
+OPENCLAW_JSON="${OPENCLAW_JSON:-${HOME}/.openclaw/openclaw.json}"
+CHANNEL_CONFIG="${CHANNEL_CONFIG:-${ROOT}/Prototyp/channel_CHAT-manager/channel_config.json}"
+EXPECTED_SLUG="lmstudio/${LMSTUDIO_MODEL_ID}"
+FORBIDDEN_SLUG="local-pc/${LMSTUDIO_MODEL_ID}"
+
+required_failures=0
+optional_failures=0
+
+ok()    { printf "  \033[32m✓\033[0m %s\n" "$*"; }
+warn()  { printf "  \033[33m!\033[0m %s\n" "$*"; }
+fail()  { printf "  \033[31m✗\033[0m %s\n" "$*"; }
+
+step() {
+    printf "\n\033[1m[%s]\033[0m %s\n" "$1" "$2"
+}
+
+# Resolve a Node ≥ 22 binary + the openclaw CLI script the same way
+# `backend/services/chat/sessionSender.js` does. The PATH `openclaw`
+# shim refuses to run on Node < 22, but the project ships through
+# /usr/bin/node (v24) directly. We mirror that fallback here so the
+# preflight does not falsely fail step 1 on cursor-server's bundled
+# Node 20.
+OPENCLAW_NODE_BIN_RESOLVED=""
+OPENCLAW_CLI_SCRIPT_RESOLVED=""
+for candidate in "${OPENCLAW_NODE_BIN:-}" /usr/bin/node /usr/local/bin/node; do
+    [[ -z "$candidate" ]] && continue
+    [[ -x "$candidate" ]] || continue
+    ver="$("$candidate" --version 2>/dev/null || true)"
+    major="${ver#v}"; major="${major%%.*}"
+    if [[ "$major" =~ ^[0-9]+$ ]] && [[ "$major" -ge 22 ]]; then
+        OPENCLAW_NODE_BIN_RESOLVED="$candidate"
+        break
+    fi
+done
+for candidate in "${OPENCLAW_CLI_SCRIPT:-}" \
+                 /home/claw-agentbox/.npm-global/lib/node_modules/openclaw/openclaw.mjs; do
+    [[ -z "$candidate" ]] && continue
+    if [[ -r "$candidate" ]]; then
+        OPENCLAW_CLI_SCRIPT_RESOLVED="$candidate"
+        break
+    fi
+done
+
+run_openclaw() {
+    if [[ -n "$OPENCLAW_NODE_BIN_RESOLVED" && -n "$OPENCLAW_CLI_SCRIPT_RESOLVED" ]]; then
+        "$OPENCLAW_NODE_BIN_RESOLVED" "$OPENCLAW_CLI_SCRIPT_RESOLVED" "$@"
+    elif command -v openclaw >/dev/null 2>&1; then
+        openclaw "$@"
+    else
+        return 127
+    fi
+}
+
+# ----- 1. openclaw config validate ------------------------------------------
+step 1 "openclaw config validate"
+if [[ -n "$OPENCLAW_NODE_BIN_RESOLVED" && -n "$OPENCLAW_CLI_SCRIPT_RESOLVED" ]]; then
+    ok "using $OPENCLAW_NODE_BIN_RESOLVED ($("$OPENCLAW_NODE_BIN_RESOLVED" --version)) + $OPENCLAW_CLI_SCRIPT_RESOLVED"
+fi
+if out="$(run_openclaw config validate 2>&1)"; then
+    ok "openclaw config validate passed"
+elif [[ "$?" -eq 127 ]]; then
+    warn "openclaw CLI not on PATH and no Node ≥ 22 binary — skipped"
+else
+    fail "openclaw config validate failed:"
+    printf "%s\n" "$out" | sed 's/^/      /'
+    required_failures=$((required_failures + 1))
+fi
+
+# ----- 2. lmstudio slug present in fallbacks --------------------------------
+step 2 "lmstudio slug present in agents.defaults.model.fallbacks"
+if [[ -r "$OPENCLAW_JSON" ]]; then
+    if grep -F -q "$EXPECTED_SLUG" "$OPENCLAW_JSON"; then
+        ok "$EXPECTED_SLUG referenced in $OPENCLAW_JSON"
+    else
+        fail "$EXPECTED_SLUG not found in $OPENCLAW_JSON"
+        required_failures=$((required_failures + 1))
+    fi
+    if grep -F -q "$FORBIDDEN_SLUG" "$OPENCLAW_JSON"; then
+        fail "legacy $FORBIDDEN_SLUG still in $OPENCLAW_JSON (ADR-017)"
+        required_failures=$((required_failures + 1))
+    else
+        ok "no legacy $FORBIDDEN_SLUG in $OPENCLAW_JSON"
+    fi
+else
+    fail "cannot read $OPENCLAW_JSON"
+    required_failures=$((required_failures + 1))
+fi
+
+# ----- 3. channel_config.json clean of forbidden slug -----------------------
+step 3 "channel_config.json uses canonical lmstudio slug"
+if [[ -r "$CHANNEL_CONFIG" ]]; then
+    if grep -F -q "$FORBIDDEN_SLUG" "$CHANNEL_CONFIG"; then
+        fail "$FORBIDDEN_SLUG still present in $CHANNEL_CONFIG"
+        required_failures=$((required_failures + 1))
+    else
+        ok "$CHANNEL_CONFIG is free of $FORBIDDEN_SLUG"
+    fi
+else
+    warn "$CHANNEL_CONFIG not readable — skipped"
+fi
+
+# ----- 4. LM Studio server reachable + model loaded -------------------------
+step 4 "LM Studio /v1/models lists $LMSTUDIO_MODEL_ID"
+if command -v curl >/dev/null 2>&1; then
+    models_resp="$(curl -fsS --max-time 5 "${LMSTUDIO_BASE_URL}/models" 2>&1)" || models_resp=""
+    if [[ -n "$models_resp" ]] && printf "%s" "$models_resp" | grep -F -q "\"id\": \"${LMSTUDIO_MODEL_ID}\""; then
+        ok "LM Studio at ${LMSTUDIO_BASE_URL} serves ${LMSTUDIO_MODEL_ID}"
+    elif [[ -n "$models_resp" ]]; then
+        fail "LM Studio reachable but ${LMSTUDIO_MODEL_ID} not in /v1/models"
+        printf "%s\n" "$models_resp" | sed 's/^/      /' | head -10
+        required_failures=$((required_failures + 1))
+    else
+        fail "LM Studio not reachable at ${LMSTUDIO_BASE_URL}"
+        required_failures=$((required_failures + 1))
+    fi
+else
+    warn "curl not on PATH — skipped"
+fi
+
+# ----- 5. real inference round-trip (optional, costs LM Studio time) -------
+step 5 "openclaw infer model run --model ${EXPECTED_SLUG} (informational)"
+if [[ "${SKIP_INFER:-0}" == "1" ]]; then
+    warn "SKIP_INFER=1 — skipped"
+else
+    out="$(run_openclaw infer model run --model "$EXPECTED_SLUG" --prompt 'Say only: PREFLIGHT_OK' 2>&1)"
+    rc=$?
+    if [[ "$rc" -eq 127 ]]; then
+        warn "openclaw CLI not runnable (no Node ≥ 22) — skipped"
+    elif [[ "$rc" -eq 0 ]]; then
+        if printf "%s" "$out" | grep -q "PREFLIGHT_OK"; then
+            ok "round-trip succeeded"
+        else
+            warn "round-trip ran but did not contain PREFLIGHT_OK:"
+            printf "%s\n" "$out" | tail -8 | sed 's/^/      /'
+            optional_failures=$((optional_failures + 1))
+        fi
+    else
+        fail "round-trip failed (likely LM Studio n_ctx — see §8b.3 in ROADMAP):"
+        printf "%s\n" "$out" | tail -8 | sed 's/^/      /'
+        optional_failures=$((optional_failures + 1))
+    fi
+fi
+
+# ----- 6. gateway service active --------------------------------------------
+step 6 "openclaw-gateway.service active"
+if command -v systemctl >/dev/null 2>&1; then
+    if state="$(systemctl --user is-active openclaw-gateway.service 2>&1)" && [[ "$state" == "active" ]]; then
+        ok "gateway is $state"
+    else
+        fail "gateway is $state (expected: active)"
+        required_failures=$((required_failures + 1))
+    fi
+else
+    warn "systemctl not available — skipped"
+fi
+
+# ----- summary --------------------------------------------------------------
+echo
+if [[ "$required_failures" -eq 0 ]]; then
+    if [[ "$optional_failures" -gt 0 ]]; then
+        printf "\033[33mPre-flight OK — %d optional check(s) failed (likely LM Studio n_ctx, see §8b.3).\033[0m\n" "$optional_failures"
+    else
+        printf "\033[32mPre-flight OK — all checks passed.\033[0m\n"
+    fi
+    exit 0
+else
+    printf "\033[31mPre-flight FAILED — %d required check(s) failed.\033[0m\n" "$required_failures"
+    exit 1
+fi

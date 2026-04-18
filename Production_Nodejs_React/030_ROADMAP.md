@@ -23,6 +23,8 @@
 | `occ-ctl.mjs`                       | Not in tree; `npm start` / `npm run dev` are the current entrypoints                              |
 | **Bundle A (performance + cleanup)**| **Closed 2026-04-18** — P1 fan-kill, P2 latency, P2b scroll v3, P3 dead code, P4 tool accordion, CLI Node-24 fix |
 | **Bundle B (refactor)**             | **Closed 2026-04-18** — P5 chat service split, P4 `/api/chat/*` + legacy route aliases                          |
+| **Local LLM (LM Studio)**           | Wired 2026-04-18: `models.providers.lmstudio` + enabled `plugins.entries.lmstudio` in `~/.openclaw/openclaw.json`; channels and `agents.list[]` use `lmstudio/google/gemma-4-26b-a4b`. Bootstrap trimmed (`bootstrapMaxChars: 4000`, `bootstrapTotalMaxChars: 14000`, `experimental.localModelLean: true`). **Open dependency:** the LM Studio app must load the model with `n_ctx ≥ 16384` (32768 recommended) — not auto-configurable from this repo. |
+| **OpenClaw webchat ↔ binding parity** | **Known limitation (not in CM scope):** the OpenClaw webchat opens session `agent:main:telegram:group:<id>` and therefore shows `agents.defaults.model`, while inbound Telegram traffic routes through CM's `bindings[]` and uses the per-channel model. Fix lives in OpenClaw upstream (resolve the synth agent for the Telegram peer in the webchat session resolver). See `040_DECISIONS.md` ADR-018. |
 
 ---
 
@@ -382,6 +384,55 @@ gateway-auth story stabilizes, `sessionSender.js` (Bundle B / P5)
 gains a `--token` / env-based auth argument, gated behind presence
 of `OPENCLAW_GATEWAY_TOKEN`. Until then: document, wait, move on.
 
+### 8b.2a · OpenClaw webchat reads `agents.defaults.model`, not the Telegram binding
+
+**Symptom:** after Apply, Telegram traffic in the affected group is answered
+by the model you set in CM (Gemma via LM Studio, Kimi, GPT-4o, …), but the
+OpenClaw webchat session for that same group still shows the **defaults**
+model (Codex / GPT-4o today).
+
+**Root cause (not ours):** the webchat resolves the session as
+`agent:main:telegram:group:<id>` and therefore consults
+`agents.defaults.model` instead of looking up the synth agent
+(`<assignedAgent>-<groupIdSlug>`) registered by the matching
+`bindings[] { type:'route', match.peer.id }` row. The Telegram inbound path
+already does the binding lookup, which is why Telegram messages get the
+right model and webchat doesn't.
+
+**Channel Manager change needed:** **none.** C1b.2a writes a correct,
+schema-legal `agents.list[]` + `bindings[]` pair. Any further change here
+would just paper over the upstream resolver bug.
+
+**Planned upstream fix:** open an issue against the OpenClaw repo asking the
+webchat session bootstrap to use the same binding lookup as the Telegram
+inbound path. Workaround for the operator until then: trust the Telegram
+chat as the source of truth for "is the per-channel model live?" and ignore
+the webchat model badge for non-default agents.
+
+### 8b.3 · LM Studio context window must be set in the LM Studio app
+
+**Symptom:** even with `models.providers.lmstudio` correctly configured and
+`agents.defaults.bootstrapMaxChars` trimmed, an `openclaw infer model run`
+against `lmstudio/google/gemma-4-26b-a4b` can fail with
+`n_keep: <N> >= n_ctx: <M>`. The OpenClaw side declares `contextWindow:
+32768`, but LM Studio loads the model with whatever `n_ctx` was configured
+in its UI (often 8k–11k by default).
+
+**Channel Manager change needed:** none. The provider declaration is in
+`~/.openclaw/openclaw.json` and the bootstrap trim is in the same file. The
+fix lives in the LM Studio app: load the model with `n_ctx ≥ 16384`
+(OpenClaw's catalog minimum); 32768 matches the provider declaration.
+
+**Operator checklist:**
+
+1. LM Studio → Developer → load `google/gemma-4-26b-a4b` with `n_ctx 32768`
+   (or 16384 minimum) and "Server Running" on `:1234`.
+2. From the agentbox: `curl -s http://100.104.23.43:1234/v1/models` lists
+   the model.
+3. `openclaw infer model run --model lmstudio/google/gemma-4-26b-a4b
+   --prompt "ping"` returns without an `n_ctx` error.
+4. `scripts/cm-preflight` automates 2 + 3 plus gateway-active check.
+
 ### 8b.2 · React rendering cost during bursts
 
 `[Violation] 'setTimeout' handler took 424 ms` / forced reflows during
@@ -402,6 +453,7 @@ path for A.
 - **Bundle C1** — apply MVP landed 2026-04-18 (`requireMention` merge + UI).
 - **Bundle C1b** — in progress (§5.1): **C1b.1** group `skills` merge landed 2026-04-18; **C1b.2 spec signed-off 2026-04-18**; **C1b.2a** (additive upsert of per-channel `agents.list[]` + `bindings[]`) landed 2026-04-18. Remaining: **C1b.2b** orphan cleanup, **C1b.2c** opt-in `agents.defaults.model`, **C1b.3** sub-agent skill flavoring.
 - **Bundle C2** — landed 2026-04-18 (summary → memory promote + modal).
+- **Local LLM (LM Studio) wiring** — landed 2026-04-18: `lmstudio` provider registered, plugin enabled, all CM channels and `agents.list[]` re-pointed to `lmstudio/google/gemma-4-26b-a4b`. Open dependency: LM Studio `n_ctx ≥ 16384` (operator action, see §8b.3). Webchat-vs-binding parity is upstream (§8b.2a, ADR-018).
 
 Each PR updates `030_ROADMAP.md` (moves its block to "done") and appends a new
 entry to `040_DECISIONS.md` only if it contains an irrevocable architectural

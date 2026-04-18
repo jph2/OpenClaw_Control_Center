@@ -1,6 +1,6 @@
 # Channel Manager — Decisions
 
-**Status:** normative · **Scope:** Production_Nodejs_React · **Last reviewed:** 2026-04-17
+**Status:** normative · **Scope:** Production_Nodejs_React · **Last reviewed:** 2026-04-18
 
 > This file is the **Architectural Decision Record** for the Channel Manager.
 > Each entry captures one irreversible-enough choice, the forces behind it,
@@ -295,6 +295,75 @@ undo restores the most recent `.bak`.
 
 **Consequences.** No Apply button in the UI without diff preview and
 destination. Backup retention rotates to avoid unbounded growth.
+
+---
+
+## ADR-017 — Local LLMs: providers ≠ aliases; use real `lmstudio` provider
+
+**Date:** 2026-04-18 · **Status:** accepted
+
+**Context.** Channel Manager and `~/.openclaw/openclaw.json` previously
+referenced `local-pc/google/gemma-4-26b-a4b` as if `local-pc` were a
+provider. It was not — it appeared only inside `agents.defaults.models`
+(the alias map) without a matching `models.providers.local-pc` block. The
+gateway logged `Unknown model: local-pc/...` and silently fell back to
+`moonshot/kimi-k2.5`, hiding the misconfiguration from operators.
+
+**Decision.** Local-LLM model slugs in any CM-emitted config (channel
+defaults, synth `agents.list[]`, alias maps) **must reference a registered
+provider** under `models.providers.<provider>`. For LM Studio specifically:
+
+- Provider id is `lmstudio` (matches the built-in OpenClaw
+  `plugins.entries.lmstudio` extension and the gateway's provider
+  registry).
+- Slug is `lmstudio/<model-id-as-served-by-LM-Studio>` (e.g.
+  `lmstudio/google/gemma-4-26b-a4b`).
+- Provider declaration carries a realistic `contextWindow` and
+  `maxTokens` so OpenClaw's bootstrap planner does not over-pack the
+  prompt.
+- Defaults in `backend/routes/channels.js` (the merged-channel projection
+  and the row-create fallback) and in `Prototyp/.../channel_config.json`
+  use the same `lmstudio/...` slug as canonical.
+
+**Consequences.** No more silent Kimi fallback for local-model channels.
+Adding a new local backend in the future means **registering a provider
+first**, then aliasing — never the reverse. Tests guard the default slug
+to prevent regression to `local-pc/...`.
+
+---
+
+## ADR-018 — Webchat session resolution is upstream (gateway), not CM
+
+**Date:** 2026-04-18 · **Status:** accepted
+
+**Context.** After C1b.2a, the OpenClaw webchat for a Telegram-bound group
+session (`agent:main:telegram:group:<id>`) continues to display
+`agents.defaults.model`, while inbound Telegram traffic for the same group
+is correctly answered by the per-channel model registered via the synth
+`agents.list[]` + `bindings[]` pair. Two paths, two resolvers, two
+answers.
+
+**Decision.** Channel Manager will **not** mutate
+`agents.defaults.model` to make the webchat badge match the binding-routed
+model. Doing so:
+
+1. would silently rewrite a workspace-wide default the operator set in
+   `~/.openclaw/openclaw.json`,
+2. would not actually fix the webchat for any channel that does not happen
+   to be the workspace default,
+3. would mask a resolver bug in the gateway's webchat session bootstrap,
+   not fix it.
+
+The right fix lives in the OpenClaw gateway: the webchat session bootstrap
+must perform the same `bindings[]` lookup the inbound Telegram path
+performs, find the matching synth agent for the peer, and use its model.
+
+**Consequences.** The "OpenClaw chat shows the wrong model" complaint is
+documented as a **known upstream limitation** (`030_ROADMAP.md` §8b.2a),
+not a CM bug. Telegram traffic remains the canonical signal that "the
+per-channel model is live." A future C1b.2c will add an *opt-in* control
+for `agents.defaults.model` so an operator who wants the webchat default
+to track a specific channel can do so explicitly — never silently.
 
 ---
 
