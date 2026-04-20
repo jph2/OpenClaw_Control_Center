@@ -1,6 +1,6 @@
 # Channel Manager — Roadmap
 
-**Status:** normative · **Scope:** Production_Nodejs_React · **Last reviewed:** 2026-04-18
+**Status:** normative · **Scope:** Production_Nodejs_React · **Last reviewed:** 2026-04-20
 
 > The roadmap lists what is **done**, what is **in flight**, and what is
 > **explicitly not yet in scope**. Long prose about *why* each decision was
@@ -18,7 +18,7 @@
 | Cursor Summary tab                  | Read-only MVP live; A070 list + renderer                                                         |
 | IDE Bridge (MCP)                    | Live for `send_telegram_reply` and `change_agent_mode`                                           |
 | Exports (read-only projections)    | Live: `/api/exports/{canonical,openclaw,ide,cursor}`                                             |
-| Config Apply to `openclaw.json`     | **C1 + C1b.1 + C1b.2a:** `requireMention` + per-group `skills` + per-channel synthesized `agents.list[]` (`<assignedAgent>-<groupIdSlug>`, model, skills) + matching `bindings[]` routes tagged `managed-by: channel-manager`; operator-owned entries never touched; preview modal surfaces per-channel effective model / skills and any operator-owned collisions (write refused on collision). Orphan cleanup = C1b.2b. `agents.defaults.*` opt-in = C1b.2c. |
+| Config Apply to `openclaw.json`     | **C1 + C1b.1 + C1b.2a:** `requireMention` + per-group `skills` + per-channel synthesized `agents.list[]` (`<assignedAgent>-<groupIdSlug>`, model, skills) + matching `bindings[]` routes tagged `managed-by: channel-manager`; operator-owned entries never touched; preview modal surfaces per-channel effective model / skills and any operator-owned collisions (write refused on collision). Orphan cleanup = C1b.2b. `agents.defaults.*` opt-in = C1b.2c. **Stale Telegram sessions** (pre-C1b.2a `agent:main:telegram:group:<id>` entries with a pinned `authProfileOverride`) must be released once so new bindings take effect — interim tool `scripts/cm-release-telegram-session` (C1b.2d). |
 | Summary promotion to memory/        | **Live (C2):** `POST /api/summaries/promote` + IDE tab modal (daily `memory/*.md` or `MEMORY.md`) |
 | `occ-ctl.mjs`                       | Not in tree; `npm start` / `npm run dev` are the current entrypoints                              |
 | **Bundle A (performance + cleanup)**| **Closed 2026-04-18** — P1 fan-kill, P2 latency, P2b scroll v3, P3 dead code, P4 tool accordion, CLI Node-24 fix |
@@ -247,6 +247,7 @@ OpenClaw Gateway's `openclaw.json`, safely.
 
 **Next (C1b.2b):** orphan cleanup — remove CM-marked `agents.list[]` / `bindings[]` entries whose `source: <groupId>` no longer appears in `channel_config.json`.
 **Next (C1b.2c — opt-in):** let CM manage `agents.defaults.model` when the operator explicitly ticks a "CM controls workspace default" toggle.
+**Next (C1b.2d — stale-session release):** when an Apply changes the binding for a Telegram peer that already has a session entry pinned to a provider-specific `authProfileOverride` in `~/.openclaw/agents/main/sessions/sessions.json`, that pinned session short-circuits the new binding and the model change has no visible effect. Interim tool: [`scripts/cm-release-telegram-session`](./scripts/cm-release-telegram-session) (`--list`, `--dry-run`, `--restart`) — backs up `sessions.json`, removes the stale `agent:main:telegram:group:<id>` entry, optionally restarts the gateway; next inbound message then binds through the CM-written `bindings[]` → synth agent → CM model. Productize as part of Apply (detect + offer release in the preview modal) once the manual tool has proven itself in practice. Tracks ADR-018 on the upstream side.
 
 **Goal:** align operator expectations with reality: **Channel Manager** is the single place to define per-channel **agent model**, **sub-agent / skill policy**, and related knobs that OpenClaw’s gateway actually honors, then **push** them through the same explicit **Apply** path (preview, confirm, backup, audit) already used for `requireMention`.
 
@@ -451,7 +452,7 @@ path for A.
   `/api/openclaw/*` remain as **one-release** thin aliases; remove in the
   following PR after clients migrate.
 - **Bundle C1** — apply MVP landed 2026-04-18 (`requireMention` merge + UI).
-- **Bundle C1b** — in progress (§5.1): **C1b.1** group `skills` merge landed 2026-04-18; **C1b.2 spec signed-off 2026-04-18**; **C1b.2a** (additive upsert of per-channel `agents.list[]` + `bindings[]`) landed 2026-04-18. Remaining: **C1b.2b** orphan cleanup, **C1b.2c** opt-in `agents.defaults.model`, **C1b.3** sub-agent skill flavoring.
+- **Bundle C1b** — in progress (§5.1): **C1b.1** group `skills` merge landed 2026-04-18; **C1b.2 spec signed-off 2026-04-18**; **C1b.2a** (additive upsert of per-channel `agents.list[]` + `bindings[]`) landed 2026-04-18. Remaining: **C1b.2b** orphan cleanup, **C1b.2c** opt-in `agents.defaults.model`, **C1b.2d** stale-session release (interim tool `scripts/cm-release-telegram-session` shipped 2026-04-20), **C1b.3** sub-agent skill flavoring.
 - **Bundle C2** — landed 2026-04-18 (summary → memory promote + modal).
 - **Local LLM (LM Studio) wiring** — landed 2026-04-18: `lmstudio` provider registered, plugin enabled, all CM channels and `agents.list[]` re-pointed to `lmstudio/google/gemma-4-26b-a4b`. Open dependency: LM Studio `n_ctx ≥ 16384` (operator action, see §8b.3). Webchat-vs-binding parity is upstream (§8b.2a, ADR-018).
 
