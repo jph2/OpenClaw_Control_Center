@@ -13,6 +13,11 @@
 #   Symptom: CM UI shows openai/gpt-4o, Telegram replies (when any) come
 #   back on Codex/Kimi instead, or nothing comes back at all.
 #
+#   Synth agents under ~/.openclaw/agents/tars-*/sessions/sessions.json can
+#   pin authProfileOverride too (e.g. moonshot:default → Kimi + literal
+#   NO_REPLY). That is NOT this script's file — use instead:
+#     node scripts/cm-unpin-synth-session-auth.mjs <groupId> [--dry-run]
+#
 # What this does (safe by default):
 #   1. Finds the session entry keyed `agent:main:telegram:group:<groupId>`
 #      in `~/.openclaw/agents/main/sessions/sessions.json`.

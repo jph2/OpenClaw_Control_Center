@@ -47,12 +47,26 @@ export function hydrateChannelAliasesFromDiskSync() {
     }
 }
 
+// OpenClaw gateway emits chat_ids with a transport prefix like "telegram:-1003…" inside
+// the "Conversation info (untrusted metadata)" block of every user payload, while the
+// Channel Manager (routes, frontend, channel_config.json aliases) treats the bare numeric
+// Telegram group id as the canonical buffer key. Stripping the prefix here keeps every
+// downstream key comparison consistent without touching each call site.
+const TRANSPORT_PREFIX_RE = /^(?:telegram|tg|slack|discord|whatsapp|signal):/i;
+
+function stripTransportPrefix(value) {
+    return value.replace(TRANSPORT_PREFIX_RE, '');
+}
+
 /**
  * Single storage key per Telegram group so SSE and buffers stay consistent.
  * Exported for the telegram route (SSE backlog + live) to match the same key.
  */
 export function normalizeChatIdForBuffer(chatId) {
-    const s = String(chatId ?? '').trim();
-    if (!s) return s;
-    return CHAT_ID_ALIASES.get(s) || s;
+    const raw = String(chatId ?? '').trim();
+    if (!raw) return raw;
+    const stripped = stripTransportPrefix(raw);
+    if (CHAT_ID_ALIASES.has(stripped)) return CHAT_ID_ALIASES.get(stripped);
+    if (CHAT_ID_ALIASES.has(raw)) return CHAT_ID_ALIASES.get(raw);
+    return stripped;
 }

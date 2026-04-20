@@ -361,9 +361,11 @@ performs, find the matching synth agent for the peer, and use its model.
 **Consequences.** The "OpenClaw chat shows the wrong model" complaint is
 documented as a **known upstream limitation** (`030_ROADMAP.md` §8b.2a),
 not a CM bug. Telegram traffic remains the canonical signal that "the
-per-channel model is live." A future C1b.2c will add an *opt-in* control
-for `agents.defaults.model` so an operator who wants the webchat default
-to track a specific channel can do so explicitly — never silently.
+per-channel model is live." **C1b.2c (2026-04-20)** adds an *opt-in* slice
+(`openclawAgentsDefaultsPolicy.applyModelOnOpenClawApply` + `modelPrimary` in
+`channel_config.json`) so an operator can push `agents.defaults.model.primary`
+on **Apply** only when explicitly enabled — never silently; upstream webchat
+resolver work remains the proper long-term fix (ADR-018 decision above).
 
 ---
 

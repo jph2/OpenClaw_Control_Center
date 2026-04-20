@@ -8,13 +8,24 @@ let sessionFilesWatcher = null;
 
 const fileOffsets = new Map();
 
+// Polling is used deliberately instead of inotify-backed fs.watch because OpenClaw
+// appends to per-session JSONL files in small bursts. Under those conditions chokidar
+// silently drops change events on ext4 when `awaitWriteFinish` is combined with plain
+// append-writes (observed 2026-04-20: 3 registered files, 0 matching inotify watches).
+// Polling at 200ms: faster mirror for CM OpenClaw Chat vs Telegram (~half the average
+// wait vs 400ms) while still cheap for a few JSONL files. (chokidar + ext4 append quirk)
+const SESSION_TAIL_POLL_INTERVAL_MS = 200;
+
 function ensureSessionFilesWatcher() {
     if (sessionFilesWatcher) return sessionFilesWatcher;
     sessionFilesWatcher = chokidar.watch([], {
         persistent: true,
         ignoreInitial: true,
         awaitWriteFinish: { stabilityThreshold: 80, pollInterval: 40 },
-        alwaysStat: false
+        alwaysStat: false,
+        usePolling: true,
+        interval: SESSION_TAIL_POLL_INTERVAL_MS,
+        binaryInterval: SESSION_TAIL_POLL_INTERVAL_MS * 2
     });
     sessionFilesWatcher.on('add', handleSessionFileAppend);
     sessionFilesWatcher.on('change', handleSessionFileAppend);
@@ -42,6 +53,7 @@ export function reconcileWatchedSessionFiles() {
         watchedSessionFiles.add(filePath);
         watcher.add(filePath);
         seedSessionFileBuffer(filePath);
+        console.log(`[Chat/sessionTail] Watching canonical session file: ${filePath}`);
     }
 
     for (const filePath of Array.from(watchedSessionFiles)) {
@@ -119,15 +131,22 @@ function handleSessionFileAppend(filePath) {
         fileOffsets.set(filePath, prevOffset + consumedBytes);
 
         const lines = processable.split('\n').filter((l) => l.trim() !== '');
+        let messageCount = 0;
         for (const line of lines) {
             try {
                 const parsed = JSON.parse(line);
                 if (parsed.type === 'message' && parsed.message) {
                     processGatewayMessage(parsed, false, filePath);
+                    messageCount += 1;
                 }
             } catch {
                 /* skip bad line */
             }
+        }
+        if (messageCount > 0) {
+            console.log(
+                `[Chat/sessionTail] Appended ${messageCount} gateway message(s) from ${filePath} (+${delta} bytes).`
+            );
         }
     } catch (err) {
         console.warn(`[Chat/sessionTail] handleSessionFileAppend failed for ${filePath}:`, err.message);

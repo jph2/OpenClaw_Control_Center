@@ -50,11 +50,26 @@ function extractTelegramGroupIdFromUserPayload(data) {
     return null;
 }
 
+const INGEST_DEBUG = process.env.CM_INGEST_DEBUG === '1';
+
+function debugIngest(tag, ctx) {
+    if (!INGEST_DEBUG) return;
+    try {
+        console.log(`[Chat/sessionIngest] ${tag}`, JSON.stringify(ctx));
+    } catch {
+        /* best effort */
+    }
+}
+
 export function processGatewayMessage(data, isInit = false, filePath = '') {
     const msgObj = buildMsgObjFromGatewayLine(data);
-    if (!msgObj) return;
+    if (!msgObj) {
+        debugIngest('skip:no-msgObj', { filePath, isInit });
+        return;
+    }
 
     if (processedMessageIds.has(msgObj.id)) {
+        debugIngest('skip:dedup', { id: msgObj.id, filePath, isInit });
         return;
     }
 
@@ -86,6 +101,7 @@ export function processGatewayMessage(data, isInit = false, filePath = '') {
     }
 
     if (!canonicalChatId) {
+        debugIngest('skip:no-canonicalChat', { id: msgObj.id, sessionUuid, filePath });
         return;
     }
 
@@ -93,9 +109,16 @@ export function processGatewayMessage(data, isInit = false, filePath = '') {
     if (expectedFile && filePath) {
         try {
             if (path.resolve(filePath) !== path.resolve(expectedFile)) {
+                debugIngest('skip:file-mismatch', {
+                    id: msgObj.id,
+                    canonicalChatId,
+                    filePath,
+                    expectedFile
+                });
                 return;
             }
         } catch {
+            debugIngest('skip:file-resolve-error', { filePath, expectedFile });
             return;
         }
     }
@@ -113,7 +136,15 @@ export function processGatewayMessage(data, isInit = false, filePath = '') {
         }
 
         if (!isInit) {
+            const listenerCount = telegramEvents.listenerCount('newMessage');
             telegramEvents.emit('newMessage', { chatId, message: msgObj });
+            console.log(
+                `[Chat/sessionIngest] emit newMessage chatId=${chatId} msgId=${msgObj.id} listeners=${listenerCount}`
+            );
+        } else {
+            debugIngest('buffered:init', { id: msgObj.id, chatId });
         }
+    } else {
+        debugIngest('skip:already-in-buffer', { id: msgObj.id, chatId });
     }
 }

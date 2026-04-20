@@ -13,6 +13,8 @@ export default function ChannelManagerChannelRow({
     setRowHeights,
     rowSubtabs,
     setRowSubtabs,
+    /** When opening OpenClaw Chat, close Chat on other rows (SSE / browser connection limit). */
+    setRowSubtabsExclusive,
     selectedChannels,
     handleToggleSelect,
     MAIN_AGENTS,
@@ -252,47 +254,59 @@ export default function ChannelManagerChannelRow({
             );
         };
 
+        /** Default engine (TARS) first so collapsed / narrow left column still shows it without scrolling past long currentTask text. */
         const topBlock = (
             <>
                 <div className="tg-name" title={tg.name || tg.id}>
                     {formatTtgChannelName(tg.name) || tg.name || tg.id}
                 </div>
                 <div className="tg-id">{tg.id}</div>
-                <div className={`status-badge ${tg.status}`} style={{ width: 'fit-content', marginTop: '8px' }}>
-                    <div className="status-dot"></div> {tg.status}
-                </div>
-                <div className="current-task" style={{ marginBottom: '16px' }}>
-                    {tg.currentTask}
-                </div>
-
                 <div
                     style={{
-                        width: '100%',
-                        marginBottom: '4px',
-                        padding: '6px 8px',
-                        background: 'var(--bg-elevated)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        color: 'var(--text-primary)'
+                        display: 'flex',
+                        flexDirection: 'row',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginTop: '8px',
+                        marginBottom: '10px'
                     }}
                 >
-                    {agentDetails.name}
+                    <div className={`status-badge ${tg.status}`} style={{ width: 'fit-content', flex: '0 0 auto' }}>
+                        <div className="status-dot"></div> {tg.status}
+                    </div>
+                    <button
+                        type="button"
+                        title="Default engine (always on) — open agent settings"
+                        onClick={() => navigateToAgent('tars')}
+                        style={{
+                            /* theme.css sets `button { width: 100% }` — override so this sits beside the status badge */
+                            width: 'auto',
+                            maxWidth: '100%',
+                            flex: '0 0 auto',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '4px 10px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.03em',
+                            background: 'var(--bg-elevated)',
+                            border: '1px solid var(--border-color)',
+                            color: 'var(--text-primary)',
+                            cursor: 'pointer',
+                            fontFamily: 'inherit',
+                            lineHeight: 1.2
+                        }}
+                    >
+                        {agentDetails.name}
+                    </button>
                 </div>
                 <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '10px' }}>{agentDetails.role}</div>
-                <div
-                    onClick={() => navigateToAgent('tars')}
-                    style={{
-                        fontSize: '10px',
-                        color: agentDetails.color,
-                        cursor: 'pointer',
-                        textDecoration: 'underline',
-                        marginBottom: '16px',
-                        display: 'inline-block'
-                    }}
-                >
-                    {agentDetails.name} konfigurieren ➔
+
+                <div className="current-task" style={{ marginBottom: '12px' }}>
+                    {tg.currentTask}
                 </div>
 
                 <div style={{ marginTop: '8px', marginBottom: '8px', fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>
@@ -422,7 +436,11 @@ export default function ChannelManagerChannelRow({
                         <button
                             type="button"
                             className={`row-tab ${subTab === 'chat' ? 'active' : ''}`}
-                            onClick={() => setRowSubtabs({ ...rowSubtabs, [tg.id]: 'chat' })}
+                            onClick={() =>
+                                setRowSubtabsExclusive
+                                    ? setRowSubtabsExclusive(tg.id, 'chat')
+                                    : setRowSubtabs({ ...rowSubtabs, [tg.id]: 'chat' })
+                            }
                         >
                             OpenClaw Chat
                         </button>

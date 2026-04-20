@@ -14,11 +14,11 @@
 | Area                                | State                                                                                            |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------ |
 | Configuration tab                   | Functional; TTG CRUD, sub-agent CRUD, skills list, row heights persist                            |
-| OpenClaw Chat mirror                | Functional; auto-scroll v3 live, tool chips collapsible, CLI routed through Node 24, dead code purged |
+| OpenClaw Chat mirror                | Functional; auto-scroll v3 live, tool chips collapsible, CLI send + JSONL mirror; **2026-04-20 UX:** optimistic user bubble, 200 ms session tail poll, bubble timestamps with seconds (until §8c native gateway path) |
 | Cursor Summary tab                  | Read-only MVP live; A070 list + renderer                                                         |
 | IDE Bridge (MCP)                    | Live for `send_telegram_reply` and `change_agent_mode`                                           |
 | Exports (read-only projections)    | Live: `/api/exports/{canonical,openclaw,ide,cursor}`                                             |
-| Config Apply to `openclaw.json`     | **C1 + C1b.1 + C1b.2a:** `requireMention` + per-group `skills` + per-channel synthesized `agents.list[]` (`<assignedAgent>-<groupIdSlug>`, model, skills) + matching `bindings[]` routes tagged `managed-by: channel-manager`; operator-owned entries never touched; preview modal surfaces per-channel effective model / skills and any operator-owned collisions (write refused on collision). Orphan cleanup = C1b.2b. `agents.defaults.*` opt-in = C1b.2c. **Stale Telegram sessions** (pre-C1b.2a `agent:main:telegram:group:<id>` entries with a pinned `authProfileOverride`) must be released once so new bindings take effect — interim tool `scripts/cm-release-telegram-session` (C1b.2d). |
+| Config Apply to `openclaw.json`     | **C1 + C1b.1 + C1b.2a + C1b.2b + C1b.2c + C1b.2e + C1b.3:** per-channel groups + synth `agents.list[]` / `bindings[]` (skills include **C1b.3**) + orphan prune; optional **`channels.telegram` account policy**; optional **`agents.defaults.model.primary`** when `openclawAgentsDefaultsPolicy.applyModelOnOpenClawApply`. **Stale Telegram sessions** — `scripts/cm-release-telegram-session` (**C1b.2d**). |
 | Summary promotion to memory/        | **Live (C2):** `POST /api/summaries/promote` + IDE tab modal (daily `memory/*.md` or `MEMORY.md`) |
 | `occ-ctl.mjs`                       | Not in tree; `npm start` / `npm run dev` are the current entrypoints                              |
 | **Bundle A (performance + cleanup)**| **Closed 2026-04-18** — P1 fan-kill, P2 latency, P2b scroll v3, P3 dead code, P4 tool accordion, CLI Node-24 fix |
@@ -232,24 +232,33 @@ OpenClaw Gateway's `openclaw.json`, safely.
 
 **Follow-ups:**
 
-- **Bundle C1b (§5.1)** — group `skills` shipped as **C1b.1**; remaining: model / `agents.*`, sub-agent policy, richer validation.
+- **Bundle C1b (§5.1)** — **closed 2026-04-20** (model + synth agents + bindings + account policy + workspace default model + sub-agent skills + orphan prune; see §5.1).
 - Optional separate JSON Schema file for stricter validation.
+- **C1b.2d (productize)** — surface stale `sessions.json` pins in Apply preview and offer release (today: [`scripts/cm-release-telegram-session`](./scripts/cm-release-telegram-session)).
 
 ---
 
 ## 5.1. Bundle C1b — Master config → OpenClaw (extended Apply)
 
-**Status:** in progress · **Depends on:** C1 (apply pipeline, audit, undo) · **Blocks:** nothing in the A → B chain; can run in parallel with **C2** once staffed.
+**Status:** **closed (2026-04-20)** · **Depends on:** C1 (apply pipeline, audit, undo) · **Blocks:** nothing in the A → B chain.
+
+**Suggested next (same product area, not a new bundle letter):** **C1b.2d productization** — in **Apply to OpenClaw** preview, detect `agent:main:telegram:group:<id>` (and related) pins in `~/.openclaw/agents/main/sessions/sessions.json` for peers whose binding/model changes on this Apply; offer **Release session** (reuse logic from [`scripts/cm-release-telegram-session`](./scripts/cm-release-telegram-session)) with explicit confirm. Until then the script remains the operator path.
 
 **Shipped (C1b.1 — 2026-04-18):** `channels.telegram.groups[id].skills` is merged from `channel_config.json` `channels[].skills` (deduped string ids) together with `requireMention`, via the same Apply / undo / audit path. Empty CM list → empty `skills` array on the group in `openclaw.json`.
 
-**Shipped (C1b.2a — 2026-04-18):** Per-channel **model** + main-agent **skills allowlist** now ride the same Apply pipeline, written as synthesized `agents.list[]` entries (id `<assignedAgent>-<groupIdSlug>`, e.g. `tars-5168034995`) plus matching `bindings[] { type: 'route', match: { channel: 'telegram', peer: { kind: 'group', id } } }`. Every CM-emitted entry carries `comment: "managed-by: channel-manager; source: <groupId>"`. Operator-authored entries are detected by the absence of that marker and are **never** modified. Synth-id and telegram-peer collisions against operator-owned rows are surfaced to the UI; a write with any collision is refused (HTTP 409). Additive-first: stale CM-marked rows are not removed in this phase — that's **C1b.2b**. See spec: [`_archive/2026-04/CHANNEL_MANAGER_C1b.2_MODEL_MAPPING_SPEC.md`](./_archive/2026-04/CHANNEL_MANAGER_C1b.2_MODEL_MAPPING_SPEC.md) (sign-off: §9).
+**Shipped (C1b.2a — 2026-04-18):** Per-channel **model** + main-agent **skills allowlist** now ride the same Apply pipeline, written as synthesized `agents.list[]` entries (id `<assignedAgent>-<groupIdSlug>`, e.g. `tars-5168034995`) plus matching `bindings[] { type: 'route', match: { channel: 'telegram', peer: { kind: 'group', id } } }`. Every CM-emitted entry carries `comment: "managed-by: channel-manager; source: <groupId>"`. Operator-authored entries are detected by the absence of that marker and are **never** modified. Synth-id and telegram-peer collisions against operator-owned rows are surfaced to the UI; a write with any collision is refused (HTTP 409). See spec: [`_archive/2026-04/CHANNEL_MANAGER_C1b.2_MODEL_MAPPING_SPEC.md`](./_archive/2026-04/CHANNEL_MANAGER_C1b.2_MODEL_MAPPING_SPEC.md) (sign-off: §9).
 
-**Next (C1b.2b):** orphan cleanup — remove CM-marked `agents.list[]` / `bindings[]` entries whose `source: <groupId>` no longer appears in `channel_config.json`.
-**Next (C1b.2c — opt-in):** let CM manage `agents.defaults.model` when the operator explicitly ticks a "CM controls workspace default" toggle.
-**Next (C1b.2d — stale-session release):** when an Apply changes the binding for a Telegram peer that already has a session entry pinned to a provider-specific `authProfileOverride` in `~/.openclaw/agents/main/sessions/sessions.json`, that pinned session short-circuits the new binding and the model change has no visible effect. Interim tool: [`scripts/cm-release-telegram-session`](./scripts/cm-release-telegram-session) (`--list`, `--dry-run`, `--restart`) — backs up `sessions.json`, removes the stale `agent:main:telegram:group:<id>` entry, optionally restarts the gateway; next inbound message then binds through the CM-written `bindings[]` → synth agent → CM model. Productize as part of Apply (detect + offer release in the preview modal) once the manual tool has proven itself in practice. Tracks ADR-018 on the upstream side.
+**Shipped (C1b.2b — 2026-04-20):** **Orphan prune** on every Apply (after the C1b.2a upsert): CM-marked `agents.list[]` / `bindings[]` whose managed `source` group id is **not** present in `channel_config.json` `channels[].id` are removed. Preview + audit log surface `orphanPruneSummary` (counts + id list). Operator-owned rows untouched.
 
-**Next (C1b.2e — Telegram account policy UI):** `channels.telegram.{groupPolicy, dmPolicy, groupAllowFrom, allowFrom}` are OpenClaw-account-level gates that live *above* the per-group config CM already owns. They short-circuit inbound messages silently (e.g. `groupPolicy: "allowlist"` with an empty allowlist drops every group update at the admission gate before any binding lookup runs). 2026-04-20 debugging showed a 12+-day regression in TTG001/TTG000 traced entirely to this. Operator flipped `groupPolicy: allowlist → open` manually in `~/.openclaw/openclaw.json` (backup `openclaw.json.backup-groupPolicy-<ts>`); next step is a CM "Telegram account policy" surface (preview + Apply) so this knob is discoverable and revertible without shell editing. No schema extension needed — CM already owns the Apply pipeline; only adds `channels.telegram.{groupPolicy,dmPolicy,allowFrom,groupAllowFrom}` to the mergeable slice, gated behind an explicit opt-in (same safety posture as C1b.2c for `agents.defaults.model`).
+**Shipped (C1b.2d — stale-session release, 2026-04-20):** when an Apply changes the binding for a Telegram peer that already has a session entry pinned to a provider-specific `authProfileOverride` in `~/.openclaw/agents/main/sessions/sessions.json`, that pinned session short-circuits the new binding and the model change has no visible effect. Interim tool: [`scripts/cm-release-telegram-session`](./scripts/cm-release-telegram-session) (`--list`, `--dry-run`, `--restart`) — backs up `sessions.json`, removes the stale `agent:main:telegram:group:<id>` entry, optionally restarts the gateway; next inbound message then binds through the CM-written `bindings[]` → synth agent → CM model. Productize as part of Apply (detect + offer release in the preview modal) once the manual tool has proven itself in practice. Tracks ADR-018 on the upstream side. **Also shipped 2026-04-20:** CM live-mirror follow-ups (agent-id-agnostic session index, polling JSONL tailer, transport-prefix-aware chat-id normalization; see [DISCOVERY §11](./_archive/2026-04/CHANNEL_MANAGER_TelegramSync_DISCOVERY.md#11-runtime-lessons--channel-manager-live-mirror-2026-04-20)). TTG000 acceptance test passed: Telegram → OC Web + CM panel synchronized in real time without page reload.
+
+**Shipped (C1b.2e — 2026-04-20):** **Telegram account policy** in CM: Manage Channels panel + `channel_config.json` → `telegramAccountPolicy` (`applyOnOpenClawApply`, `groupPolicy`, `dmPolicy`, `allowFrom`, `groupAllowFrom`). **Apply** merges into `openclaw.json` `channels.telegram` only when `applyOnOpenClawApply` is true (explicit opt-in, same posture as C1b.2c). Preview lists the JSON patch; `GET /api/channels` adds `openclawTelegramAccountLive` for comparison with the live gateway file. `POST /api/channels/updateTelegramAccountPolicy` persists the slice. *Context:* account-level gates run *above* per-group bindings and can drop traffic silently (e.g. `groupPolicy: allowlist` + empty `groupAllowFrom` — TTG001/TTG000 regression, 2026-04-20).
+
+**Shipped (C1b.3 — 2026-04-20):** **Sub-agent skill flavoring** — CM synth `agents.list[].skills` unions active `subAgents` (`parent` = channel `assignedAgent`, `enabled !== false`, not in `inactiveSubAgents`) `additionalSkills` minus each sub’s `inactiveSkills`, deduped (same layering as the TTG UI; ADR-004 unchanged).
+
+**Shipped (C1b.2c — 2026-04-20):** **Workspace default model (opt-in)** — `channel_config.json` → `openclawAgentsDefaultsPolicy` (`applyModelOnOpenClawApply`, `modelPrimary`). **Apply** sets `agents.defaults.model.primary` only when the opt-in is true and `modelPrimary` is non-empty; existing `model` object fields (e.g. `fallbacks`) are preserved. Manage Channels panel + `POST /api/channels/updateOpenclawAgentsDefaultsPolicy`; `GET /api/channels` adds `openclawAgentsDefaultsLive.modelPrimary`. Complements ADR-018 (never silent).
+
+**Recommended execution order (operator + implementer, 2026-04-20):** (1) Acceptance matrix in [`000_WIP TEST_20.04.26.md`](./000_WIP%20TEST_20.04.26.md) as needed. (2) **C1b.2b** — shipped. (3) **C1b.2e** — shipped. (4) **C1b.3** — shipped. (5) **C1b.2c** — shipped. **C1b.2d** + CM mirror hardening shipped; CLI cold-start latency remains **§8b.1** (upstream / `tools.gatewayToken`, not CM code).
 
 **Goal:** align operator expectations with reality: **Channel Manager** is the single place to define per-channel **agent model**, **sub-agent / skill policy**, and related knobs that OpenClaw’s gateway actually honors, then **push** them through the same explicit **Apply** path (preview, confirm, backup, audit) already used for `requireMention`.
 
@@ -377,15 +386,49 @@ startup error as `inject_cli_startup_error` 300 ms after the spawn.
 1. Bump the OpenClaw CLI to the latest build (user self-service;
    tentatively 4.15 once available) — expected to reintroduce a
    supported auth path.
-2. Add `tools.gatewayToken` (or equivalent) to
-   `~/.openclaw/openclaw.json` so the CLI uses the warm gateway
-   daemon instead of a cold embedded agent. Expected latency:
-   single-digit seconds for the user echo, model-bound for the reply.
+2. ~~Add `tools.gatewayToken` (or equivalent) to
+   `~/.openclaw/openclaw.json`.~~ **Correction 2026-04-20 (18:50 CEST):**
+   `tools.gatewayToken` is **not** a valid `openclaw.json` key in the
+   installed CLI build (`dist/plugin-sdk/src/config/types.tools.d.ts`
+   `ToolsConfig` has no such field; the schema validator rejects it
+   with `Unrecognized key "gatewayToken"`). The CLI error hint
+   `pass --token or --password (or gatewayToken in tools)` is
+   misleading — it refers to the `tools` parameter bag inside the
+   plugin-SDK `GatewayCallOptions`, not the `tools` block of
+   `openclaw.json`. The correct wiring is via env vars
+   `OPENCLAW_GATEWAY_URL` + `OPENCLAW_GATEWAY_TOKEN` on the CLI child
+   process — which `sessionSender.js` already does (see below).
 
-**Channel Manager change needed:** none right now. When the CLI's
-gateway-auth story stabilizes, `sessionSender.js` (Bundle B / P5)
-gains a `--token` / env-based auth argument, gated behind presence
-of `OPENCLAW_GATEWAY_TOKEN`. Until then: document, wait, move on.
+**Channel Manager (2026-04-20):** `sessionSender.js` passes `OPENCLAW_GATEWAY_TOKEN` and
+`OPENCLAW_GATEWAY_URL` into the `openclaw agent` child process: from env if set, else token
+and port are read from `openclaw.json` (`OPENCLAW_CONFIG_PATH` or `~/.openclaw/openclaw.json`).
+This matches what the OpenClaw CLI expects for warm-gateway RPC and avoids embedded fallback
+when the gateway token is configured. **Operator:** Node for the CLI spawn must still be ≥ v22
+(`OPENCLAW_NODE_BIN` / `sessionSender` resolution); fix any remaining latency there separately.
+
+**Verified 2026-04-20 (18:50 CEST):** `/tmp/openclaw-cm-send-ad454416-*.log` (send at
+17:56 CEST, after `openclawGatewayEnv.js` was deployed at 16:54) no longer shows
+the `Gateway agent failed; falling back to embedded` error. The CLI reaches the
+warm gateway successfully; `runner: "embedded"` in `executionTrace` is the
+**gateway-side** runner type (`plugin-sdk/src/agents/pi-embedded-runner/types.d.ts`
+`runner?: "embedded" | "cli"`), not a CLI-level fallback. Measured split for one
+send on Kimi-K2.5: `meta.durationMs = 2870` ms for model inference, plus workspace
+bootstrap re-read on every request (AGENTS.md 7727 → 3707 chars truncation) and
+CLI cold boot (~1–2 s per spawn). Residual user-visible latency therefore comes
+from (a) CLI cold boot per message, (b) gateway-side bootstrap, (c) JSONL-tail
+poll (now 200 ms). Proper remedy is §8b.4 (gateway-native CM transport).
+
+**Status 2026-04-20 (re-verified):** unchanged. TTG000 stopwatch
+run reported **~25 s** until the user echo lands and ~1 s more
+until the model reply — matches the documented envelope. Send log
+still shows `"runner": "embedded"`; `openclaw.json → tools` is
+`null` (no `gatewayToken`); the `openclaw` CLI on PATH additionally
+refuses to launch because the shell's default Node is v20.18.2 and
+the CLI requires ≥ v22.12. All three pointers lead to the same
+root cause. No Channel Manager action taken — this remains a
+wait-for-upstream item; operator-side mitigations (install
+Node ≥ v22, add `tools.gatewayToken`, re-test) stay optional until
+the CLI stabilizes its auth path.
 
 ### 8b.2a · OpenClaw webchat reads `agents.defaults.model`, not the Telegram binding
 
@@ -444,6 +487,27 @@ bubbles synchronously. Addressed structurally in Bundle B / P5 via the
 `ChatPanel` split + optional message virtualization. Not on the critical
 path for A.
 
+### 8b.4 · CM OpenClaw Chat — gateway-native path (next major feature)
+
+**Goal:** Channel Manager **OpenClaw Chat** should use the **same transport as OpenClaw Control UI**: authenticated **WebSocket (or documented HTTP)** to the local gateway (`gateway.port` / `gateway.auth`), not `openclaw agent …` subprocess spawns per message + JSONL tail for user-visible latency.
+
+**Why:** OC achieves **~2–3 s** perceived round-trip on a warm gateway; CM today pays **CLI spawn + embedded fallback risk + mirror poll** delay (see §8b.1). Native gateway I/O aligns CM with Telegram-adjacent responsiveness.
+
+**Scope (Channel Manager):**
+
+1. Gateway client in Node (reuse protocol from OC / OpenClaw docs): connect with `OPENCLAW_GATEWAY_TOKEN`, send user turns to the bound Telegram/session peer, subscribe to assistant events.
+2. Replace or bypass `sessionSender.js` CLI path for **`POST /api/chat/.../send`** when gateway RPC is available; keep CLI as **fallback** behind a flag if needed for unsupported builds.
+3. SSE to the browser: push messages from gateway events (and/or continue tailing JSONL only as backup) so transcript order matches Telegram.
+4. Document operator env: token, port, TLS/off-LAN same as OC.
+
+**Acceptance:**
+
+- Stopwatch: CM chat **user bubble** latency and **assistant** latency within **~same band** as OC on the same machine (modulo model).
+- No regression for session binding / TTG group ids / `resolveCanonicalSession`.
+- Roadmap §8b.1 mitigations remain relevant for **fallback** CLI only.
+
+**Dependencies:** Stable gateway RPC surface (versioned); may require upstream OpenClaw doc or SDK. **ADR:** append to `040_DECISIONS.md` when implementation approach is chosen.
+
 ---
 
 ## 9. Release cadence
@@ -454,7 +518,7 @@ path for A.
   `/api/openclaw/*` remain as **one-release** thin aliases; remove in the
   following PR after clients migrate.
 - **Bundle C1** — apply MVP landed 2026-04-18 (`requireMention` merge + UI).
-- **Bundle C1b** — in progress (§5.1): **C1b.1** group `skills` merge landed 2026-04-18; **C1b.2 spec signed-off 2026-04-18**; **C1b.2a** (additive upsert of per-channel `agents.list[]` + `bindings[]`) landed 2026-04-18. Remaining: **C1b.2b** orphan cleanup, **C1b.2c** opt-in `agents.defaults.model`, **C1b.2d** stale-session release (interim tool `scripts/cm-release-telegram-session` shipped 2026-04-20), **C1b.2e** Telegram account policy UI (`groupPolicy`/`dmPolicy`/`allowFrom` — manual flip unblocked TTG ingest 2026-04-20), **C1b.3** sub-agent skill flavoring.
+- **Bundle C1b** — slice closed (§5.1, 2026-04-20): **C1b.1** … **C1b.3** as above; **C1b.2c** workspace-default model opt-in shipped. Further C1b work only if re-scoped. See §5.1.
 - **Bundle C2** — landed 2026-04-18 (summary → memory promote + modal).
 - **Local LLM (LM Studio) wiring** — landed 2026-04-18: `lmstudio` provider registered, plugin enabled, all CM channels and `agents.list[]` re-pointed to `lmstudio/google/gemma-4-26b-a4b`. Open dependency: LM Studio `n_ctx ≥ 16384` (operator action, see §8b.3). Webchat-vs-binding parity is upstream (§8b.2a, ADR-018).
 

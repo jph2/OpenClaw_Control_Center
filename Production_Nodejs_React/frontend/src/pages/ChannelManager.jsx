@@ -1,11 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient, useIsMutating } from '@tanstack/react-query';
 import { Download, Upload, RefreshCw, Save, Check, ChevronUp, ChevronDown, Plus, X, FileJson2 } from 'lucide-react';
 import ChannelManagerChannelRow from '../components/ChannelManagerChannelRow';
 import OpenClawApplyModal from '../components/OpenClawApplyModal.jsx';
+import TelegramAccountPolicyPanel from '../components/TelegramAccountPolicyPanel.jsx';
+import { DEFAULT_TELEGRAM_ACCOUNT_POLICY } from '../utils/defaultTelegramAccountPolicy.js';
+import OpenclawAgentsDefaultsPolicyPanel from '../components/OpenclawAgentsDefaultsPolicyPanel.jsx';
+import { DEFAULT_OPENCLAW_AGENTS_DEFAULTS_POLICY } from '../utils/defaultOpenclawAgentsDefaultsPolicy.js';
 import { useWorkbenchStore } from './Workbench.jsx';
 import { formatSkillOptionLabel } from '../utils/formatSkillOptionLabel.js';
+import { sortTtgChannels } from '../utils/sortTtgChannels.js';
 import { apiUrl } from '../utils/apiUrl.js';
 
 // Constants have been moved to the Node.js backend.
@@ -18,8 +23,14 @@ const ROW_HEIGHT_COLLAPSED = 260;
 /** Expanded height for bulk “all” actions (tuned for ~one viewport segment on 4K; was 1760 → 1460 → 1160 → 1010). */
 const ROW_HEIGHT_EXPANDED = 1010;
 
-/** Shared key so we can block „Apply to OpenClaw“ while config writes are in flight. */
+/** Shared key so we can block “Apply to OpenClaw” while config writes are in flight. */
 const CM_PERSIST_MUTATION_KEY = ['channel-manager-persist'];
+
+const APPLY_OPENCLAW_TITLE_WITH_TG_ACCOUNT =
+    'Apply merges into openclaw.json (preview, backup, then gateway restart): per TTG requireMention/skills, synth agents (agents.list), bindings — plus Telegram bot admission (groupPolicy, dmPolicy, allowFrom, groupAllowFrom), because “On next Apply…” in Bot admission (Telegram) is checked.';
+
+const APPLY_OPENCLAW_TITLE_WITHOUT_TG_ACCOUNT =
+    'Apply still writes TTG fields, synth agents, and bindings to openclaw.json. Without “On next Apply…” in Bot admission (Telegram), only the four account keys (groupPolicy, dmPolicy, allowFrom, groupAllowFrom) are not merged into the gateway — everything else is. To include admission: enable the checkbox, save, then Apply.';
 
 export default function ChannelManager() {
     const queryClient = useQueryClient();
@@ -89,7 +100,7 @@ export default function ChannelManager() {
                 throw new Error(
                     res.status === 502
                         ? 'Backend vorübergehend nicht erreichbar (502).'
-                        : `Kanal-Konfiguration konnte nicht geladen werden (${res.status}).`
+                        : `Could not load channel configuration (${res.status}).`
                 );
             }
             return res.json();
@@ -129,7 +140,7 @@ export default function ChannelManager() {
                 const msg =
                     data.message ||
                     (typeof data.error === 'string' ? data.error : null) ||
-                    `Kanal-Update fehlgeschlagen (${res.status}).`;
+                    `Channel update failed (${res.status}).`;
                 const err = new Error(msg);
                 if (import.meta.env.DEV && data.details) {
                     console.error('[channels/update]', data.details);
@@ -159,7 +170,7 @@ export default function ChannelManager() {
             if (context?.previousChannels) {
                 queryClient.setQueryData(['channels'], context.previousChannels);
             }
-            window.alert(err?.message || 'Kanal-Update fehlgeschlagen.');
+            window.alert(err?.message || 'Channel update failed.');
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['channels'] });
@@ -167,6 +178,8 @@ export default function ChannelManager() {
     });
 
     const backendChannels = configData?.data?.channels || [];
+    /** TTG000 before TTG001 before TTG010 — numeric prefix from name, not API / Telegram id order. */
+    const displayChannels = useMemo(() => sortTtgChannels(backendChannels), [backendChannels]);
 
     const updateAgentMutation = useMutation({
         mutationKey: CM_PERSIST_MUTATION_KEY,
@@ -244,6 +257,99 @@ export default function ChannelManager() {
             if (!res.ok) throw new Error('Reorder failed');
             return res.json();
         },
+        onSettled: () => queryClient.invalidateQueries({ queryKey: ['channels'] })
+    });
+
+    /** C1b.2e — OpenClaw `channels.telegram` account-level gates (persisted in channel_config.json; optional Apply slice). */
+    const liveTelegramPolicy = configData?.data?.openclawTelegramAccountLive;
+    const [telegramPolicyDraft, setTelegramPolicyDraft] = useState(() => ({
+        ...DEFAULT_TELEGRAM_ACCOUNT_POLICY
+    }));
+    const serverTelegramPolicyJson = useMemo(() => {
+        const p = configData?.data?.telegramAccountPolicy;
+        if (!configData?.ok || !p || typeof p !== 'object') return null;
+        try {
+            return JSON.stringify(p);
+        } catch {
+            return null;
+        }
+    }, [configData?.ok, configData?.data?.telegramAccountPolicy]);
+    useEffect(() => {
+        if (serverTelegramPolicyJson == null) return;
+        try {
+            const p = JSON.parse(serverTelegramPolicyJson);
+            setTelegramPolicyDraft({
+                ...DEFAULT_TELEGRAM_ACCOUNT_POLICY,
+                ...p,
+                allowFrom: Array.isArray(p.allowFrom) ? p.allowFrom : [],
+                groupAllowFrom: Array.isArray(p.groupAllowFrom) ? p.groupAllowFrom : []
+            });
+        } catch {
+            /* ignore */
+        }
+    }, [serverTelegramPolicyJson]);
+
+    const updateTelegramPolicyMutation = useMutation({
+        mutationKey: CM_PERSIST_MUTATION_KEY,
+        mutationFn: async (body) => {
+            const res = await fetch(apiUrl('/api/channels/updateTelegramAccountPolicy'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data.message || `Telegram policy save failed (${res.status})`);
+            }
+            return data;
+        },
+        onError: (err) => window.alert(err?.message || 'Save failed.'),
+        onSettled: () => queryClient.invalidateQueries({ queryKey: ['channels'] })
+    });
+
+    /** C1b.2c — opt-in agents.defaults.model.primary on Apply */
+    const liveAgentsDefaultsModel = configData?.data?.openclawAgentsDefaultsLive?.modelPrimary ?? null;
+    const [agentsDefaultsDraft, setAgentsDefaultsDraft] = useState(() => ({
+        ...DEFAULT_OPENCLAW_AGENTS_DEFAULTS_POLICY
+    }));
+    const serverAgentsDefaultsJson = useMemo(() => {
+        const p = configData?.data?.openclawAgentsDefaultsPolicy;
+        if (!configData?.ok || !p || typeof p !== 'object') return null;
+        try {
+            return JSON.stringify(p);
+        } catch {
+            return null;
+        }
+    }, [configData?.ok, configData?.data?.openclawAgentsDefaultsPolicy]);
+    useEffect(() => {
+        if (serverAgentsDefaultsJson == null) return;
+        try {
+            const p = JSON.parse(serverAgentsDefaultsJson);
+            setAgentsDefaultsDraft({
+                ...DEFAULT_OPENCLAW_AGENTS_DEFAULTS_POLICY,
+                ...p,
+                modelPrimary: typeof p.modelPrimary === 'string' ? p.modelPrimary : ''
+            });
+        } catch {
+            /* ignore */
+        }
+    }, [serverAgentsDefaultsJson]);
+
+    const updateAgentsDefaultsPolicyMutation = useMutation({
+        mutationKey: CM_PERSIST_MUTATION_KEY,
+        mutationFn: async (body) => {
+            const res = await fetch(apiUrl('/api/channels/updateOpenclawAgentsDefaultsPolicy'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data.message || `Agents defaults policy save failed (${res.status})`);
+            }
+            return data;
+        },
+        onError: (err) => window.alert(err?.message || 'Save failed.'),
         onSettled: () => queryClient.invalidateQueries({ queryKey: ['channels'] })
     });
 
@@ -329,7 +435,7 @@ export default function ChannelManager() {
                     setCreateSubAgentOpen(false);
                 },
                 onError: (err) => {
-                    setCreateSubAgentFormError(err.message || 'Anlegen fehlgeschlagen.');
+                    setCreateSubAgentFormError(err.message || 'Create failed.');
                 }
             }
         );
@@ -426,7 +532,7 @@ export default function ChannelManager() {
     };
 
     const handleSelectAll = (e) => {
-        if (e.target.checked) setSelectedChannels(backendChannels.map(c => c.id));
+        if (e.target.checked) setSelectedChannels(displayChannels.map((c) => c.id));
         else setSelectedChannels([]);
     };
 
@@ -501,15 +607,35 @@ export default function ChannelManager() {
     const handleSave = () => {
         handleReload();
         window.alert(
-            'Hinweis: Kanal- und Agenten-Änderungen werden bei jeder Aktion sofort in channel_config.json geschrieben.\n\n' +
-                'Dieser Button aktualisiert nur die Anzeige (wie „Reload“). „Apply to OpenClaw“ ist dafür nicht nötig.'
+            'Note: channel and agent edits are written to channel_config.json on every action.\n\n' +
+                'This button only refreshes the view (like Reload). “Apply to OpenClaw” is not required for that.'
         );
     };
+
+    /**
+     * At most one row may use the OpenClaw Chat tab: each ChatPanel opens an SSE
+     * to `/api/chat/:id/stream`. Browsers limit ~6 concurrent connections per
+     * origin; many open chats caused connection drops, reconnect storms, and
+     * `Failed to fetch` on session resolve.
+     */
+    const setRowSubtabsExclusive = useCallback((channelId, tab) => {
+        setRowSubtabs((prev) => {
+            const next = { ...prev };
+            const idStr = String(channelId);
+            if (tab === 'chat') {
+                for (const k of Object.keys(next)) {
+                    if (next[k] === 'chat' && k !== idStr) next[k] = 'config';
+                }
+            }
+            next[idStr] = tab;
+            return next;
+        });
+    }, []);
 
     /** Convenience: set every channel row height (and optionally the workspace tab) for all TTGs. */
     const applyBulkChannelRows = (heightPx, subTab) => {
         setActiveTab('channels');
-        const ids = backendChannels.map((c) => c.id);
+        const ids = displayChannels.map((c) => c.id);
         if (ids.length === 0) return;
         setRowHeights((prev) => {
             const next = { ...prev };
@@ -519,7 +645,12 @@ export default function ChannelManager() {
         if (subTab != null) {
             setRowSubtabs((prev) => {
                 const next = { ...prev };
-                for (const id of ids) next[id] = subTab;
+                if (subTab === 'chat' && ids.length > 0) {
+                    for (const id of ids) next[id] = 'config';
+                    next[ids[0]] = 'chat';
+                } else {
+                    for (const id of ids) next[id] = subTab;
+                }
                 return next;
             });
         }
@@ -527,6 +658,21 @@ export default function ChannelManager() {
 
     const renderManageChannels = () => (
         <>
+            <TelegramAccountPolicyPanel
+                draft={telegramPolicyDraft}
+                setDraft={setTelegramPolicyDraft}
+                live={liveTelegramPolicy}
+                onSave={(body) => updateTelegramPolicyMutation.mutate(body)}
+                savePending={updateTelegramPolicyMutation.isPending}
+            />
+            <OpenclawAgentsDefaultsPolicyPanel
+                draft={agentsDefaultsDraft}
+                setDraft={setAgentsDefaultsDraft}
+                liveModelPrimary={liveAgentsDefaultsModel}
+                modelOptions={AVAILABLE_MODELS}
+                onSave={(body) => updateAgentsDefaultsPolicyMutation.mutate(body)}
+                savePending={updateAgentsDefaultsPolicyMutation.isPending}
+            />
             <div 
                 style={{ 
                     display: 'flex', 
@@ -549,7 +695,7 @@ export default function ChannelManager() {
                 
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'nowrap' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--text-primary)', cursor: 'pointer' }}>
-                        <input type="checkbox" checked={selectedChannels.length === backendChannels.length && backendChannels.length > 0} onChange={handleSelectAll} style={{ cursor: 'pointer', transform: 'scale(1.2)' }} /> Select All ({selectedChannels.length})
+                        <input type="checkbox" checked={selectedChannels.length === displayChannels.length && displayChannels.length > 0} onChange={handleSelectAll} style={{ cursor: 'pointer', transform: 'scale(1.2)' }} /> Select All ({selectedChannels.length})
                     </label>
                     <select value={bulkModel} onChange={e => setBulkModel(e.target.value)} style={{ width: '160px', padding: '4px 8px', fontSize: '13px', background: '#13141c', border: '1px solid var(--border-color)', color: '#fff' }}>
                         <option value="">Set model...</option>
@@ -572,13 +718,13 @@ export default function ChannelManager() {
             <table className="channel-table" style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTop: 'none' }}>
                 <thead>
                     <tr>
-                        <th style={{ width: '40px', textAlign: 'center' }}><input type="checkbox" checked={selectedChannels.length === backendChannels.length && backendChannels.length > 0} onChange={handleSelectAll} style={{ cursor: 'pointer', transform: 'scale(1.2)' }} /></th>
+                        <th style={{ width: '40px', textAlign: 'center' }}><input type="checkbox" checked={selectedChannels.length === displayChannels.length && displayChannels.length > 0} onChange={handleSelectAll} style={{ cursor: 'pointer', transform: 'scale(1.2)' }} /></th>
                         <th style={{ width: '250px' }}>TTG (Telegram Topic Group)</th>
                         <th>Configuration & Chat Workspace</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {backendChannels.map(tg => (
+                    {displayChannels.map((tg) => (
                         <ChannelManagerChannelRow
                             key={tg.id}
                             tg={tg}
@@ -587,6 +733,7 @@ export default function ChannelManager() {
                             setRowHeights={setRowHeights}
                             rowSubtabs={rowSubtabs}
                             setRowSubtabs={setRowSubtabs}
+                            setRowSubtabsExclusive={setRowSubtabsExclusive}
                             selectedChannels={selectedChannels}
                             handleToggleSelect={handleToggleSelect}
                             MAIN_AGENTS={MAIN_AGENTS}
@@ -1347,7 +1494,7 @@ export default function ChannelManager() {
                         <button
                             type="button"
                             disabled={backendChannels.length === 0}
-                            title={`Alle Zeilen auf ${ROW_HEIGHT_EXPANDED}px, Tab: OpenClaw Chat`}
+                            title={`Alle Zeilen auf ${ROW_HEIGHT_EXPANDED}px. Nur die erste TTG öffnet „OpenClaw Chat“ (sonst brechen Browser-SSE-Limits bei ~6 Verbindungen/Host ein).`}
                             onClick={() => applyBulkChannelRows(ROW_HEIGHT_EXPANDED, 'chat')}
                         >
                             Open Claw Chat all
@@ -1370,14 +1517,18 @@ export default function ChannelManager() {
                     <button
                         type="button"
                         onClick={handleSave}
-                        title="Nur Anzeige aktualisieren — Speichern auf die Platte passiert bei jeder Änderung automatisch."
+                        title="Refresh the view only — each edit is already persisted to disk automatically."
                         style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                     >
                         <Save size={16} /> Save
                     </button>
                     <button
                         type="button"
-                        className="primary"
+                        className={
+                            channelPersistInFlight
+                                ? 'primary'
+                                : `primary${telegramPolicyDraft.applyOnOpenClawApply ? '' : ' apply-openclaw-partial'}`
+                        }
                         disabled={channelPersistInFlight}
                         onClick={() => {
                             if (channelPersistInFlight) return;
@@ -1385,8 +1536,10 @@ export default function ChannelManager() {
                         }}
                         title={
                             channelPersistInFlight
-                                ? 'Warten, bis alle Speichervorgänge fertig sind…'
-                                : 'channel_config.json → openclaw.json (Vorschau, Backup). Gateway wird nach erfolgreichem Apply neu gestartet.'
+                                ? 'Wait until all save operations finish…'
+                                : telegramPolicyDraft.applyOnOpenClawApply
+                                  ? APPLY_OPENCLAW_TITLE_WITH_TG_ACCOUNT
+                                  : APPLY_OPENCLAW_TITLE_WITHOUT_TG_ACCOUNT
                         }
                     >
                         <FileJson2 size={14} style={{ marginRight: '6px', verticalAlign: 'text-bottom' }} />

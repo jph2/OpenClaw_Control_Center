@@ -276,7 +276,13 @@ const MessageBubble = React.memo(({ msg }) => {
     const isPending = !!msg.pending;
 
     const formatNum = (n) => n > 1000 ? (n/1000).toFixed(1) + 'k' : n;
-    const timestampStr = new Date(msg.date * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    /** Include seconds for latency debugging (CM OpenClaw Chat vs wall clock). */
+    const timestampStr = new Date(msg.date * 1000).toLocaleTimeString(undefined, {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    });
     let stamp = `${timestampStr}`;
     if (msg.metrics) {
         const input = formatNum(msg.metrics.input || 0);

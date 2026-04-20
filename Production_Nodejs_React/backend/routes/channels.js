@@ -12,6 +12,13 @@ import {
     isStrictTtgChannelNamesEnabled,
     TTG_CHANNEL_NAME_PREFIX_RE
 } from '../utils/ttgChannelNameValidation.js';
+import {
+    TelegramAccountPolicyConfigSchema,
+    normalizeTelegramAccountPolicyConfig,
+    AgentsDefaultsPolicyConfigSchema,
+    normalizeAgentsDefaultsPolicyConfig,
+    readOpenclawAgentsDefaultsModelPrimary
+} from '../services/openclawApply.js';
 
 const OPENCLAW_JSON_PATH = process.env.OPENCLAW_CONFIG_PATH || '/home/claw-agentbox/.openclaw/openclaw.json';
 
@@ -183,7 +190,9 @@ const ChannelConfigSchema = z.object({
     })).nullish(),
     subAgents: z.array(z.any()).nullish(),
     metadata: z.any().nullish(),
-    availableModels: z.any().optional()
+    availableModels: z.any().optional(),
+    telegramAccountPolicy: TelegramAccountPolicyConfigSchema.optional(),
+    openclawAgentsDefaultsPolicy: AgentsDefaultsPolicyConfigSchema.optional()
 }).passthrough();
 
 const UpdateChannelSchema = z.object({
@@ -550,7 +559,20 @@ router.get('/', async (req, res, next) => {
             agents,
             subAgents,
             metadata: metadata,
-            availableModels: availableModels
+            availableModels: availableModels,
+            telegramAccountPolicy: normalizeTelegramAccountPolicyConfig(localState.telegramAccountPolicy),
+            openclawAgentsDefaultsPolicy: normalizeAgentsDefaultsPolicyConfig(
+                localState.openclawAgentsDefaultsPolicy
+            ),
+            openclawTelegramAccountLive: {
+                groupPolicy: openclawState?.channels?.telegram?.groupPolicy ?? null,
+                dmPolicy: openclawState?.channels?.telegram?.dmPolicy ?? null,
+                allowFrom: openclawState?.channels?.telegram?.allowFrom ?? null,
+                groupAllowFrom: openclawState?.channels?.telegram?.groupAllowFrom ?? null
+            },
+            openclawAgentsDefaultsLive: {
+                modelPrimary: readOpenclawAgentsDefaultsModelPrimary(openclawState)
+            }
         };
 
         try {
@@ -750,6 +772,64 @@ router.post('/updateSubAgent', async (req, res, next) => {
             const finalState = ChannelConfigSchema.parse(parsed);
             await fsPromises.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
             res.json({ ok: true, message: 'SubAgent configuration updated atomically.' });
+        } finally {
+            await release();
+        }
+    } catch (error) {
+        if (error instanceof z.ZodError) error.status = 400;
+        next(error);
+    }
+});
+
+/**
+ * POST /api/channels/updateTelegramAccountPolicy
+ * C1b.2e — persists OpenClaw account-level Telegram gates in channel_config.json (Apply projects into openclaw.json when opt-in is on).
+ */
+router.post('/updateTelegramAccountPolicy', async (req, res, next) => {
+    try {
+        const policy = TelegramAccountPolicyConfigSchema.parse(req.body ?? {});
+        const configPath = await getConfigPath();
+        await ensureConfigExists(configPath);
+        const release = await lockfile.lock(configPath, { retries: 5 });
+        try {
+            const raw = await fsPromises.readFile(configPath, 'utf8');
+            const parsed = JSON.parse(raw);
+            normalizeParsedChannelConfig(parsed);
+            parsed.telegramAccountPolicy = policy;
+            parsed.channels = normalizeChannelsAssignedAgentTars(parsed.channels || []);
+            const finalState = ChannelConfigSchema.parse(parsed);
+            await fsPromises.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
+            configEvents.emit('configChange');
+            res.json({ ok: true, message: 'Telegram account policy saved.', data: policy });
+        } finally {
+            await release();
+        }
+    } catch (error) {
+        if (error instanceof z.ZodError) error.status = 400;
+        next(error);
+    }
+});
+
+/**
+ * POST /api/channels/updateOpenclawAgentsDefaultsPolicy
+ * C1b.2c — persists opt-in workspace default model slice for Apply (agents.defaults.model.primary).
+ */
+router.post('/updateOpenclawAgentsDefaultsPolicy', async (req, res, next) => {
+    try {
+        const policy = AgentsDefaultsPolicyConfigSchema.parse(req.body ?? {});
+        const configPath = await getConfigPath();
+        await ensureConfigExists(configPath);
+        const release = await lockfile.lock(configPath, { retries: 5 });
+        try {
+            const raw = await fsPromises.readFile(configPath, 'utf8');
+            const parsed = JSON.parse(raw);
+            normalizeParsedChannelConfig(parsed);
+            parsed.openclawAgentsDefaultsPolicy = policy;
+            parsed.channels = normalizeChannelsAssignedAgentTars(parsed.channels || []);
+            const finalState = ChannelConfigSchema.parse(parsed);
+            await fsPromises.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
+            configEvents.emit('configChange');
+            res.json({ ok: true, message: 'OpenClaw agents defaults policy saved.', data: policy });
         } finally {
             await release();
         }

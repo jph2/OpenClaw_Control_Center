@@ -6,6 +6,16 @@
  * - C1b.1 : `channels.telegram.groups[id].skills` (deduped string[])
  * - C1b.2a: per-channel `agents.list[]` (synth id, model, skills allowlist)
  *           + matching `bindings[]` routes.
+ * - C1b.2e: optional account-level `channels.telegram.{groupPolicy,dmPolicy,
+ *           allowFrom,groupAllowFrom}` when `channel_config.json` declares
+ *           `telegramAccountPolicy.applyOnOpenClawApply: true` (never silent).
+ * - C1b.3: synth `agents.list[].skills` also unions **active** CM sub-agent
+ *           `additionalSkills` (minus each sub's `inactiveSkills`, minus
+ *           channel `inactiveSubAgents`), same layering as the TTG UI.
+ * - C1b.2c: optional `agents.defaults.model.primary` when
+ *           `openclawAgentsDefaultsPolicy.applyModelOnOpenClawApply` is true
+ *           (explicit opt-in; preserves existing `model` object fields except
+ *           `primary` — ADR-018).
  *
  *           OpenClaw's `agents.list[]` schema is Zod-strict and rejects unknown
  *           top-level keys (e.g. `comment` is not in the schema). The CM
@@ -13,9 +23,12 @@
  *           (schema-legal — `params` is Record<string, unknown>), and in
  *           `comment` on binding entries (schema-legal there).
  *
- *           Additive upsert only — no deletions. Orphan cleanup is C1b.2b.
- *           `agents.defaults.*` is operator-owned; never rewritten here
- *           (opt-in shipment is C1b.2c).
+ *           Additive upsert, then **C1b.2b** orphan prune: CM-marked
+ *           `agents.list[]` / `bindings[]` rows whose `source` group id is
+ *           absent from `channel_config.json` are removed on every Apply
+ *           (preview + write).
+ *           Other `agents.defaults.*` keys stay operator-owned; only
+ *           `model.primary` may be set when C1b.2c opt-in is on.
  */
 import fs from 'fs';
 import fsPromises from 'fs/promises';
@@ -193,6 +206,208 @@ export function mergeOpenClawTelegramGroups(existingOpenclaw, groupsPatch) {
 }
 
 // ---------------------------------------------------------------------------
+// C1b.2e — channels.telegram account-level admission policy (opt-in)
+// ---------------------------------------------------------------------------
+
+const TelegramGroupPolicyEnum = z.enum(['open', 'disabled', 'allowlist']);
+const TelegramDmPolicyEnum = z.enum(['pairing', 'allowlist', 'open', 'disabled']);
+
+/** Shape stored in `channel_config.json` / returned by GET (defaults applied). */
+export const TelegramAccountPolicyConfigSchema = z
+    .object({
+        applyOnOpenClawApply: z.boolean().optional(),
+        groupPolicy: TelegramGroupPolicyEnum.optional(),
+        dmPolicy: TelegramDmPolicyEnum.optional(),
+        allowFrom: z.array(z.union([z.string(), z.number()])).optional(),
+        groupAllowFrom: z.array(z.union([z.string(), z.number()])).optional()
+    })
+    .transform((o) => ({
+        applyOnOpenClawApply: Boolean(o.applyOnOpenClawApply),
+        groupPolicy: o.groupPolicy ?? 'open',
+        dmPolicy: o.dmPolicy ?? 'pairing',
+        allowFrom: Array.isArray(o.allowFrom) ? o.allowFrom : [],
+        groupAllowFrom: Array.isArray(o.groupAllowFrom) ? o.groupAllowFrom : []
+    }));
+
+/** Coerce one OpenClaw allow-list entry (numeric strings → number). */
+export function coerceTelegramAllowEntry(raw) {
+    if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+    if (raw === null || raw === undefined) return null;
+    const s = String(raw).trim();
+    if (!s) return null;
+    if (/^-?\d+$/.test(s)) return Number(s);
+    return s;
+}
+
+/** Normalize allowFrom / groupAllowFrom for OpenClaw (dedupe, stable order). */
+export function normalizeTelegramAllowList(list) {
+    if (!Array.isArray(list)) return [];
+    const out = [];
+    const seen = new Set();
+    for (const x of list) {
+        const v = coerceTelegramAllowEntry(x);
+        if (v === null) continue;
+        const key = typeof v === 'number' ? `n:${v}` : `s:${v}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(v);
+    }
+    return out;
+}
+
+/**
+ * Normalize telegram account policy from CM config (defaults when missing).
+ */
+export function normalizeTelegramAccountPolicyConfig(raw) {
+    const defaults = {
+        applyOnOpenClawApply: false,
+        groupPolicy: 'open',
+        dmPolicy: 'pairing',
+        allowFrom: [],
+        groupAllowFrom: []
+    };
+    if (!raw || typeof raw !== 'object') {
+        return defaults;
+    }
+    const r = TelegramAccountPolicyConfigSchema.safeParse(raw);
+    if (r.success) return r.data;
+    return defaults;
+}
+
+/**
+ * Build account-level telegram patch from channel_config SoT.
+ * @returns {{ active: boolean, patch: object|null, normalized: object }}
+ */
+export function buildTelegramAccountPolicyApplyPatch(rawChannelConfig) {
+    const normalized = normalizeTelegramAccountPolicyConfig(rawChannelConfig?.telegramAccountPolicy);
+    if (!normalized.applyOnOpenClawApply) {
+        return { active: false, patch: null, normalized };
+    }
+    const patch = {
+        groupPolicy: normalized.groupPolicy,
+        dmPolicy: normalized.dmPolicy,
+        allowFrom: normalizeTelegramAllowList(normalized.allowFrom),
+        groupAllowFrom: normalizeTelegramAllowList(normalized.groupAllowFrom)
+    };
+    return { active: true, patch, normalized };
+}
+
+/**
+ * Merge C1b.2e fields into `channels.telegram` without touching groups, botToken, etc.
+ * @param {object} existingOpenclaw
+ * @param {object|null} accountPatch — only groupPolicy, dmPolicy, allowFrom?, groupAllowFrom?
+ */
+export function mergeOpenClawTelegramAccountPolicy(existingOpenclaw, accountPatch) {
+    if (!accountPatch || typeof accountPatch !== 'object') {
+        return JSON.parse(JSON.stringify(existingOpenclaw));
+    }
+    const out = JSON.parse(JSON.stringify(existingOpenclaw));
+    if (!out.channels) out.channels = {};
+    if (!out.channels.telegram || typeof out.channels.telegram !== 'object') {
+        out.channels.telegram = {};
+    }
+    const tg = out.channels.telegram;
+    for (const k of ['groupPolicy', 'dmPolicy', 'allowFrom', 'groupAllowFrom']) {
+        if (Object.prototype.hasOwnProperty.call(accountPatch, k)) {
+            tg[k] = accountPatch[k];
+        }
+    }
+    return out;
+}
+
+// ---------------------------------------------------------------------------
+// C1b.2c — agents.defaults.model.primary (opt-in, ADR-018)
+// ---------------------------------------------------------------------------
+
+/** Shape stored in `channel_config.json` / returned by GET (defaults applied). */
+export const AgentsDefaultsPolicyConfigSchema = z
+    .object({
+        applyModelOnOpenClawApply: z.boolean().optional(),
+        modelPrimary: z.string().optional()
+    })
+    .transform((o) => ({
+        applyModelOnOpenClawApply: Boolean(o.applyModelOnOpenClawApply),
+        modelPrimary: typeof o.modelPrimary === 'string' ? o.modelPrimary.trim() : ''
+    }));
+
+/**
+ * Normalize workspace default model policy from CM config (defaults when missing).
+ */
+export function normalizeAgentsDefaultsPolicyConfig(raw) {
+    const defaults = { applyModelOnOpenClawApply: false, modelPrimary: '' };
+    if (!raw || typeof raw !== 'object') {
+        return defaults;
+    }
+    const r = AgentsDefaultsPolicyConfigSchema.safeParse(raw);
+    if (r.success) return r.data;
+    return defaults;
+}
+
+/**
+ * Build C1b.2c patch from channel_config SoT.
+ * @returns {{ active: boolean, patch: { primary: string }|null, normalized: object, skipReason?: string }}
+ */
+export function buildAgentsDefaultsModelApplyPatch(rawChannelConfig) {
+    const normalized = normalizeAgentsDefaultsPolicyConfig(
+        rawChannelConfig?.openclawAgentsDefaultsPolicy
+    );
+    if (!normalized.applyModelOnOpenClawApply) {
+        return { active: false, patch: null, normalized };
+    }
+    if (!normalized.modelPrimary) {
+        return {
+            active: false,
+            patch: null,
+            normalized,
+            skipReason: 'apply_on_but_empty_model_primary'
+        };
+    }
+    return {
+        active: true,
+        patch: { primary: normalized.modelPrimary },
+        normalized
+    };
+}
+
+/**
+ * Read `agents.defaults.model.primary` from an OpenClaw doc (for live compare).
+ * @returns {string|null}
+ */
+export function readOpenclawAgentsDefaultsModelPrimary(openclawDoc) {
+    const m = openclawDoc?.agents?.defaults?.model;
+    if (typeof m === 'string' && m.trim()) return m.trim();
+    if (m && typeof m === 'object' && typeof m.primary === 'string' && m.primary.trim()) {
+        return m.primary.trim();
+    }
+    return null;
+}
+
+/**
+ * Merge C1b.2c — set `agents.defaults.model` to include `primary`; preserve
+ * object shape (`fallbacks`, etc.) when `model` is already an object.
+ *
+ * @param {object} existingOpenclaw
+ * @param {{ primary: string }|null} modelPatch
+ */
+export function mergeOpenClawAgentsDefaultsModel(existingOpenclaw, modelPatch) {
+    if (!modelPatch || typeof modelPatch.primary !== 'string' || !modelPatch.primary.trim()) {
+        return JSON.parse(JSON.stringify(existingOpenclaw));
+    }
+    const primary = modelPatch.primary.trim();
+    const out = JSON.parse(JSON.stringify(existingOpenclaw));
+    if (!out.agents || typeof out.agents !== 'object') out.agents = {};
+    if (!out.agents.defaults || typeof out.agents.defaults !== 'object') out.agents.defaults = {};
+
+    const existingModel = out.agents.defaults.model;
+    if (typeof existingModel === 'object' && existingModel !== null && !Array.isArray(existingModel)) {
+        out.agents.defaults.model = { ...existingModel, primary };
+    } else {
+        out.agents.defaults.model = { primary };
+    }
+    return out;
+}
+
+// ---------------------------------------------------------------------------
 // C1b.2a — agents.list[] + bindings[] per-channel upsert
 // ---------------------------------------------------------------------------
 
@@ -247,7 +462,7 @@ export function getCmAgentSource(agentEntry) {
 function computeChannelSkills(channel, agent) {
     const agentDefaults = Array.isArray(agent?.defaultSkills) ? agent.defaultSkills : [];
     const agentInactive = new Set(
-        Array.isArray(agent?.inactiveSkills) ? agent.inactiveSkills : []
+        Array.isArray(agent?.inactiveSkills) ? agent.inactiveSkills.map(String) : []
     );
     const channelExtras = Array.isArray(channel?.skills) ? channel.skills : [];
     const merged = normalizeChannelSkillIds([...agentDefaults, ...channelExtras]);
@@ -255,14 +470,62 @@ function computeChannelSkills(channel, agent) {
 }
 
 /**
+ * C1b.3 — Effective OpenClaw skills allowlist for the CM synth agent: main-agent
+ * and channel layer ({@link computeChannelSkills}), then active sub-agents
+ * (`parent` = channel `assignedAgent`, `enabled !== false`, not in
+ * `channel.inactiveSubAgents`) contribute `additionalSkills` minus that sub's
+ * `inactiveSkills`. Deduped, stable order (subs sorted by id). ADR-004: CM
+ * sub-agents stay configuration roles; this only shapes the pushed allowlist.
+ *
+ * @param {object} channel — CM `channels[]` row
+ * @param {object|undefined} agent — CM `agents[]` row for `assignedAgent`
+ * @param {unknown} subAgents — CM top-level `subAgents[]`
+ * @returns {string[]}
+ */
+export function computeEffectiveSynthSkills(channel, agent, subAgents) {
+    const base = computeChannelSkills(channel, agent);
+    const assigned = channel?.assignedAgent != null ? String(channel.assignedAgent) : '';
+    const inactiveSub = new Set(
+        Array.isArray(channel?.inactiveSubAgents)
+            ? channel.inactiveSubAgents.map((x) => String(x))
+            : []
+    );
+    const list = Array.isArray(subAgents) ? [...subAgents] : [];
+    list.sort((a, b) => String(a?.id ?? '').localeCompare(String(b?.id ?? '')));
+
+    const extra = [];
+    for (const sub of list) {
+        if (!sub || sub.id == null) continue;
+        const sid = String(sub.id);
+        if (sub.enabled === false) continue;
+        if (assigned && String(sub.parent ?? '') !== assigned) continue;
+        if (inactiveSub.has(sid)) continue;
+
+        const add = Array.isArray(sub.additionalSkills) ? sub.additionalSkills : [];
+        const subInactive = new Set(
+            Array.isArray(sub.inactiveSkills) ? sub.inactiveSkills.map((x) => String(x)) : []
+        );
+        for (const raw of add) {
+            const skillId = String(raw ?? '')
+                .trim()
+                .replace(/\s+/gu, '');
+            if (!skillId || subInactive.has(skillId)) continue;
+            extra.push(skillId);
+        }
+    }
+    return normalizeChannelSkillIds([...base, ...extra]);
+}
+
+/**
  * Build the per-channel patch for `agents.list[]` + `bindings[]`.
- * Never touches `agents.defaults.*`.
+ * Does not touch `agents.defaults.*` (C1b.2c applies that in `runOpenClawApply`).
  *
  * @returns {{ agentEntries: object[], bindingEntries: object[], perChannel: object[] }}
  */
 export function buildAgentsAndBindingsApplyPatch(rawChannelConfig) {
     const channels = Array.isArray(rawChannelConfig?.channels) ? rawChannelConfig.channels : [];
     const agents = Array.isArray(rawChannelConfig?.agents) ? rawChannelConfig.agents : [];
+    const subAgents = Array.isArray(rawChannelConfig?.subAgents) ? rawChannelConfig.subAgents : [];
     const agentsById = new Map(agents.filter((a) => a?.id).map((a) => [a.id, a]));
 
     const agentEntries = [];
@@ -279,7 +542,7 @@ export function buildAgentsAndBindingsApplyPatch(rawChannelConfig) {
         const bindingComment = makeCmComment(groupId);
         const modelStr =
             typeof c.model === 'string' && c.model.trim().length > 0 ? c.model.trim() : null;
-        const effectiveSkills = computeChannelSkills(c, agentDef);
+        const effectiveSkills = computeEffectiveSynthSkills(c, agentDef, subAgents);
         const agentLabel = agentDef?.name || assignedAgent;
         const channelName = c.name || groupId;
 
@@ -335,9 +598,10 @@ export function buildAgentsAndBindingsApplyPatch(rawChannelConfig) {
 }
 
 /**
- * Additive upsert — never removes anything. Collisions (same synth id or
- * same telegram/group peer) on operator-owned entries are surfaced as
- * structured collision records; caller decides whether to block the write.
+ * Additive upsert — never removes rows here (orphan prune is **C1b.2b** in
+ * `pruneCmOrphanAgentsAndBindings`, run after this step). Collisions (same
+ * synth id or same telegram/group peer) on operator-owned entries are surfaced
+ * as structured collision records; caller decides whether to block the write.
  *
  * @returns {{
  *   merged: object,
@@ -450,6 +714,125 @@ export function mergeOpenClawAgentsAndBindings(existingOpenclaw, patch) {
 }
 
 // ---------------------------------------------------------------------------
+// C1b.2b — remove CM-owned rows for channels no longer in channel_config.json
+// ---------------------------------------------------------------------------
+
+/**
+ * Parses `source: <groupId>` from a CM binding comment
+ * (`managed-by: channel-manager; source: …`).
+ */
+export function getCmSourceFromComment(comment) {
+    if (!isCmOwnedComment(comment)) return null;
+    const m = String(comment).match(/source:\s*(\S+)/);
+    return m ? m[1] : null;
+}
+
+/**
+ * Resolved CM source group id for an agent row (params._cm first, else legacy comment).
+ */
+export function getCmAgentSourceResolved(agentEntry) {
+    const fromParams = getCmAgentSource(agentEntry);
+    if (fromParams) return fromParams;
+    return getCmSourceFromComment(agentEntry?.comment);
+}
+
+/**
+ * Resolved managed group id for a CM-owned telegram route binding.
+ */
+export function getCmBindingManagedGroupId(binding) {
+    if (!binding || !isCmOwnedComment(binding.comment)) return null;
+    const fromComment = getCmSourceFromComment(binding.comment);
+    if (fromComment) return fromComment;
+    if (
+        binding.match?.channel === 'telegram' &&
+        binding.match?.peer?.kind === 'group' &&
+        binding.match?.peer?.id != null
+    ) {
+        return String(binding.match.peer.id);
+    }
+    return null;
+}
+
+/** All `channels[].id` values from Channel Manager SoT (stringified). */
+export function collectActiveChannelGroupIds(rawChannelConfig) {
+    const channels = Array.isArray(rawChannelConfig?.channels) ? rawChannelConfig.channels : [];
+    const set = new Set();
+    for (const c of channels) {
+        if (c?.id != null) set.add(String(c.id));
+    }
+    return set;
+}
+
+/**
+ * Drop CM-owned agents and telegram route bindings whose managed group id is not
+ * in `activeGroupIds`. Operator-owned rows are never touched. Rows that are
+ * CM-marked but yield no parseable source id are kept (safe no-op).
+ *
+ * @param {object} openclawDoc
+ * @param {Set<string>|string[]} activeGroupIds
+ * @returns {{ merged: object, orphanPruneSummary: object }}
+ */
+export function pruneCmOrphanAgentsAndBindings(openclawDoc, activeGroupIds) {
+    const active =
+        activeGroupIds instanceof Set ? activeGroupIds : new Set(activeGroupIds);
+    const out = JSON.parse(JSON.stringify(openclawDoc));
+    const removedAgents = [];
+    const removedBindings = [];
+
+    if (!out.agents || typeof out.agents !== 'object') out.agents = {};
+    if (!Array.isArray(out.agents.list)) out.agents.list = [];
+    if (!Array.isArray(out.bindings)) out.bindings = [];
+
+    const nextAgents = [];
+    for (const agent of out.agents.list) {
+        if (!agent) continue;
+        const ownedParams = isCmOwnedAgentEntry(agent);
+        const ownedLegacy = isCmOwnedComment(agent.comment);
+        if (!ownedParams && !ownedLegacy) {
+            nextAgents.push(agent);
+            continue;
+        }
+        const src = getCmAgentSourceResolved(agent);
+        if (!src || active.has(src)) {
+            nextAgents.push(agent);
+            continue;
+        }
+        removedAgents.push({ id: agent.id, source: src });
+    }
+    out.agents.list = nextAgents;
+
+    const nextBindings = [];
+    for (const b of out.bindings) {
+        if (!b) continue;
+        if (!isCmOwnedComment(b.comment)) {
+            nextBindings.push(b);
+            continue;
+        }
+        const src = getCmBindingManagedGroupId(b);
+        if (!src || active.has(src)) {
+            nextBindings.push(b);
+            continue;
+        }
+        removedBindings.push({
+            peerId: b.match?.peer?.id ?? null,
+            agentId: b.agentId ?? null,
+            source: src
+        });
+    }
+    out.bindings = nextBindings;
+
+    return {
+        merged: out,
+        orphanPruneSummary: {
+            agentsRemoved: removedAgents.length,
+            bindingsRemoved: removedBindings.length,
+            removedAgents,
+            removedBindings
+        }
+    };
+}
+
+// ---------------------------------------------------------------------------
 // Display / validation / IO
 // ---------------------------------------------------------------------------
 
@@ -543,12 +926,30 @@ export async function runOpenClawApply({ channelConfigRaw, dryRun = true, confir
         const groupsPatch = buildTelegramGroupsApplyPatch(channelConfigRaw);
         const mergedWithGroups = mergeOpenClawTelegramGroups(current, groupsPatch);
 
+        const telegramAccountPolicyBuild = buildTelegramAccountPolicyApplyPatch(channelConfigRaw);
+        const mergedWithTelegramPolicy = mergeOpenClawTelegramAccountPolicy(
+            mergedWithGroups,
+            telegramAccountPolicyBuild.active ? telegramAccountPolicyBuild.patch : null
+        );
+
         const agentsAndBindingsPatch = buildAgentsAndBindingsApplyPatch(channelConfigRaw);
         const {
-            merged,
+            merged: mergedAgentsBindings,
             summary: agentsBindingsSummary,
             collisions
-        } = mergeOpenClawAgentsAndBindings(mergedWithGroups, agentsAndBindingsPatch);
+        } = mergeOpenClawAgentsAndBindings(mergedWithTelegramPolicy, agentsAndBindingsPatch);
+
+        const activeGroupIds = collectActiveChannelGroupIds(channelConfigRaw);
+        const { merged: mergedAfterPrune, orphanPruneSummary } = pruneCmOrphanAgentsAndBindings(
+            mergedAgentsBindings,
+            activeGroupIds
+        );
+
+        const agentsDefaultsBuild = buildAgentsDefaultsModelApplyPatch(channelConfigRaw);
+        const merged = mergeOpenClawAgentsDefaultsModel(
+            mergedAfterPrune,
+            agentsDefaultsBuild.active ? agentsDefaultsBuild.patch : null
+        );
 
         const parsed = validateMergedOpenClaw(merged);
         if (!parsed.success) {
@@ -558,7 +959,10 @@ export async function runOpenClawApply({ channelConfigRaw, dryRun = true, confir
                 destinationPath: targetPath,
                 schemaErrors: parsed.error.flatten(),
                 groupsPatch,
+                telegramAccountPolicy: telegramAccountPolicyBuild,
+                agentsDefaultsPolicy: agentsDefaultsBuild,
                 agentsBindingsSummary,
+                orphanPruneSummary,
                 collisions,
                 perChannel: agentsAndBindingsPatch.perChannel
             };
@@ -576,7 +980,10 @@ export async function runOpenClawApply({ channelConfigRaw, dryRun = true, confir
                 dryRun: true,
                 destinationPath: targetPath,
                 groupsPatch,
+                telegramAccountPolicy: telegramAccountPolicyBuild,
+                agentsDefaultsPolicy: agentsDefaultsBuild,
                 agentsBindingsSummary,
+                orphanPruneSummary,
                 collisions,
                 perChannel: agentsAndBindingsPatch.perChannel,
                 beforePretty,
@@ -616,8 +1023,12 @@ export async function runOpenClawApply({ channelConfigRaw, dryRun = true, confir
             agentsUpdated: agentsBindingsSummary.agentsUpdated,
             bindingsAdded: agentsBindingsSummary.bindingsAdded,
             bindingsUpdated: agentsBindingsSummary.bindingsUpdated,
+            agentsOrphansRemoved: orphanPruneSummary.agentsRemoved,
+            bindingsOrphansRemoved: orphanPruneSummary.bindingsRemoved,
+            telegramAccountPolicyApplied: telegramAccountPolicyBuild.active,
+            agentsDefaultsModelApplied: agentsDefaultsBuild.active,
             mergeSlice:
-                'channels.telegram.groups.{requireMention,skills}+agents.list[]+bindings[] (C1b.2a)'
+                'channels.telegram.groups+optional C1b.2e+C1b.2c agents.defaults.model.primary+agents.list[]+bindings[] (C1b.2a+C1b.2b)'
         });
 
         applyWriteResult = {
@@ -627,7 +1038,10 @@ export async function runOpenClawApply({ channelConfigRaw, dryRun = true, confir
             backupPath,
             diffHash,
             groupsPatched: Object.keys(groupsPatch).length,
+            telegramAccountPolicy: telegramAccountPolicyBuild,
+            agentsDefaultsPolicy: agentsDefaultsBuild,
             agentsBindingsSummary,
+            orphanPruneSummary,
             perChannel: agentsAndBindingsPatch.perChannel
         };
     } finally {

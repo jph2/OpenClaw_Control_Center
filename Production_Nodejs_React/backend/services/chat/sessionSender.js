@@ -2,6 +2,7 @@ import fs from 'fs';
 import { exec, execSync } from 'child_process';
 import { promisify } from 'util';
 import { resolveCanonicalSession } from './sessionIndex.js';
+import { buildEnvForOpenclawCliSpawn } from './openclawGatewayEnv.js';
 
 const execAsync = promisify(exec);
 
@@ -112,7 +113,19 @@ export async function sendMessageToChat(chatId, text) {
 
     try {
         const spawnStartedAt = Date.now();
-        const { stdout, stderr } = await execAsync(cmd, { maxBuffer: 1024 * 1024 });
+        const childEnv = buildEnvForOpenclawCliSpawn();
+        const warmGateway = Boolean(
+            childEnv.OPENCLAW_GATEWAY_TOKEN && String(childEnv.OPENCLAW_GATEWAY_TOKEN).trim()
+        );
+        logOpenclawCli('gateway_env_for_spawn', {
+            warmGateway,
+            gatewayUrl: warmGateway ? childEnv.OPENCLAW_GATEWAY_URL || null : null
+        });
+
+        const { stdout, stderr } = await execAsync(cmd, {
+            maxBuffer: 1024 * 1024,
+            env: childEnv
+        });
         const ackedAt = Date.now();
         const spawnedPid = String(stdout || '').trim().split('\n').pop()?.trim() || null;
 
@@ -123,6 +136,7 @@ export async function sendMessageToChat(chatId, text) {
             spawnedPid,
             nodeBin: runtime.nodeBin,
             nodeVersion: runtime.nodeVersion,
+            warmGateway,
             stderrPreview: clip(stderr, 400),
             timing: {
                 spawnExecMs: ackedAt - spawnStartedAt,

@@ -17,7 +17,7 @@ agent_index:
     openclaw_agents_skills: "#openclaw-native-agenten-sub-agents-und-skills-upstream-modell"
     appendix: "#appendix-raw-findings-the-gathering-reservoir"
 created: '2026-04-13T19:30:00Z'
-last_modified: '2026-04-18T12:00:00Z'
+last_modified: '2026-04-20T14:00:00Z'
 directives:
   - "CRITICAL: The Appendix / Raw Findings section is APPEND-ONLY."
   - "NEVER DELETE, SUMMARIZE OR TRUNCATE raw dump sources."
@@ -31,9 +31,9 @@ tags: [discovery, architecture, telegram-hub, zod, stabilization, context-contin
 
 # 00 Discovery - Sovereign Channel Manager & Telegram Hub
 
-**Version**: 1.4.0 | **Date**: 18.04.2026 | **Time**: 12:00 | **GlobalID**: 20260418_1200_DIS_SovereignHub_v1.4
+**Version**: 1.5.0 | **Date**: 20.04.2026 | **Time**: 14:00 | **GlobalID**: 20260420_1400_DIS_SovereignHub_v1.5
 
-**Last Updated:** 18.04.2026 12:00  
+**Last Updated:** 20.04.2026 14:00  
 **Framework:** OpenClaw UI Extensions (Discovery Phase)  
 **Status:** active
 
@@ -250,6 +250,40 @@ Für **TARS/CASE** und Telegram bleibt maßgeblich: **gleicher Workspace / gleic
 
 ---
 
+## Best Practice & Operator-Modell (Stand 2026-04-20)
+
+### Was Upstream und Community konsistent sagen
+
+- **OpenClaw ist config-/schema-first**, kein fertiges Produkt „Channel Manager“: empfohlener Einstieg über **`openclaw onboard`**; laufender Betrieb über **`openclaw.json`**, **CLI** (`openclaw agents …`, `openclaw configure`, …) und die **Control UI** (Chat, Sessions, leichte Config-Edits, Raw-JSON-Escape-Hatch; Formulare aus **Live-Schema**).
+- **Multi-Agent-Routing** ist deklarativ: **`agents.list[]`** + **`bindings[]`** routen Kanäle/Peers deterministisch — nicht über eine zentrale visuelle Flottenmatrix im Core-Produkt.
+- **Telegram:** Gruppen pro **Group-ID** isoliert; **Forum-Topics** → eigene Session-Key-Suffixe (`:topic:<threadId>`). Mental Model: **Topic-Lane ≈ eigene Session**, nicht „eine Inbox für alles“.
+- **Skills:** workspace-zentriert (`<workspace>/skills` mit hoher Precedence), zulassen/sperren über **`agents.defaults.skills`** / **`agents.list[].skills`**.
+- **Subagents (Spawn):** Laufzeit-Sessions (`agent:…:subagent:…`); Community/UI-Reibung: erledigte Subagent-Einträge können die Session-Liste **zumüllen** (Issues zu „clear completed“).
+- **Drittanbieter-/eigene UIs** sind anschlussfähig über **`openclaw config schema`** / schema lookup — Gateway bleibt Engine, nicht der einzige Bedien-Layer.
+- **Community bei vielen Telegram-Lanes:** Muster **topic-per-agent** oder **topic-per-workstream**, oft mit **mention-only** im Gruppendefault + gezielten Bindings; Reddit/Showcases beschreiben genau das als Ausweg aus „Telegram chaos“.
+
+### Operator-Workflow (Kurzfassung)
+
+1. **Source of truth:** `openclaw.json` + Workspace-Dateien (Skills, `AGENTS.md`, …).  
+2. **Änderungen:** primär CLI / gezielte Config-Edits; Control UI für Beobachtung und schnelle Eingriffe.  
+3. **Viele parallele Gruppen/Topics:** stabiles Muster = **Bindings + ggf. Synth-Agents pro Lane**, nicht alles über eine Webchat-Session.
+
+### Was an **unserem** Sovereign-Channel-Manager-Ansatz neu bzw. bewusst zusätzlich ist
+
+| Aspekt | Typisches OpenClaw | Unser Ansatz (Control Center) |
+|--------|---------------------|-------------------------------|
+| Kanal-Übersicht | Config-Dateien, Session-Dropdown, Telegram-Client | **`channel_config.json`** als **operatorlesbare** Matrix (Lane, Modell, Skills, Subagent-Policies) |
+| Schreiben in OpenClaw | Manuell / CLI | **Apply-Pipeline** mit Preview, Lock, **timestamped Backup**, **Audit-Log**, optional Gateway-Restart |
+| Konsistenz Telegram-ID | Risiko bei Supergroup-Migration (alte + neue IDs) | **Drei-Wege-Parität:** Studio README ↔ CM ↔ `openclaw.json`; **Prune** veralteter `telegram.groups` / CM-Bindings bei ID-Wechsel (additives Merge allein reicht nicht) |
+| Session-Liste Control UI | Alle historischen `sessionKey`-Einträge | Bewusstes **Aufräumen** von `agents/main/sessions/sessions.json` (Legacy-Gruppen-IDs, `:run:`-Cron-Spuren, Subagent-Leichen), ohne produktive Cron-Parents zu löschen |
+| Skills/Subagents im Alltag | Workspace + Allowlists | **CM-Oberfläche** für Zuordnung und Dokumentation des **Harness/Triad**-Betriebs (TARS/MARVIN/CASE), entkoppelt von Telegram-UI-Limits |
+
+**Fazit:** Wir bauen die **Operator-Schicht**, die das Gateway **nicht** als Einzelprodukt liefert: **Flottenübersicht + sichere Config-Migration + Betriebshandbuch** — kompatibel mit dem offiziellen **Gateway-first**-Modell, nicht Ersatz dafür.
+
+Ausführliche **Roh-Recherche** (Zitate, Links, zweites Korpus) liegt im **Appendix** unter §9–§10 (2026-04-20).
+
+---
+
 ## Links
 
 ### Project documents (relative paths)
@@ -350,6 +384,26 @@ Für **TARS/CASE** und Telegram bleibt maßgeblich: **gleicher Workspace / gleic
 29. <a id="link-29"></a>[Multi-Agent Routing](https://docs.openclaw.ai/concepts/multi-agent) - Isolierte Agenten, Bindings, `agents.list`, Pfade pro `agentId`.
 30. <a id="link-30"></a>[Sub-agents](https://docs.openclaw.ai/tools/subagents) - `sessions_spawn`, Session-Keys, Policy/Tiefe/Sandbox.
 31. <a id="link-31"></a>[Skills](https://docs.openclaw.ai/tools/skills) - Pfade, Precedence, `agents.defaults.skills` / `agents.list[].skills` Allowlists.
+
+---
+
+### Web & GitHub — Ergänzung Best-Practice-Recherche (2026-04-20)
+
+32. <a id="link-32"></a>[openclaw/docs/gateway/configuration-reference.md](https://github.com/openclaw/openclaw/blob/main/docs/gateway/configuration-reference.md) - Config-Referenz (inkl. `agents.list`, Bindings).
+33. <a id="link-33"></a>[openclaw/docs/channels/telegram.md](https://github.com/openclaw/openclaw/blob/main/docs/channels/telegram.md) - Telegram-Kanal, Gruppen, Forum-Topics / Session-Keys.
+34. <a id="link-34"></a>[openclaw/docs/gateway/configuration.md](https://github.com/openclaw/openclaw/blob/main/docs/gateway/configuration.md) - Gateway-Konfiguration, Schema für UIs.
+35. <a id="link-35"></a>[GitHub Issue #54797 — Subagent sessions „clear completed“](https://github.com/openclaw/openclaw/issues/54797) - UI/Session-Dropdown und Subagent-Aufräumen.
+36. <a id="link-36"></a>[GitHub Issue #45086 — WebChat agent/session switcher](https://github.com/openclaw/openclaw/issues/45086) - Multi-Agent in der Control UI.
+37. <a id="link-37"></a>[Reddit r/openclaw — topic-per-agent Walkthrough](https://www.reddit.com/r/openclaw/comments/1s02p47/i_fixed_openclaw_telegram_chaos_with_a/) - Community-Pattern viele Topics.
+38. <a id="link-38"></a>[open-claw.bot Docs (DE)](https://open-claw.bot/docs/de/) - Gateway-first Einordnung (öffentliche Doku).
+39. <a id="link-39"></a>[openclaw/docs/index.md](https://github.com/openclaw/openclaw/blob/main/docs/index.md) - Doku-Einstieg Upstream.
+40. <a id="link-40"></a>[openclaw/docs/cli/agents.md](https://github.com/openclaw/openclaw/blob/main/docs/cli/agents.md) - CLI Agenten.
+41. <a id="link-41"></a>[openclaw/docs/tools/skills.md](https://github.com/openclaw/openclaw/blob/main/docs/tools/skills.md) - Skills (Upstream-Pfad).
+42. <a id="link-42"></a>[GitHub Issue #32495](https://github.com/openclaw/openclaw/issues/32495) - Control UI / Bindings / Multi-Agent-Reibung (Community).
+43. <a id="link-43"></a>[GitHub Issue #22633](https://github.com/openclaw/openclaw/issues/22633) - Runtime/Bindings-Komplexität.
+44. <a id="link-44"></a>[RadonX/openclaw-agent-claw-config (Beispiel-Bindings)](https://github.com/RadonX/openclaw-agent-claw-config) - Community `bindings`-Muster.
+45. <a id="link-45"></a>[OpenClaw System Architecture (Substack)](https://ppaolo.substack.com/p/openclaw-system-architecture-overview) - Orchestrator/Worker-Einordnung.
+46. <a id="link-46"></a>[r/OpenclawBot — Multi-Agent Setup](https://www.reddit.com/r/OpenclawBot/comments/1sgj3hg/how_to_set_up_a_maincontrolled_multiagent/) - Community Multi-Agent Telegram.
 
 ---
 
@@ -961,6 +1015,111 @@ Distilled cross-links (siehe auch Hauptkörper und `## Links`):
 - **OpenClaw Sub-Agents** — Spawn-Sessions (`sessions_spawn`, Key `agent:<agentId>:subagent:<uuid>`), nicht Konfig-„Unter-Agenten“. [[30]](#link-30)
 - **OpenClaw Skills** — `SKILL.md`-Ordner, Pfad-Precedence, Allowlists `agents.defaults.skills` / `agents.list[].skills`. [[31]](#link-31)
 - **Upstream-Repo** — [openclaw/openclaw](https://github.com/openclaw/openclaw). [[24]](#link-24)
+
+----
+
+#### 9. External synthesis — config-first operator model (web / Perplexity-style corpus, 2026-04-20)
+
+Kurz: **offiziell ist OpenClaw eher „config-/schema-first“ als „Product mit Channel-Manager“**. Die empfohlene Einrichtung läuft über **`openclaw onboard`**; später pflegt man mehrere Agenten/Kanäle primär über **`openclaw.json`**, ergänzt durch **CLI** (`openclaw agents add`, `openclaw agents list --bindings`, `openclaw configure`) und die **Control UI** als browserbasierte Oberfläche für Chat, Sessions und Config. Die Docs sagen ausdrücklich: Onboarding/CLI ist der empfohlene Setup-Pfad; die Control UI rendert ihr Config-Formular aus dem **Live-Schema** und hat einen **Raw-JSON-Editor** als Escape Hatch. ([GitHub][1])
+
+Für **mehrere Agenten** ist das offizielle Modell: `agents.list[]` definiert die Agenten, `bindings[]` routet Kanäle/Accounts/Peers deterministisch auf Agenten. Die Doku beschreibt das als **Multi-agent routing**; `openclaw agents add` schreibt dabei genau `agents.list[]` und optional `bindings[]`. Das ist also eher **Routing per Konfiguration** als ein zentraler visueller „Channel Manager“. ([GitHub][2])
+
+Für **Telegram-Gruppen und Forum-Topics** ist die offizielle Semantik klar: **Gruppen sind pro Group-ID isoliert**, und **Forum-Topics bekommen eigene Session-Keys** (`:topic:<threadId>`). Damit ist das Produktdenken eher **„jede Topic-Lane = eigene Session“**, nicht „ein gemeinsamer Kanal-Manager mit Topic-Board“. ([GitHub][3])
+
+Bei **Skills** ist das Design ebenfalls datei-/workspace-zentriert: Workspace-Skills liegen in `<workspace>/skills`, haben hohe Priorität und überschreiben global/managed/bundled Skills; agent-seitig kann man Skills per `agents.defaults.skills` bzw. `agents.list[].skills` erlauben oder komplett sperren. ([GitHub][2])
+
+**Subagents** sind eher Teil des Session-/Tool-Modells als ein eigener UI-Manager. In der Praxis tauchen sie als zusätzliche Sessions auf; es gibt sogar ein offenes UI-Feedback, dass erledigte Subagent-Sessions die Session-Liste zumüllen und man sie derzeit teils nur über Pruning oder direkte Dateibearbeitung loswird. ([GitHub][4])
+
+**Was heißt das als Operator-Workflow?**
+Mein Fazit aus Docs + Issues:
+**1. Source of truth = `openclaw.json` + Workspace-Dateien.**
+**2. CLI für Anlegen/Ändern/Prüfen.**
+**3. Control UI für Beobachtung, Chat, leichte Config-Edits.**
+**4. Eigene/3rd-party Oberflächen sind ausdrücklich vorgesehen**, weil OpenClaw `openclaw config schema` und `config.schema.lookup` als maschinenlesbare Basis für andere UIs/Tooling anbietet. ([GitHub][5])
+
+Für **viele parallele Telegram-Gruppen/Topics** zeigt die Community ziemlich konsistent ein Muster: **topic-per-agent** oder mindestens **topic-per-workstream**, oft mit mention-only im Gruppendefault und expliziten Bindings/Allowlists für Spezial-Themen. Ein Reddit-Showcase beschreibt genau das als Weg aus „Telegram chaos“; ein Multi-Agent-Kit beschreibt produktiv getestete Teams mit **Telegram-Supergroup + dedizierten Topic-Channels**. ([Reddit][6])
+
+Warum viele dafür zusätzlich **eigene Übersichtstools** bauen oder wollen: In GitHub-Issues wird beschrieben, dass die Control UI teils **nur den Main-Agent im Chat direkt anspricht**, rohe/unleserliche Session-Keys zeigt, Topic-Sessions schwer unterscheidbar waren/sind und die UI eher Monitoring/Chat als Flottensteuerung ist. Es gibt auch Bugs/Workarounds, die Telegram als robusten Alltagskanal und die Control UI eher als Monitoring-Fläche erscheinen lassen. ([GitHub][7])
+
+**Praktische Empfehlung:**
+Wenn du **viele Telegram-Gruppen/Topic-Lanes parallel** betreibst, würde ich OpenClaw heute **nicht** als Produkt mit fertigem zentralem „Channel Manager“ lesen, sondern als **Gateway + Routing-Engine**. Stabilster Operator-Ansatz scheint zu sein: **Config/CLI als Wahrheit**, **Control UI zum Beobachten**, und für echte Flottenübersicht bei Bedarf **eigene kleine Oberfläche/Skripte** auf Basis von Schema, Session-Listen und Bindings. ([GitHub][5])
+
+Wenn du willst, mache ich dir daraus noch eine **konkrete Best-Practice-Struktur für 20–100 Telegram-Topics** mit Beispiel-`bindings[]` und Betriebsregeln.
+
+[1]: https://github.com/openclaw/openclaw "GitHub - openclaw/openclaw: Your own personal AI assistant. Any OS. Any Platform. The lobster way.  · GitHub"
+[2]: https://github.com/openclaw/openclaw/blob/main/docs/gateway/configuration-reference.md "openclaw/docs/gateway/configuration-reference.md at main · openclaw/openclaw · GitHub"
+[3]: https://github.com/openclaw/openclaw/blob/main/docs/channels/telegram.md "openclaw/docs/channels/telegram.md at main · openclaw/openclaw · GitHub"
+[4]: https://github.com/openclaw/openclaw/issues/54797 "Control UI: Add 'clear completed' for subagent sessions in session dropdown · Issue #54797 · openclaw/openclaw · GitHub"
+[5]: https://github.com/openclaw/openclaw/blob/main/docs/gateway/configuration.md "openclaw/docs/gateway/configuration.md at main · openclaw/openclaw · GitHub"
+[6]: https://www.reddit.com/r/openclaw/comments/1s02p47/i_fixed_openclaw_telegram_chaos_with_a/ "I fixed OpenClaw Telegram chaos with a topic-per-agent setup (full walkthrough) : r/openclaw"
+[7]: https://github.com/openclaw/openclaw/issues/45086 "[Feature]: WebChat UI: Add agent/session switcher for multi-agent support · Issue #45086 · openclaw/openclaw · GitHub"
+
+----
+
+#### 10. External synthesis — gateway-first & community patterns (zweites Korpus, 2026-04-20)
+
+OpenClaw ist offiziell als **Gateway-first** System gedacht: Kanäle wie Telegram hängen am Gateway, Agenten werden in `openclaw.json` bzw. per CLI konfiguriert, und die Web Control UI ist vor allem für Chat, Status, Sessions und einfache Konfiguration da. Für viele parallele Telegram-Gruppen/Topics ist das Kernmodell also nicht „Channel Manager mit zentraler Inbox“, sondern **Routing über Bindings + getrennte Agenten/Workspaces + Skills pro Agent**. [open-claw](https://open-claw.bot/docs/de/)
+
+## Offizielles Modell
+- Die Doku beschreibt ein Self-hosted Gateway, das mehrere Chat-Apps und Plugins in einem Prozess bündelt; Telegram ist dabei nur ein Channel unter mehreren. [github](https://github.com/openclaw/openclaw/blob/main/docs/index.md)
+- Für Agenten nennt die Doku explizit `agents.defaults.skills` und `agents.list[].skills` in `openclaw.json`, also eine deklarative Konfiguration pro Agent. [github](https://github.com/openclaw/openclaw/blob/main/docs/cli/agents.md)
+- Skills sind offiziell dreistufig organisiert: bundled, `~/.openclaw/skills`, und Workspace-Skills; Workspace gewinnt bei Namenskonflikten und ist damit der saubere Ort für agentenspezifische Skills. [github](https://github.com/openclaw/openclaw/blob/main/docs/tools/skills.md)
+
+## Community-Praxis
+- Community-Beispiele und GitHub-Gists zeigen das Muster `bindings` in `openclaw.json`, um Nachrichten nach Kanal/Account/Gruppe an konkrete `agentId`s zu routen. [github](https://github.com/RadonX/openclaw-agent-claw-config)
+- Mehrere Diskussionen/Issues zeigen aber auch, dass die aktuelle UI/Runtime noch Lücken hat: etwa fehlendes Umschalten zwischen Agenten im Control UI und Probleme bei komplexen Bindings oder mehreren Telegram-Feldern. [github](https://github.com/openclaw/openclaw/issues/32495)
+- Der Community-Pattern ist deshalb meist: **Orchestrator-Agent + Worker-Agenten**, wobei das Gateway nur den Eingang macht und die Agenten die eigentliche Arbeit erledigen. [ppaolo.substack](https://ppaolo.substack.com/p/openclaw-system-architecture-overview)
+
+## Empfohlener Workflow
+- **Für stabile Setups:** primär Config + CLI, weil die Doku und viele Beispiele genau dafür gebaut sind (`openclaw config set`, `openclaw channels add/list/status`, `openclaw configure`). [github](https://github.com/win4r/OpenClaw-Skill)
+- **Für Monitoring/Ad-hoc-Chat:** Control UI, aber eher als Oberfläche zum Chatten, Prüfen und Debuggen, nicht als vollständiger Channel/Agent-Manager. [github](https://github.com/openclaw/openclaw/blob/main/docs/start/getting-started.md)
+- **Für komplexe Multi-Group-Setups:** eigene Oberflächen oder Skripte sind in der Community üblich, wenn man viele Telegram-Gruppen/Topic-Lanes verwalten will, weil das Produkt selbst noch keinen echten zentralen Channel-Manager bietet. [github](https://github.com/openclaw/openclaw/issues/22633)
+
+## Praktische Einordnung für Telegram
+- Für viele Telegram-Gruppen ist das sinnvollste Modell: **pro Gruppe oder Topic-Lane ein Binding**, dann entweder auf einen dedizierten Agenten oder auf einen Orchestrator mit Spezial-Workern routen. [reddit](https://www.reddit.com/r/OpenclawBot/comments/1sgj3hg/how_to_set_up_a_maincontrolled_multiagent/)
+- Wenn du viele Lanes parallel fährst, hilft besonders die Trennung von **Channel-Routing, Agent-Routing und Skill-Bundles**; genau das wird in den Docs als Multi-agent routing mit isolierten Sessions beschrieben. [open-claw](https://open-claw.bot/docs/de/)
+- Die Doku empfiehlt also implizit keine „einzige Inbox“, sondern eine strukturierte Konfiguration mit getrennten Verantwortlichkeiten. [github](https://github.com/openclaw/openclaw)
+
+## Links
+- Official docs / index: https://github.com/openclaw/openclaw/blob/main/docs/index.md [github](https://github.com/openclaw/openclaw/blob/main/docs/index.md)
+- Skills docs: https://github.com/openclaw/openclaw/blob/main/docs/tools/skills.md [github](https://github.com/openclaw/openclaw/blob/main/docs/tools/skills.md)
+- Agents docs: https://github.com/openclaw/openclaw/blob/main/docs/cli/agents.md [github](https://github.com/openclaw/openclaw/blob/main/docs/cli/agents.md)
+- Getting started / Control UI: https://github.com/openclaw/openclaw/blob/main/docs/start/getting-started.md [github](https://github.com/openclaw/openclaw/blob/main/docs/start/getting-started.md)
+- GitHub issue on Control UI agent switching: https://github.com/openclaw/openclaw/issues/32495 [github](https://github.com/openclaw/openclaw/issues/32495)
+- GitHub issue on bindings runtime mismatch: https://github.com/openclaw/openclaw/issues/22633 [github](https://github.com/openclaw/openclaw/issues/22633)
+
+Wenn du willst, kann ich dir als Nächstes ein **empfohlenes `openclaw.json`-Muster für 10+ Telegram-Gruppen mit Bindings, Agenten und Workspace-Skills** skizzieren.
+
+----
+
+#### 11. Runtime lessons — Channel Manager live-mirror (2026-04-20)
+
+Post-Mortem zum Akzeptanztest „Apply to OpenClaw → Telegram-Testnachricht erscheint live im CM-Chat-Panel ohne Page-Refresh" (siehe [`Production_Nodejs_React/000_WIP TEST_20.04.26.md`](../../000_WIP%20TEST_20.04.26.md)). Drei unabhängige Bugs lagen übereinander, jeder hätte das Live-Update blockiert; erst der Fix aller drei zusammen liefert das erwartete Verhalten.
+
+**1. Session-Index war `agent:main`-only.** `backend/services/chat/sessionIndex.js` las nur `~/.openclaw/agents/main/sessions/sessions.json` und matchte ausschließlich `agent:main:telegram:group:<id>`. Nach dem C1b.2d-Stale-Session-Release existierte der einzige Match nur noch unter dem synthetischen Agent `tars-<groupIdSlug>` → Canonical-Session nicht auffindbar, CM las „no session" statt der neuen Binding-Session.
+
+- **Fix:** Scan aller `~/.openclaw/agents/*/sessions/sessions.json`, agent-id-agnostischer Regex `/^agent:([^:]+):telegram:group:(-?\d+)$/`, Auflösung nach höchstem `updatedAt` pro Gruppe. Watcher beobachtet jetzt rekursiv `DEFAULT_AGENTS_ROOT` und reagiert auf neu entstandene Synth-Agents.
+
+**2. `chokidar`-Watcher hatte 3 Dateien „registriert", 0 in `inotify`.** Für die Synth-JSONLs (`.../tars-<slug>/sessions/<uuid>.jsonl`) wurde `watcher.add(path)` aufgerufen und der Hook loggte korrekt `Watching … plus 3 canonical session file(s).`, aber `grep`-Lookup in `/proc/<pid>/fdinfo/<inotify-fd>` zeigte **keinen** der drei JSONL-Inodes. Bekanntes chokidar-Quirk auf Linux-`ext4` bei Append-Only-Writes in Kombination mit `awaitWriteFinish` — Events werden stumm verworfen. Symptom: Gateway schrieb in die JSONL, der Session-Tailer sah aber nie ein `change`-Event → kein `newMessage`-Emit → Panel nur per HTTP-GET-Refresh gefüllt.
+
+- **Fix:** `backend/services/chat/sessionTail.js` auf `usePolling: true` mit 400 ms-Intervall umgestellt (3–50 kanonische Files sind vernachlässigbarer Overhead, fires deterministisch unabhängig vom FS/Writer-Pattern). Zwei Diagnose-Logs ergänzt: `Watching canonical session file: <path>` beim Einhängen, `Appended N gateway message(s) from <path> (+X bytes).` bei jedem echten Append.
+
+**3. Transport-Prefix-Mismatch zwischen Emit und Stream.** `processGatewayMessage` extrahiert die chat_id aus dem Conversation-Meta-Block der OpenClaw-User-Envelope: dort steht `"chat_id": "telegram:-1003752539559"` (mit Transport-Prefix). Der Stream-Handler in `backend/routes/chat.js` vergleicht aber mit dem Path-Parameter `-1003752539559` (nackte Zahl). Folge: `normalizeChatIdForBuffer(payload.chatId) === normalized` ergab `"telegram:-1003…" === "-1003…"` → **false**, Message wurde in den Buffer geschrieben, aber **kein Listener auf dem Stream feuerte**. Der `CM_INGEST_DEBUG=1`-Trace zeigte dies unzweideutig: `emit newMessage chatId=telegram:-1003752539559 msgId=… listeners=0`.
+
+- **Fix:** `normalizeChatIdForBuffer` in `backend/services/chat/channelAliases.js` strippt jetzt bekannte Transport-Prefixe (`telegram:`, `tg:`, `slack:`, `discord:`, `whatsapp:`, `signal:`) vor dem Alias-Lookup. Einzige Änderung an einer zentralen Funktion, alle Call-Sites (Emit, Stream-Handler, Buffer-Keys, Channel-Aliase) bleiben konsistent.
+
+**Diagnose-Hooks, die bleiben**
+
+- `sessionTail`: `Appended N gateway message(s) from <path> (+X bytes).` — 1 Zeile pro Gateway-Append.
+- `sessionIngest`: `emit newMessage chatId=<id> msgId=<id> listeners=<n>` — 1 Zeile pro Emission, inkl. `listenerCount`, damit ein SSE-Problem sofort als `listeners=0` sichtbar ist.
+- Opt-in-Debug: `CM_INGEST_DEBUG=1 node index.js` aktiviert zusätzliche `skip:*`-Zeilen (`no-canonicalChat`, `file-mismatch`, `dedup`, …), die sonst stumm sind.
+
+**Akzeptanztest 2026-04-20 bestanden.** TTG000 Telegram-Testnachricht → Backend-Log `emit newMessage chatId=-1003752539559 … listeners=1` → CM-Panel aktualisiert in ~400–800 ms **ohne** Page-Refresh. OC Web und CM bleiben jetzt für alle drei TTG-Gruppen (TTG000/TTG060/TTG061 mit synth-Agents) synchron. Gleichzeitig bleibt die in §1 beschriebene **asymmetrische Outbound-Routing-Eigenschaft** unberührt: OC-Web-Eingaben landen weiterhin **nicht** automatisch im Telegram-Channel, weil das Gateway die Response nur an die Origin-Transport der jeweiligen Message routet (erwartetes Verhalten, kein Bug).
+
+**Roadmap-Konsequenz**
+
+- `030_ROADMAP.md` C1b.2d „stale session release / CM mirror" kann geschlossen werden — Scope umfasste ursprünglich nur das Release-Skript, die drei Folgebugs oben waren nicht antizipiert und sind jetzt zusätzlich abgedeckt.
+- Offen bleibt ADR-018: OpenClaw-Webchat-UI ruft upstream-seitig weiterhin `agent:main` als Default, nicht den per-Group Synth-Agent. Das ist **außerhalb** unseres Codes (Upstream-Issue) und bleibt dokumentiert, aber unadressiert.
 
 ----
 

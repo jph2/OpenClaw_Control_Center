@@ -1,7 +1,7 @@
 {
   "channels": [
     {
-      "id": "-5168034995",
+      "id": "-1003732566515",
       "name": "TG001_Idea_Capture",
       "model": "moonshot/kimi-k2.5",
       "skills": [],
@@ -31,9 +31,9 @@
       "inactiveCaseSkills": []
     },
     {
-      "id": "-5116743354",
+      "id": "-1003930983368",
       "name": "TG010_General_Discovery_Plus_Research",
-      "model": "lmstudio/google/gemma-4-26b-a4b",
+      "model": "moonshot/kimi-k2.5",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -47,9 +47,9 @@
       "inactiveCaseSkills": []
     },
     {
-      "id": "-5024908938",
+      "id": "-1003987722298",
       "name": "TG020_omniUSD",
-      "model": "lmstudio/google/gemma-4-26b-a4b",
+      "model": "moonshot/kimi-k2.5",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -63,9 +63,9 @@
       "inactiveCaseSkills": []
     },
     {
-      "id": "-5275137502",
+      "id": "-1003773769165",
       "name": "TG030_DCC_CAD",
-      "model": "lmstudio/google/gemma-4-26b-a4b",
+      "model": "moonshot/kimi-k2.5",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -78,9 +78,9 @@
       "inactiveCaseSkills": []
     },
     {
-      "id": "-5034730971",
+      "id": "-1003362093143",
       "name": "TG040_WebDev_Backend",
-      "model": "lmstudio/google/gemma-4-26b-a4b",
+      "model": "moonshot/kimi-k2.5",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -92,9 +92,9 @@
       "inactiveCaseSkills": []
     },
     {
-      "id": "-5159996212",
+      "id": "-1003852980755",
       "name": "TG050_WebDev_Frontend",
-      "model": "lmstudio/google/gemma-4-26b-a4b",
+      "model": "moonshot/kimi-k2.5",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -109,7 +109,7 @@
     {
       "id": "-1003968061817",
       "name": "TG060_Social_Media",
-      "model": "lmstudio/google/gemma-4-26b-a4b",
+      "model": "moonshot/kimi-k2.5",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -122,9 +122,9 @@
       "inactiveCaseSkills": []
     },
     {
-      "id": "-5103615103",
+      "id": "-1003972007076",
       "name": "TG070_QA_Plus_Security",
-      "model": "lmstudio/google/gemma-4-26b-a4b",
+      "model": "moonshot/kimi-k2.5",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -137,9 +137,9 @@
       "inactiveCaseSkills": []
     },
     {
-      "id": "-5272630186",
+      "id": "-1003786975126",
       "name": "TG500_OpenClaw_Governance",
-      "model": "lmstudio/google/gemma-4-26b-a4b",
+      "model": "moonshot/kimi-k2.5",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -152,9 +152,9 @@
       "inactiveCaseSkills": []
     },
     {
-      "id": "-5169316413",
+      "id": "-1003635291803",
       "name": "TG510_Upcoming_Skills",
-      "model": "lmstudio/google/gemma-4-26b-a4b",
+      "model": "moonshot/kimi-k2.5",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -167,9 +167,9 @@
       "inactiveCaseSkills": []
     },
     {
-      "id": "-5155708359",
+      "id": "-1003981558091",
       "name": "TG520_Agentic_Intelligence",
-      "model": "lmstudio/google/gemma-4-26b-a4b",
+      "model": "moonshot/kimi-k2.5",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -182,9 +182,9 @@
       "inactiveCaseSkills": []
     },
     {
-      "id": "-5197370693",
+      "id": "-1003919340245",
       "name": "TG700_Studio_Framework",
-      "model": "lmstudio/google/gemma-4-26b-a4b",
+      "model": "moonshot/kimi-k2.5",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -197,9 +197,9 @@
       "inactiveCaseSkills": []
     },
     {
-      "id": "-5012559503",
+      "id": "-1003773208676",
       "name": "TG800_Experimental_Box",
-      "model": "lmstudio/google/gemma-4-26b-a4b",
+      "model": "moonshot/kimi-k2.5",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -212,9 +212,9 @@
       "inactiveCaseSkills": []
     },
     {
-      "id": "-5228979198",
+      "id": "-1003590664626",
       "name": "TG900_troubleshooting",
-      "model": "lmstudio/google/gemma-4-26b-a4b",
+      "model": "moonshot/kimi-k2.5",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,

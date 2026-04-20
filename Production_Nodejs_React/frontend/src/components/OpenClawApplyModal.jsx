@@ -122,12 +122,13 @@ export default function OpenClawApplyModal({ open, onClose, onBeforeApply }) {
             const gr = data.gatewayRestart;
             let extra = '';
             if (gr?.ok) {
-                extra = '\n\nopenclaw-gateway.service wurde neu gestartet, damit das Gateway die neue openclaw.json lädt.';
+                extra =
+                    '\n\nopenclaw-gateway.service was restarted so the gateway loads the new openclaw.json.';
             } else if (gr?.skipped) {
                 extra =
-                    '\n\nHinweis: Gateway-Neustart übersprungen (CHANNEL_MANAGER_SKIP_GATEWAY_RESTART). Bitte manuell: systemctl --user restart openclaw-gateway.service';
+                    '\n\nNote: gateway restart skipped (CHANNEL_MANAGER_SKIP_GATEWAY_RESTART). Run manually: systemctl --user restart openclaw-gateway.service';
             } else if (gr?.error) {
-                extra = `\n\nGateway-Neustart fehlgeschlagen: ${gr.error}\nBitte manuell neu starten.`;
+                extra = `\n\nGateway restart failed: ${gr.error}\nPlease restart manually.`;
             }
             window.alert(
                 'OpenClaw config updated. A timestamped .bak backup was created beside openclaw.json.' + extra
@@ -159,9 +160,9 @@ export default function OpenClawApplyModal({ open, onClose, onBeforeApply }) {
             await loadPreview();
             const gr = data.gatewayRestart;
             let grMsg = '';
-            if (gr?.ok) grMsg = '\n\nGateway wurde neu gestartet.';
-            else if (gr?.skipped) grMsg = '\n\nGateway-Neustart übersprungen — ggf. manuell neu starten.';
-            else if (gr?.error) grMsg = `\n\nGateway-Neustart fehlgeschlagen: ${gr.error}`;
+            if (gr?.ok) grMsg = '\n\nGateway was restarted.';
+            else if (gr?.skipped) grMsg = '\n\nGateway restart skipped — restart manually if needed.';
+            else if (gr?.error) grMsg = `\n\nGateway restart failed: ${gr.error}`;
             window.alert(`Restored from:\n${data.restoredFrom}${grMsg}`);
         } catch (e) {
             setError(e.message);
@@ -229,28 +230,30 @@ export default function OpenClawApplyModal({ open, onClose, onBeforeApply }) {
                             minWidth: 0
                         }}
                     >
-                        <strong style={{ color: '#9fd89f' }}>Speichern:</strong> Änderungen im Channel Manager werden bei
-                        jeder Aktion sofort in <code style={{ color: '#9ff0dc' }}>channel_config.json</code> geschrieben.
-                        Dieses Dialogfenster liest genau diese Datei und überträgt nach OpenClaw — ein separates „Save“
-                        vor dem Apply ist dafür <strong style={{ color: '#c8c8d0' }}>nicht nötig</strong>. „Save“ in der
-                        Kopfzeile aktualisiert nur die Anzeige (wie Reload).
+                        <strong style={{ color: '#9fd89f' }}>Persistence:</strong> Channel Manager writes every change
+                        straight to <code style={{ color: '#9ff0dc' }}>channel_config.json</code>. This dialog reads that
+                        file and merges into OpenClaw — a separate “Save” before Apply is{' '}
+                        <strong style={{ color: '#c8c8d0' }}>not required</strong>. Header “Save” only refreshes the view
+                        (like Reload).
                         <br />
                         <br />
-                        <strong style={{ color: '#c8c8d0' }}>Merge slice (C1 + C1b.1 + C1b.2a):</strong> per channel,{' '}
-                        <code style={{ color: '#9ff0dc' }}>requireMention</code> and{' '}
-                        <code style={{ color: '#9ff0dc' }}>skills</code> are written into{' '}
-                        <code style={{ color: '#9ff0dc' }}>channels.telegram.groups</code>; the per-channel{' '}
-                        <strong style={{ color: '#c8c8d0' }}>model</strong> + main-agent skills land as synthesized{' '}
-                        <code style={{ color: '#9ff0dc' }}>agents.list[]</code> entries (id{' '}
-                        <code style={{ color: '#9ff0dc' }}>{'<assignedAgent>-<groupIdSlug>'}</code>) with matching{' '}
-                        <code style={{ color: '#9ff0dc' }}>bindings[]</code> routes. Ownership is marked as{' '}
-                        <code style={{ color: '#9ff0dc' }}>params._cm.managedBy = "channel-manager"</code> on agents
-                        (schema-legal) and <code style={{ color: '#9ff0dc' }}>comment</code> on bindings.{' '}
-                        <strong style={{ color: '#50e3c2' }}>Operator-authored entries are never modified</strong>;{' '}
-                        <code style={{ color: '#9ff0dc' }}>agents.defaults.*</code> stays operator-owned in this bundle
-                        (opt-in later as C1b.2c). C1b.2a is{' '}
-                        <strong style={{ color: '#c8c8d0' }}>additive only</strong> — stale CM-marked entries are cleaned
-                        up in C1b.2b. Secrets are redacted in the preview.
+                        <strong style={{ color: '#c8c8d0' }}>Merge slice (C1 + C1b.1 + C1b.2a + C1b.2e + C1b.2c + C1b.3):</strong>{' '}
+                        per channel, <code style={{ color: '#9ff0dc' }}>requireMention</code> and{' '}
+                        <code style={{ color: '#9ff0dc' }}>skills</code> →{' '}
+                        <code style={{ color: '#9ff0dc' }}>channels.telegram.groups</code>; optional account-level{' '}
+                        <code style={{ color: '#9ff0dc' }}>channels.telegram.{'{'}groupPolicy,dmPolicy,allowFrom,groupAllowFrom{'}'}</code>{' '}
+                        when CM <code style={{ color: '#9ff0dc' }}>telegramAccountPolicy.applyOnOpenClawApply</code> is
+                        true (C1b.2e). Optional <code style={{ color: '#9ff0dc' }}>agents.defaults.model.primary</code>{' '}
+                        when <code style={{ color: '#9ff0dc' }}>openclawAgentsDefaultsPolicy.applyModelOnOpenClawApply</code>{' '}
+                        (C1b.2c, ADR-018 — never silent). Per-channel <strong style={{ color: '#c8c8d0' }}>model</strong> +
+                        skills (main + channel + <strong style={{ color: '#c8c8d0' }}>C1b.3</strong> active CM sub-agents) →
+                        synthesized <code style={{ color: '#9ff0dc' }}>agents.list[]</code> (id{' '}
+                        <code style={{ color: '#9ff0dc' }}>{'<assignedAgent>-<groupIdSlug>'}</code>) +{' '}
+                        <code style={{ color: '#9ff0dc' }}>bindings[]</code>. CM ownership:{' '}
+                        <code style={{ color: '#9ff0dc' }}>params._cm</code> on agents, <code style={{ color: '#9ff0dc' }}>comment</code> on
+                        bindings. Other <code style={{ color: '#9ff0dc' }}>agents.defaults.*</code> keys untouched except that
+                        optional <code style={{ color: '#9ff0dc' }}>model.primary</code>. C1b.2b prunes orphan CM rows. Secrets
+                        redacted in preview.
                     </p>
                     <button
                         type="button"
@@ -327,6 +330,101 @@ export default function OpenClawApplyModal({ open, onClose, onBeforeApply }) {
                         </div>
                     )}
 
+                    {preview?.telegramAccountPolicy?.active && preview.telegramAccountPolicy?.patch && (
+                        <div
+                            style={{
+                                background: '#1a2430',
+                                border: '1px solid #2d4a62',
+                                borderRadius: 8,
+                                padding: '10px 12px',
+                                marginBottom: 12,
+                                fontSize: 12,
+                                color: '#c8c8d0'
+                            }}
+                        >
+                            <div style={{ fontWeight: 600, marginBottom: 6, color: '#8fb3ff' }}>
+                                C1b.2e · channels.telegram account policy (opt-in)
+                            </div>
+                            <pre
+                                style={{
+                                    margin: 0,
+                                    fontSize: 11,
+                                    overflow: 'auto',
+                                    maxHeight: 120,
+                                    color: '#9ff0dc'
+                                }}
+                            >
+                                {JSON.stringify(preview.telegramAccountPolicy.patch, null, 2)}
+                            </pre>
+                        </div>
+                    )}
+                    {preview?.telegramAccountPolicy &&
+                        !preview.telegramAccountPolicy.active &&
+                        preview.telegramAccountPolicy.normalized && (
+                            <div
+                                style={{
+                                    fontSize: 11,
+                                    color: '#6b7280',
+                                    marginBottom: 10,
+                                    lineHeight: 1.45
+                                }}
+                            >
+                                C1b.2e: gateway account admission is <strong>not</strong> overwritten (the “On next
+                                Apply…” checkbox in Manage Channels is off). CM draft:{' '}
+                                <code>
+                                    groupPolicy={preview.telegramAccountPolicy.normalized.groupPolicy}, dmPolicy=
+                                    {preview.telegramAccountPolicy.normalized.dmPolicy}
+                                </code>
+                            </div>
+                        )}
+
+                    {preview?.agentsDefaultsPolicy?.active && preview.agentsDefaultsPolicy?.patch && (
+                        <div
+                            style={{
+                                background: '#1a2830',
+                                border: '1px solid #2d6250',
+                                borderRadius: 8,
+                                padding: '10px 12px',
+                                marginBottom: 12,
+                                fontSize: 12,
+                                color: '#c8c8d0'
+                            }}
+                        >
+                            <div style={{ fontWeight: 600, marginBottom: 6, color: '#7dd3c0' }}>
+                                C1b.2c · agents.defaults.model (opt-in)
+                            </div>
+                            <pre
+                                style={{
+                                    margin: 0,
+                                    fontSize: 11,
+                                    overflow: 'auto',
+                                    maxHeight: 100,
+                                    color: '#9ff0dc'
+                                }}
+                            >
+                                {JSON.stringify(preview.agentsDefaultsPolicy.patch, null, 2)}
+                            </pre>
+                        </div>
+                    )}
+                    {preview?.agentsDefaultsPolicy &&
+                        !preview.agentsDefaultsPolicy.active &&
+                        preview.agentsDefaultsPolicy.normalized && (
+                            <div
+                                style={{
+                                    fontSize: 11,
+                                    color: '#6b7280',
+                                    marginBottom: 10,
+                                    lineHeight: 1.45
+                                }}
+                            >
+                                C1b.2c: <code style={{ color: '#9ff0dc' }}>agents.defaults.model</code> is{' '}
+                                <strong>not</strong> overwritten (Workspace default model panel: “On next Apply…” off, or no
+                                model selected). CM draft: apply=
+                                {String(preview.agentsDefaultsPolicy.normalized.applyModelOnOpenClawApply)}, modelPrimary=
+                                <code>{preview.agentsDefaultsPolicy.normalized.modelPrimary || '—'}</code>
+                            </div>
+                        )}
+
                     {preview?.agentsBindingsSummary && (
                         <div
                             style={{
@@ -340,7 +438,7 @@ export default function OpenClawApplyModal({ open, onClose, onBeforeApply }) {
                             }}
                         >
                             <div style={{ fontWeight: 600, marginBottom: 6, color: '#9ff0dc' }}>
-                                C1b.2a · agents.list + bindings
+                                C1b.2a + C1b.2b · agents.list + bindings
                             </div>
                             <div style={{ marginBottom: 8 }}>
                                 <span style={{ color: '#50e3c2' }}>
@@ -359,6 +457,59 @@ export default function OpenClawApplyModal({ open, onClose, onBeforeApply }) {
                                     ~{preview.agentsBindingsSummary.bindingsUpdated} updated
                                 </span>
                             </div>
+                            {preview?.orphanPruneSummary &&
+                                (preview.orphanPruneSummary.agentsRemoved > 0 ||
+                                    preview.orphanPruneSummary.bindingsRemoved > 0) && (
+                                    <div
+                                        style={{
+                                            marginBottom: 10,
+                                            padding: '8px 10px',
+                                            borderRadius: 6,
+                                            background: '#2a1f28',
+                                            border: '1px solid #5c3d4a',
+                                            color: '#f0c0b0',
+                                            fontSize: 11,
+                                            lineHeight: 1.45
+                                        }}
+                                    >
+                                        <strong>C1b.2b · orphan prune</strong> — CM-managed rows whose
+                                        channel no longer exists in <code>channel_config.json</code> are
+                                        removed on Apply:
+                                        <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                                            <li>
+                                                −{preview.orphanPruneSummary.agentsRemoved} agent(s)
+                                            </li>
+                                            <li>
+                                                −{preview.orphanPruneSummary.bindingsRemoved} binding(s)
+                                            </li>
+                                        </ul>
+                                        {(preview.orphanPruneSummary.removedAgents?.length > 0 ||
+                                            preview.orphanPruneSummary.removedBindings?.length > 0) && (
+                                            <details style={{ marginTop: 6 }}>
+                                                <summary style={{ cursor: 'pointer' }}>Details</summary>
+                                                <pre
+                                                    style={{
+                                                        margin: '8px 0 0',
+                                                        fontSize: 10,
+                                                        overflow: 'auto',
+                                                        maxHeight: 120
+                                                    }}
+                                                >
+                                                    {JSON.stringify(
+                                                        {
+                                                            removedAgents:
+                                                                preview.orphanPruneSummary.removedAgents,
+                                                            removedBindings:
+                                                                preview.orphanPruneSummary.removedBindings
+                                                        },
+                                                        null,
+                                                        2
+                                                    )}
+                                                </pre>
+                                            </details>
+                                        )}
+                                    </div>
+                                )}
                             {preview?.perChannel && preview.perChannel.length > 0 && (
                                 <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                                     <table
@@ -431,9 +582,9 @@ export default function OpenClawApplyModal({ open, onClose, onBeforeApply }) {
                     )}
                     {preview?.unchanged && !loading && (
                         <div style={{ color: '#50e3c2', lineHeight: 1.5 }}>
-                            No changes — <code>openclaw.json</code> already matches Channel Manager for the
-                            C1 + C1b.1 + C1b.2a merge slice (<code>channels.telegram.groups</code>,{' '}
-                            <code>agents.list[]</code> CM entries, <code>bindings[]</code> CM routes).
+                            No changes — <code>openclaw.json</code> already matches Channel Manager for the merge slice
+                            (<code>channels.telegram.groups</code>, optional C1b.2e / C1b.2c,{' '}
+                            <code>agents.list[]</code> / <code>bindings[]</code> CM rows).
                         </div>
                     )}
                 </div>

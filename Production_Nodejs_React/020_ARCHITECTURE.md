@@ -166,7 +166,7 @@ backend is restarting.
 | `telegramService.js`    | Facade re-exporting `services/chat/*` (Bundle B / P5).            | Stable import path for routes + init.          |
 | `ideConfigBridge.js`    | `buildCanonicalSnapshot`, `buildOpenClawProjection`,                | Unchanged.                                     |
 |                         | `buildIdeWorkbenchBundle`, `buildCursorProjection`.                 |                                                |
-| `openclawApply.js`      | **C1 + C1b.1 + C1b.2a:** merge `channel_config` → `openclaw.json` `channels.telegram.groups` (`requireMention`, `skills`) **+** per-channel synthesized `agents.list[]` (id `<assignedAgent>-<groupIdSlug>`, model, skills) **+** matching `bindings[]` routes, all tagged `managed-by: channel-manager`; lock, backup, atomic write, audit (HTTP 409 on operator-owned collision), undo. | **C1b.2b (next):** orphan cleanup. **C1b.2c:** opt-in `agents.defaults.model`. **C1b.3:** sub-agent skill flavoring. |
+| `openclawApply.js`      | **C1 + C1b.1 + C1b.2a + C1b.2b + C1b.2c + C1b.2e + C1b.3:** merge `channel_config` → `openclaw.json`: `channels.telegram.groups` (`requireMention`, `skills`); optional account-level `channels.telegram` policy when `telegramAccountPolicy.applyOnOpenClawApply`; optional **`agents.defaults.model.primary`** when `openclawAgentsDefaultsPolicy.applyModelOnOpenClawApply` (preserves existing `model` object fields except `primary`); synthesized `agents.list[]` + `bindings[]` (CM-tagged) with **C1b.3** synth skills; C1b.2b orphan prune; lock, backup, audit, undo. | — |
 | `channelConfigWriter.js`| atomic writer for `channel_config.json`.                            | Unchanged.                                     |
 | `memoryPromote.js`      | **C2:** append A070 summary into OpenClaw `memory/*.md` or `MEMORY.md`; dedup, lock, audit. | Unchanged.                             |
 | `skillsRegistry.js`     | scans `OPENCLAW_WORKSPACE/skills`, exposes skill metadata.          | Add filter/sort API (Backlog).                 |
@@ -219,10 +219,9 @@ Validation via Zod. Guardrails learned the hard way (see anti-patterns below):
   rows (no marker) are preserved verbatim, and any synth-id or telegram-peer
   collision against an operator-owned row refuses the write (HTTP 409). Channel
   Manager’s **conceptual** model stays: one **main agent** per channel, **model**
-  and **skills** (base + per-channel extras) for that agent and for **CM
-  sub-agents**; **Apply** maps fields to OpenClaw **only** where the official
-  schema allows. Remaining C1b work: **C1b.2b** orphan cleanup, **C1b.2c** opt-in
-  `agents.defaults.model`, **C1b.3** sub-agent skill flavoring. See
+  and **skills** (base + per-channel extras + **C1b.3** active CM sub-agent
+  skills); **Apply** maps fields to OpenClaw **only** where the official
+  schema allows. **C1b.2c** opt-in workspace default model is shipped. See
   `030_ROADMAP.md` §5.1,
   `_archive/2026-04/CHANNEL_MANAGER_C1b.2_MODEL_MAPPING_SPEC.md`, and
   `_archive/2026-04/CHANNEL_MANAGER_TelegramSync_RESEARCH.md` §2.4–2.5.
