@@ -4,11 +4,14 @@ import {
   backendUrl,
   buildDraft,
   cleanupDraftAndSidecar,
+  cleanupE2eTtgReviewArtifact,
   cleanupMemoryPromotion,
+  e2eTtgReviewArtifactRelativePath,
   getChannels,
   makeRunId,
   pickTestChannel,
   todayDateSlug,
+  writeE2eTtgReviewArtifact,
   writeEvidence
 } from './helpers/bridgeTestHelpers.js';
 
@@ -166,6 +169,72 @@ test.describe('E2E_GOLDEN_PATH_8B5', () => {
       }
 
       await writeEvidence(testInfo, 'e2e-golden-path-8b5-context', context);
+    }
+  });
+
+  test('confirms TTG for a Studio artifact via the TTG review tab', async ({ page, request }, testInfo) => {
+    const runId = makeRunId();
+    const consoleErrors = [];
+    const context = { runId, backendUrl, artifactCleaned: false };
+
+    page.on('pageerror', (error) => {
+      consoleErrors.push(`pageerror: ${error.message}`);
+    });
+    page.on('console', (message) => {
+      if (message.type() === 'error') {
+        consoleErrors.push(`console.error: ${message.text()}`);
+      }
+    });
+
+    const relPath = e2eTtgReviewArtifactRelativePath(runId);
+    const artifactTestId = `ide-artifact-${relPath.replace(/\//g, '__')}`;
+
+    try {
+      await writeE2eTtgReviewArtifact(runId);
+      context.relativePath = relPath;
+
+      const channels = await getChannels(request);
+      const channel = pickTestChannel(channels);
+      context.channelId = channel.id;
+
+      await page.goto('/channels');
+      await expect(page.getByRole('heading', { name: /Channel Manager/ })).toBeVisible();
+
+      await page.getByRole('button', { name: /TARS in IDE, all/ }).click();
+      const summaryPanel = page.getByTestId(`ide-summary-panel-${channel.id}`);
+      await expect(summaryPanel.getByText('TARS in IDE · IDE project summary')).toBeVisible();
+
+      await summaryPanel.getByTestId('ide-summary-tab-artifacts').click();
+
+      const artifactRow = summaryPanel.getByTestId(artifactTestId);
+      await expect(artifactRow).toBeVisible({ timeout: 20_000 });
+      await artifactRow.click();
+
+      await summaryPanel.getByTestId('ide-artifact-confirm-ttg-id').fill(String(channel.id));
+      await summaryPanel.getByTestId('ide-artifact-confirm-ttg-name').fill('E2E TTG');
+
+      await summaryPanel.getByTestId('ide-artifact-confirm-submit').click();
+
+      await expect.poll(async () => {
+        const idx = await apiJson(request, 'GET', '/api/ide-project-summaries/artifact-index');
+        const rec = (idx.records || []).find((r) => r.sourcePath === relPath);
+        return rec?.binding?.status;
+      }, {
+        message: 'artifact index should show confirmed binding after header write',
+        timeout: 15_000
+      }).toBe('confirmed');
+
+      const idx = await apiJson(request, 'GET', '/api/ide-project-summaries/artifact-index');
+      const rec = (idx.records || []).find((r) => r.sourcePath === relPath);
+      expect(rec?.binding?.method).toBe('artifact_header');
+      expect(rec?.ttg?.current?.id).toBe(String(channel.id));
+      expect(consoleErrors).toEqual([]);
+
+      context.confirmedBinding = rec?.binding;
+    } finally {
+      await cleanupE2eTtgReviewArtifact(runId);
+      context.artifactCleaned = true;
+      await writeEvidence(testInfo, 'e2e-golden-path-8b5-ttg-review-context', context);
     }
   });
 });

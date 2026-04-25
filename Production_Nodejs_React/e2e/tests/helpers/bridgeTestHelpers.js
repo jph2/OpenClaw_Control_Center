@@ -18,9 +18,47 @@ export function todayDateSlug() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+export function defaultStudioFrameworkRoot() {
+  return process.env.E2E_STUDIO_FRAMEWORK_ROOT
+    || path.join(LOCAL_REPO_ROOT, 'Studio_Framework');
+}
+
 export function defaultA070Root() {
   return process.env.E2E_A070_ROOT
     || path.join(LOCAL_REPO_ROOT, 'Studio_Framework', '050_Artifacts', 'A070_ide_cursor_summaries');
+}
+
+/** Relative path under Studio_Framework for E2E TTG review tab (no current_ttg in header). */
+export function e2eTtgReviewArtifactRelativePath(runId) {
+  return `050_Artifacts/A010_discovery-research/e2e-8b5-ttg-review__${runId}.md`;
+}
+
+export async function writeE2eTtgReviewArtifact(runId) {
+  const rel = e2eTtgReviewArtifactRelativePath(runId);
+  const full = path.join(defaultStudioFrameworkRoot(), ...rel.split('/'));
+  await fs.mkdir(path.dirname(full), { recursive: true });
+  const body = [
+    '---',
+    `id: "e2b5tr-${runId}"`,
+    'title: "E2E TTG Review Artifact"',
+    'type: DISCOVERY',
+    'status: active',
+    'tags: [e2e]',
+    '---',
+    '',
+    '# E2E TTG review',
+    '',
+    'Stub artifact without current_ttg for Channel Manager review flow.',
+    ''
+  ].join('\n');
+  await fs.writeFile(full, body, 'utf8');
+  return { relativePath: rel, fullPath: full };
+}
+
+export async function cleanupE2eTtgReviewArtifact(runId) {
+  const rel = e2eTtgReviewArtifactRelativePath(runId);
+  const full = path.join(defaultStudioFrameworkRoot(), ...rel.split('/'));
+  await fs.unlink(full).catch(() => {});
 }
 
 export function defaultOpenClawWorkspace() {
