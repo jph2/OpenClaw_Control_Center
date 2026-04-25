@@ -5,7 +5,11 @@ import { homedir } from 'os';
 import { z } from 'zod';
 import { resolveSafe } from '../utils/security.js';
 import { apiLimiter } from '../utils/rateLimiter.js';
-import { buildArtifactIndex } from '../services/artifactIndex.js';
+import { buildArtifactIndex, indexMarkdownArtifact } from '../services/artifactIndex.js';
+import {
+    buildOpenBrainExportRecord,
+    OpenBrainExportBlockedError
+} from '../services/openBrainExportContract.js';
 import { runMemoryPromote } from '../services/memoryPromote.js';
 import {
     buildIdeWorkUnit,
@@ -301,6 +305,45 @@ router.get('/artifact-index', async (req, res, next) => {
         const index = await buildArtifactIndex({ studioRoot: root });
         res.json({ ok: true, ...index });
     } catch (e) {
+        next(e);
+    }
+});
+
+/**
+ * GET /api/summaries/open-brain-export?sourcePath=050_Artifacts/...
+ * Read-only builder for the Open Brain export contract. This returns an
+ * OB1-ready upsert payload; it does not sync or mutate Open Brain.
+ */
+router.get('/open-brain-export', async (req, res, next) => {
+    try {
+        const sourcePath = req.query.sourcePath;
+        if (!sourcePath || typeof sourcePath !== 'string') {
+            return res.status(400).json({ ok: false, error: 'sourcePath query required' });
+        }
+        if (sourcePath.includes('..') || path.isAbsolute(sourcePath)) {
+            return res.status(400).json({ ok: false, error: 'invalid sourcePath' });
+        }
+        const root = studioFrameworkRoot();
+        const { resolved } = await resolveSafe(root, sourcePath.split('/').join(path.sep));
+        const markdown = await fs.readFile(resolved, 'utf8');
+        const record = indexMarkdownArtifact({ studioRoot: root, filePath: resolved, markdown });
+        const exportRecord = buildOpenBrainExportRecord(record, {
+            markdown,
+            producer: {
+                surface: req.query.surface ? String(req.query.surface) : 'unknown',
+                agent: req.query.agent ? String(req.query.agent) : '',
+                model: req.query.model ? String(req.query.model) : '',
+                sessionId: req.query.sessionId ? String(req.query.sessionId) : '',
+                operator: req.ip || ''
+            }
+        });
+        res.json({ ok: true, export: exportRecord });
+    } catch (e) {
+        if (e instanceof OpenBrainExportBlockedError) {
+            return res.status(e.status).json({ ok: false, error: e.message, details: e.details });
+        }
+        if (e.status === 403) return res.status(403).json({ ok: false, error: 'path blocked' });
+        if (e.code === 'ENOENT') return res.status(404).json({ ok: false, error: 'source artifact not found' });
         next(e);
     }
 });

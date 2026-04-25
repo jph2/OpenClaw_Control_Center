@@ -203,6 +203,85 @@ binding:
         assert.equal(res.body.records[0].exportEligibility.status, 'ready');
     });
 
+    it('builds a read-only Open Brain export payload for a Studio artifact', async () => {
+        const artifactDir = path.join(process.env.STUDIO_FRAMEWORK_ROOT, '050_Artifacts', 'A010_discovery-research');
+        await fs.mkdir(artifactDir, { recursive: true });
+        await fs.writeFile(
+            path.join(artifactDir, 'ob1-export-api.md'),
+            `---
+id: "ob1-export-api"
+title: "OB1 Export API"
+type: DISCOVERY
+status: active
+tags: [api, open_brain]
+current_ttg:
+  id: "-100390983368"
+  name: "TTG010_General_Discovery_Plus_Research"
+project:
+  id: "studio-framework"
+binding:
+  status: confirmed
+  method: artifact_header
+---
+
+# OB1 Export API
+
+Ready for Open Brain.
+`,
+            'utf8'
+        );
+
+        const res = await request(app)
+            .get('/api/ide-project-summaries/open-brain-export')
+            .query({
+                sourcePath: '050_Artifacts/A010_discovery-research/ob1-export-api.md',
+                surface: 'codex',
+                model: 'gpt-5.4'
+            })
+            .expect(200);
+
+        assert.equal(res.body.ok, true);
+        assert.equal(res.body.export.schema, 'studio-framework.open-brain-export.v1');
+        assert.equal(res.body.export.operation, 'upsert');
+        assert.equal(res.body.export.target, 'thoughts');
+        assert.equal(res.body.export.artifact.id, 'ob1-export-api');
+        assert.equal(res.body.export.exportMode, 'knowledge');
+        assert.equal(res.body.export.ttg.binding.method, 'artifact_header');
+        assert.equal(res.body.export.ttg.current.id, '-100390983368');
+        assert.equal(res.body.export.producer.surface, 'codex');
+        assert.match(res.body.export.dedup.identity, /^[a-f0-9]{64}$/);
+    });
+
+    it('blocks Open Brain export payloads when a Studio artifact contains secrets', async () => {
+        const artifactDir = path.join(process.env.STUDIO_FRAMEWORK_ROOT, '050_Artifacts', 'A010_discovery-research');
+        await fs.mkdir(artifactDir, { recursive: true });
+        await fs.writeFile(
+            path.join(artifactDir, 'ob1-secret.md'),
+            `---
+id: "ob1-secret"
+title: "OB1 Secret"
+type: DISCOVERY
+status: active
+current_ttg:
+  id: "-100390983368"
+---
+
+# Secret
+
+api_key = "sk-abcdefghijklmnopqrstuvwxyz"
+`,
+            'utf8'
+        );
+
+        const res = await request(app)
+            .get('/api/ide-project-summaries/open-brain-export')
+            .query({ sourcePath: '050_Artifacts/A010_discovery-research/ob1-secret.md' })
+            .expect(400);
+
+        assert.equal(res.body.ok, false);
+        assert.match(res.body.error, /secret gate/i);
+    });
+
     it('promote writes marker, confirms readback, and updates sidecar meta', async () => {
         const relativePath = 'drafts/2026-04-24__-1003752539559__openclaw-control-center__summary.md';
         await request(app)

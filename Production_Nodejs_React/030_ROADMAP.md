@@ -337,6 +337,7 @@ not part of the A → B → C1 → C2 sequence above.
 | 6.18  | Session-native send binding (evidence `API_DIRECT_TEST_1814`).                          |
 | 6.19  | Workbench / Channel Manager boundary hardening — see §8b.8.                             |
 | 6.20  | Workbench diff-first artifact/worktree editor hardening — see `SPEC_WORKBENCH_POSITIONING.md`. |
+| 6.21  | Slash-command parity and no-fake-send guardrails in CM chat — see §8b.9.                |
 | 8.3   | MCP Sovereign Bridge verification after IDE reload.                                     |
 | 9.*   | MCP whitelisting: `allowedMCPs` schema, UI, policy injection.                           |
 | 10.1  | Replacement for `occ-ctl.mjs` (Makefile or root `package.json`).                        |
@@ -557,8 +558,8 @@ continuity; Open Brain is the long-term semantic/MCP knowledge layer.
 artifact-header Discovery/Research binding is implemented for summary writes;
 artifact index/resolver, agent-assisted fallback classification, Open Brain
 export/sync, and producer adapters are not complete yet.
-**Remaining production gates:** Open Brain export contract, agent-assisted TTG
-classification with review states, and Open Brain sync.
+**Remaining production gates:** agent-assisted TTG classification with review
+states and Open Brain sync.
 
 **Next-session gates:**
 
@@ -567,9 +568,10 @@ classification with review states, and Open Brain sync.
    `binding.method = "artifact_header"` in sidecar/UI.
 2. ✅ **Ticket E — `ARTIFACT_INDEX_RESOLVER_V1`**: index Studio artifacts by
    stable id, path, type, tags, TTG binding, project binding, and content hash.
-3. **Ticket F — `OPEN_BRAIN_EXPORT_CONTRACT_V1`**: define the Studio artifact
+3. ✅ **Ticket F — `OPEN_BRAIN_EXPORT_CONTRACT_V1`**: define the Studio artifact
    export/upsert payload for OB1 `thoughts`, including metadata, source path,
-   content hash, no-secrets validation, and dedup identity.
+   content hash, no-secrets validation, and dedup identity. Implemented as a
+   read-only contract builder; no OB1 sync/write occurs yet.
 4. **Ticket D — `AGENT_TTG_CLASSIFICATION_V1`**: if the human leaves no TTG,
    classify against canonical `TTG*.md` definitions and record
    `inferred` / `needs_review` rather than pretending the result is confirmed.
@@ -580,9 +582,8 @@ classification with review states, and Open Brain sync.
 7. Extend `E2E_GOLDEN_PATH_8B5` with artifact-header and Open Brain export/sync
    cases after the corresponding tickets land.
 
-**Recommended order:** `OPEN_BRAIN_EXPORT_CONTRACT_V1`, then
-`AGENT_TTG_CLASSIFICATION_V1`, then Open Brain sync. Producer adapters follow
-as convenience importers.
+**Recommended order:** `AGENT_TTG_CLASSIFICATION_V1`, then Open Brain sync.
+Producer adapters follow as convenience importers.
 
 **Goal:** Turn the third Channel Manager workspace tab into the operational
 bridge between producer work (Cursor/Codex/OpenCode/Chat/Telegram), TTG
@@ -805,6 +806,48 @@ media behavior.
 - Feature-owned UI/code sits in the owning feature folder.
 - Shared utilities are intentionally shared, not a dumping ground.
 - Build and E2E remain green after each slice.
+
+### 8b.9 · Slash-Command Parity And Send-Path Correctness (later)
+
+**Status:** proposed, not next.
+**Priority:** medium.
+**Depends on:** §8b.4 gateway-native chat path stabilization.
+
+**Problem:** Channel Manager Chat does not yet have clean parity with native
+OpenClaw Chat for slash inputs. Normal text messages are sent through the
+OpenClaw path and mirrored, but slash inputs such as `/new` can appear locally
+in Channel Manager without arriving in the native OpenClaw chat or executing as
+real commands. That creates a dangerous pseudo-send state: the UI can suggest
+that something was sent even when the true command/send path did not happen.
+
+**Goal:** Slash inputs must either dispatch through an explicit command path or
+fail visibly. They must not create normal optimistic user bubbles unless a real
+dispatch is confirmed.
+
+**V1 scope:**
+
+1. Detect leading `/` inputs in the composer as command candidates.
+2. Separate normal text sends from command requests, either by request type or
+   endpoint.
+3. Suppress normal optimistic user bubbles for unconfirmed commands.
+4. Show pending/success/failure command states explicitly.
+5. Check core cases: `/new`, `/reset`, `/status`, `/commands`, `/reasoning`,
+   `/model`, `/approve`, `/focus`, `/unfocus`, `/session`.
+
+**Out of scope:**
+
+- Custom slash commands.
+- Full command palette / autocomplete v2.
+- Command ACL management UI.
+
+**Acceptance:**
+
+- `/new` no longer appears as a local-only sent message.
+- Unsupported or undispatchable commands fail visibly.
+- `/status` and `/commands` produce either native results or clear fallback
+  errors.
+- Successful command effects are reflected in session/mirror behavior.
+- E2E covers at least one successful command and one failed command.
 
 ---
 

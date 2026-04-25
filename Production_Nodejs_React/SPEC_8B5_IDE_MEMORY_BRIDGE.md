@@ -655,6 +655,9 @@ OpenClaw promote and Open Brain sync operate from the same artifact truth.
 
 ### Ticket F - `OPEN_BRAIN_EXPORT_CONTRACT_V1`
 
+**Status:** implemented as read-only export builder. This ticket defines and
+materializes the OB1-ready payload, but it does not sync to Open Brain.
+
 **Goal:** define the payload Channel Manager / Studio tooling sends to Open
 Brain so later sync can be implemented without rethinking identity, metadata,
 dedup, or review status.
@@ -684,6 +687,20 @@ dedup, or review status.
 - Export means building/sending an OB1-ready record; it does not mean OpenClaw
   promote and does not imply Open Brain sync succeeded.
 
+**Current implementation:**
+
+- Contract service: `backend/services/openBrainExportContract.js`
+- Read-only API:
+  `GET /api/ide-project-summaries/open-brain-export?sourcePath=050_Artifacts/...`
+- The endpoint reads a Studio-root-relative Markdown artifact, indexes it with
+  the shared artifact index resolver, validates the secret gate, and returns:
+  `{ ok: true, export: <studio-framework.open-brain-export.v1> }`.
+- Secret-blocked artifacts return a visible `400` and no export payload.
+- `confirmed` bindings export as `knowledge`; `inferred`, `needs_review`,
+  `ambiguous`, and `unknown` export as review records only.
+- `source.path` is portable and relative; absolute machine-local paths are not
+  used for source identity or dedup.
+
 **Tests:**
 
 1. valid artifact creates OB1 export payload.
@@ -692,6 +709,8 @@ dedup, or review status.
 4. unconfirmed classification is preserved as review state.
 5. producer surface does not alter export schema.
 6. absolute local paths are excluded from dedup identity.
+7. read-only API returns a contract payload for a Studio artifact.
+8. read-only API blocks secret-containing artifacts.
 
 ### Ticket G - `ARTIFACT_TO_OPEN_BRAIN_SYNC_V1`
 
