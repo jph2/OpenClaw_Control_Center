@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { parseArtifactHeaderBinding } from './artifactHeaderBinding.js';
 import { buildAdapterWorkUnit } from './ideWorkUnitAdapters.js';
 import { extractTtgIds, resolveTtgBinding } from './ttgBindingResolver.js';
 
@@ -77,8 +78,11 @@ export function buildIdeWorkUnit({
             ...(Array.isArray(pathHints) ? pathHints : [])
         ]
     });
+    const artifactHeader = parseArtifactHeaderBinding(text);
     const binding = resolveTtgBinding({
         explicitTtgId: adapter.bindingHints.explicitTtgId,
+        artifactHeaderTtgId: artifactHeader.currentTtgId,
+        artifactHeaderInitialTtgId: artifactHeader.initialTtgId,
         channelName: adapter.bindingHints.channelName,
         projectId: adapter.project.id,
         projectMappingKey: adapter.bindingHints.projectMappingKey,
@@ -122,7 +126,15 @@ export function buildIdeWorkUnit({
             status: binding.status,
             method: binding.method,
             ...(binding.candidates?.length ? { candidates: binding.candidates } : {}),
-            ...(binding.reason ? { reason: binding.reason } : {})
+            ...(binding.reason ? { reason: binding.reason } : {}),
+            ...(artifactHeader.hasHeader ? {
+                artifactHeader: {
+                    currentTtgId: artifactHeader.currentTtgId || '',
+                    initialTtgId: artifactHeader.initialTtgId || '',
+                    currentTtgName: artifactHeader.current?.name || '',
+                    initialTtgName: artifactHeader.initial?.name || ''
+                }
+            } : {})
         },
         promotedTo: Array.isArray(previous.promotedTo) ? previous.promotedTo : [],
         createdAt: previous.createdAt || now,

@@ -35,6 +35,34 @@ describe('ideWorkUnit', () => {
         assert.equal(computeWorkUnitStatus(unit), 'not_promoted');
     });
 
+    it('binds discovery artifacts through current_ttg in the artifact header', () => {
+        const text = `---
+initial_ttg:
+  id: "-100732566515"
+  name: "TTG001_Idea_Capture"
+current_ttg:
+  id: "-100390983368"
+  name: "TTG010_General_Discovery_Plus_Research"
+binding:
+  status: confirmed
+  method: artifact_header
+---
+
+# Discovery
+`;
+        const unit = buildIdeWorkUnit({
+            summaryRelativePath: 'drafts/discovery.md',
+            text,
+            projectId: 'unmapped-project',
+            projectMappings: [{ projectId: 'unmapped-project', ttgId: '-1003752539559' }]
+        });
+        assert.equal(unit.ttgId, '-100390983368');
+        assert.equal(unit.binding.status, 'confirmed');
+        assert.equal(unit.binding.method, 'artifact_header');
+        assert.equal(unit.binding.artifactHeader.currentTtgName, 'TTG010_General_Discovery_Plus_Research');
+        assert.equal(unit.binding.artifactHeader.initialTtgId, '-100732566515');
+    });
+
     it('updates status after marker read-back confirms promotion', () => {
         const unit = buildIdeWorkUnit({
             summaryRelativePath: 'drafts/summary.md',

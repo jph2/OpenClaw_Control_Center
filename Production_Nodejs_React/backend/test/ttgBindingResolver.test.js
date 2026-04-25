@@ -25,6 +25,17 @@ describe('ttgBindingResolver', () => {
         assert.equal(res.ttgId, '-1003752539559');
     });
 
+    it('confirms artifact header current_ttg before project mappings', () => {
+        const res = resolveTtgBinding({
+            artifactHeaderTtgId: '-100390983368',
+            projectId: 'openclaw-control-center',
+            projectMappings: [{ projectId: 'openclaw-control-center', ttgId: '-1003752539559' }]
+        });
+        assert.equal(res.status, 'confirmed');
+        assert.equal(res.method, 'artifact_header');
+        assert.equal(res.ttgId, '-100390983368');
+    });
+
     it('confirms a single path hint match', () => {
         const res = resolveTtgBinding({
             pathHints: ['drafts/2026-04-24__-1003752539559__summary.md']
@@ -73,6 +84,15 @@ describe('ttgBindingResolver', () => {
         assert.equal(res.status, 'unknown');
         assert.equal(res.method, 'explicit');
         assert.equal(res.ttgId, null);
+    });
+
+    it('uses artifact header initial_ttg as inferred fallback when current_ttg is missing', () => {
+        const res = resolveTtgBinding({
+            artifactHeaderInitialTtgId: '-100732566515'
+        });
+        assert.equal(res.status, 'inferred');
+        assert.equal(res.method, 'artifact_header');
+        assert.equal(res.ttgId, '-100732566515');
     });
 
     it('returns ambiguous for conflicting non-explicit project and path signals', () => {

@@ -154,6 +154,13 @@ and metadata remains easy to validate.
 
 ## 6. Artifact Header Binding Contract
 
+Implementation status 2026-04-25: `ARTIFACT_HEADER_BINDING_V1` is implemented
+for A070 summary writes. The backend parses Markdown frontmatter,
+`current_ttg.id` resolves as `binding.method = "artifact_header"`, and
+`initial_ttg.id` is retained as history/fallback evidence. This does not make
+producer tools authoritative; it makes artifact-owned routing metadata visible
+to the existing work-unit sidecar.
+
 Discovery and research artifacts are first-class binding sources. This covers
 work that happens before a concrete repo/project exists, such as idea capture,
 research, product/design theory, architecture exploration, and pre-project

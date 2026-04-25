@@ -118,6 +118,55 @@ describe('IDE project summaries bridge integration', () => {
         assert.equal(write.body.meta.binding.method, 'project_mapping');
     });
 
+    it('uses artifact header current_ttg before project mappings on summary write', async () => {
+        await request(app)
+            .put('/api/ide-project-summaries/project-mappings')
+            .send({
+                projectMappings: [
+                    {
+                        projectId: 'discovery-project',
+                        ttgId: '-1003752539559',
+                        label: 'Project fallback'
+                    }
+                ]
+            })
+            .expect(200);
+
+        const text = `---
+initial_ttg:
+  id: "-100732566515"
+  name: "TTG001_Idea_Capture"
+current_ttg:
+  id: "-100390983368"
+  name: "TTG010_General_Discovery_Plus_Research"
+binding:
+  status: confirmed
+  method: artifact_header
+---
+
+# Discovery
+`;
+
+        const write = await request(app)
+            .post('/api/ide-project-summaries')
+            .send({
+                relativePath: 'drafts/2026-04-25__all__discovery-project__summary.md',
+                text,
+                createOnly: true,
+                meta: {
+                    surface: 'manual',
+                    projectId: 'discovery-project'
+                }
+            })
+            .expect(200);
+
+        assert.equal(write.body.meta.ttgId, '-100390983368');
+        assert.equal(write.body.meta.binding.status, 'confirmed');
+        assert.equal(write.body.meta.binding.method, 'artifact_header');
+        assert.equal(write.body.meta.binding.artifactHeader.currentTtgName, 'TTG010_General_Discovery_Plus_Research');
+        assert.equal(write.body.meta.binding.artifactHeader.initialTtgId, '-100732566515');
+    });
+
     it('promote writes marker, confirms readback, and updates sidecar meta', async () => {
         const relativePath = 'drafts/2026-04-24__-1003752539559__openclaw-control-center__summary.md';
         await request(app)

@@ -544,22 +544,26 @@ collects adapter/project hints and lets the backend normalize + resolve against
 the persisted mapping store. `E2E_GOLDEN_PATH_8B5` is implemented as a
 Playwright proof of the current browser operator flow. Artifact-owned TTG
 binding is now specified for Discovery/Research work via `initial_ttg` and
-`current_ttg` headers; `current_ttg` is the operative routing truth. Open Brain
-integration shifts the architecture to **artifact-centered memory**: Cursor,
-Codex, OpenCode, Telegram, and Chat are producer surfaces; Studio Framework
-artifacts are durable truth; OpenClaw memory is operational agent continuity;
-Open Brain is the long-term semantic/MCP knowledge layer.
+`current_ttg` headers; `current_ttg` is the operative routing truth. **Ticket C
+`ARTIFACT_HEADER_BINDING_V1` landed 2026-04-25:** backend parses Markdown
+frontmatter for `current_ttg` / `initial_ttg`, resolver priority includes
+`artifact_header`, sidecar metadata stores header evidence, and the
+`POST /api/ide-project-summaries` path is covered by integration tests. Open
+Brain integration shifts the architecture to **artifact-centered memory**:
+Cursor, Codex, OpenCode, Telegram, and Chat are producer surfaces; Studio
+Framework artifacts are durable truth; OpenClaw memory is operational agent
+continuity; Open Brain is the long-term semantic/MCP knowledge layer.
 **Maturity:** project-mapping bridge and promote/read-back core are usable now;
-artifact-header Discovery/Research binding, agent-assisted fallback
-classification, Open Brain export/sync, and producer adapters are not complete
-yet.
-**Remaining production gates:** artifact-header resolver ingestion,
-artifact index/resolver, Open Brain export contract, agent-assisted TTG
-classification with review states, and Open Brain sync.
+artifact-header Discovery/Research binding is implemented for summary writes;
+artifact index/resolver, agent-assisted fallback classification, Open Brain
+export/sync, and producer adapters are not complete yet.
+**Remaining production gates:** artifact index/resolver, Open Brain export
+contract, agent-assisted TTG classification with review states, and Open Brain
+sync.
 
 **Next-session gates:**
 
-1. **Ticket C — `ARTIFACT_HEADER_BINDING_V1`**: parse Discovery/Research YAML
+1. ✅ **Ticket C — `ARTIFACT_HEADER_BINDING_V1`**: parse Discovery/Research YAML
    headers, map `current_ttg` into the work-unit binding result, and surface
    `binding.method = "artifact_header"` in sidecar/UI.
 2. **Ticket E — `ARTIFACT_INDEX_RESOLVER_V1`**: index Studio artifacts by

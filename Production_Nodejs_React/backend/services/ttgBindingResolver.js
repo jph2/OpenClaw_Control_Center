@@ -44,6 +44,25 @@ export function resolveTtgBinding(input = {}) {
         };
     }
 
+    const artifactCurrent = String(input.artifactHeaderTtgId || '').trim();
+    if (artifactCurrent) {
+        if (!isValidTtgId(artifactCurrent)) {
+            return {
+                status: 'unknown',
+                method: 'artifact_header',
+                ttgId: null,
+                candidates: [],
+                reason: 'artifact header current_ttg.id is present but invalid'
+            };
+        }
+        return {
+            status: 'confirmed',
+            method: 'artifact_header',
+            ttgId: artifactCurrent,
+            reason: 'artifact header current_ttg.id'
+        };
+    }
+
     const pathCandidates = uniq([
         ...extractTtgIds(input.channelName),
         ...extractTtgIds(input.projectMappingKey),
@@ -76,6 +95,35 @@ export function resolveTtgBinding(input = {}) {
             ttgId: null,
             candidates: mapped,
             reason: 'multiple project mapping matches'
+        };
+    }
+
+    const artifactInitial = String(input.artifactHeaderInitialTtgId || '').trim();
+    if (artifactInitial) {
+        if (!isValidTtgId(artifactInitial)) {
+            return {
+                status: 'unknown',
+                method: 'artifact_header',
+                ttgId: null,
+                candidates: [],
+                reason: 'artifact header initial_ttg.id is present but invalid'
+            };
+        }
+        const nonExplicitCandidates = uniq([artifactInitial, ...pathCandidates]);
+        if (nonExplicitCandidates.length > 1) {
+            return {
+                status: 'ambiguous',
+                method: 'artifact_header',
+                ttgId: null,
+                candidates: nonExplicitCandidates,
+                reason: 'artifact header initial_ttg.id conflicts with path hints'
+            };
+        }
+        return {
+            status: 'inferred',
+            method: 'artifact_header',
+            ttgId: artifactInitial,
+            reason: 'artifact header initial_ttg.id fallback; current_ttg.id missing'
         };
     }
 
