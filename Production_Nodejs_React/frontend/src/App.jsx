@@ -1,16 +1,16 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Landing from './pages/Landing.jsx';
-import ChannelManager from './pages/ChannelManager.jsx';
-import Workbench from './pages/Workbench.jsx';
+import { ChannelManagerPage } from './features/channel-manager';
+import { WorkbenchPage } from './features/workbench';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Landing />} />
-        <Route path="/channels" element={<ChannelManager />} />
-        <Route path="/workbench" element={<Workbench />} />
+        <Route path="/channels" element={<ChannelManagerPage />} />
+        <Route path="/workbench" element={<WorkbenchPage />} />
       </Routes>
     </BrowserRouter>
   );

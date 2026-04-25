@@ -330,11 +330,13 @@ not part of the A → B → C1 → C2 sequence above.
 | 6.4   | TARS Hub deep-link integration (`:18789/chat?session=…`) from channel cards.            |
 | 6.5   | Atomic config persistence hardening (chokidar signal on `POST /api/channels/config`).   |
 | 6.6   | Session visibility: show `sessionKey` / parity indicator in the UI.                     |
-| 6.9   | Native chat media (images/files) — requires gateway support.                            |
+| 6.9   | Native chat media (images/files) — see §8b.7 and `SPEC_CHANNEL_MANAGER_CHAT_MEDIA_V1.md`; requires gateway support. |
 | 6.10b | Write new A070 summary markdown from the UI (today: read-only).                         |
 | 6.11  | Skills tab filter/sort/search/custom order.                                             |
 | 6.17  | Mark `toolResult` lines so they are not rendered as plain user-facing chat history.     |
 | 6.18  | Session-native send binding (evidence `API_DIRECT_TEST_1814`).                          |
+| 6.19  | Workbench / Channel Manager boundary hardening — see §8b.8.                             |
+| 6.20  | Workbench diff-first artifact/worktree editor hardening — see `SPEC_WORKBENCH_POSITIONING.md`. |
 | 8.3   | MCP Sovereign Bridge verification after IDE reload.                                     |
 | 9.*   | MCP whitelisting: `allowedMCPs` schema, UI, policy injection.                           |
 | 10.1  | Replacement for `occ-ctl.mjs` (Makefile or root `package.json`).                        |
@@ -682,6 +684,125 @@ map for fast inspection and debugging.
 **Dependencies:** Complete §8b.5 and identify a stable source for
 runtime-effective tools/skills (`tools.effective(sessionKey=...)` or
 equivalent gateway API).
+
+### 8b.7 · Channel Manager Chat Media V1 (after boundary cleanup + §8b.5)
+
+**Status:** proposed, not next.
+
+**Spec:** [`SPEC_CHANNEL_MANAGER_CHAT_MEDIA_V1.md`](./SPEC_CHANNEL_MANAGER_CHAT_MEDIA_V1.md)
+
+**Goal:** Let the Channel Manager OpenClaw Chat handle one image plus optional
+text as one logical chat message, without introducing a Workbench dependency.
+
+**Why:** Operators will need to paste screenshots or visual context into a TTG
+conversation. This belongs to the Channel Manager chat surface, not the
+Workbench. It should be built after the Channel Manager / Workbench boundary is
+clean enough that media upload, preview, and rendering do not become another
+cross-feature leak.
+
+**Product rule:** Chat messages should be represented as structured content
+parts, not only as a plain text string. V1 supports:
+
+- `text`
+- `image`
+
+Existing text-only messages must normalize to:
+
+```ts
+parts: [{ type: 'text', text: messageText }]
+```
+
+**Scope (V1):**
+
+1. One image per user message.
+2. Optional text/caption in the same logical message.
+3. Paste from clipboard; optional attach button if low risk.
+4. Inline image rendering in the Channel Manager chat history.
+5. Lightweight enlarge/preview behavior on click.
+6. Mirror/read path normalizes inbound media into the same `parts[]` shape.
+
+**Out of scope for V1:**
+
+- Multi-image messages.
+- General file/PDF/video/audio upload.
+- Workbench media browser or Workbench file-tree integration.
+- A generalized asset library.
+- Text-marker hacks where the UI guesses an image from raw transcript text.
+
+**Architecture rules:**
+
+- This is a **Channel Manager chat** feature.
+- No imports from Workbench pages or Workbench stores.
+- Media normalization belongs in the chat message model / backend adapter
+  layer; React bubbles render structured `parts[]`.
+- Backend must validate MIME type and size before accepting or forwarding
+  media.
+- Allowed V1 MIME types: `image/png`, `image/jpeg`, `image/webp`; `image/gif`
+  only if explicitly enabled. No SVG in V1.
+
+**Likely implementation order:**
+
+1. Introduce message-part normalization for existing text messages.
+2. Add composer attachment state and image preview.
+3. Add image bubble renderer.
+4. Add backend media send endpoint or gateway-native media forwarding once the
+   gateway path is confirmed.
+5. Extend mirror/read normalization for media events.
+6. Add browser QA: paste image + optional text, send, render, mirror.
+
+**Acceptance:**
+
+- User can paste one image into the Channel Manager chat composer.
+- User can send image-only or image + text as one logical message.
+- Existing text messages behave unchanged.
+- Chat history displays image and text together.
+- Mirror/read path renders image messages from structured data.
+- No Workbench dependency is introduced.
+- Build/test/E2E remain green.
+
+### 8b.8 · Workbench / Channel Manager Boundary Hardening (later)
+
+**Status:** follow-up, not blocking current §8b.5 work.
+
+**Cleanup baseline:** [`SESSION_CLEANUP_2026-04-25.md`](./SESSION_CLEANUP_2026-04-25.md)
+
+**Workbench product boundary:** [`SPEC_WORKBENCH_POSITIONING.md`](./SPEC_WORKBENCH_POSITIONING.md)
+
+**Closed already:**
+
+- Workbench state moved out of the Workbench page.
+- Channel Manager no longer imports from the Workbench page.
+- Channel Manager and Workbench pages moved under feature folders.
+- Feature public entrypoints exist.
+- Global theme CSS moved to `frontend/src/shared/styles/theme.css`.
+
+**Remaining hardening:**
+
+1. Move feature-owned Channel Manager components/hooks/utils under
+   `frontend/src/features/channel-manager/`.
+2. Move feature-owned Workbench components/hooks/utils under
+   `frontend/src/features/workbench/` as they appear.
+3. Move generic frontend utilities into `frontend/src/shared/`.
+4. Later, move backend routes/services into feature folders:
+   `backend/src/features/channel-manager/` and `backend/src/features/workbench/`.
+5. Add import-boundary checks or a lightweight review checklist.
+
+**Style rule:** Keep theme tokens and global styling shared. Do not fork CSS per
+feature. Future dark/light mode and style alignment should build on the shared
+theme layer, not on duplicate Channel Manager / Workbench stylesheets.
+
+**Product rule:** The Workbench is a lean artifact/worktree editor with
+diff-first workflows. It is not a full IDE replacement and must not own TTG,
+memory promotion, OpenClaw Apply, Open Brain sync, or Channel Manager chat
+media behavior.
+
+**Acceptance:**
+
+- No feature page imports implementation details from another feature page.
+- Shared styles remain a single source of truth.
+- Feature-owned UI/code sits in the owning feature folder.
+- Shared utilities are intentionally shared, not a dumping ground.
+- Build and E2E remain green after each slice.
 
 ---
 

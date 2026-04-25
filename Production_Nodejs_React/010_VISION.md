@@ -34,6 +34,13 @@ It is built to give the operator a single place where three things come together
 
 Everything else is either a means to these three ends or explicitly out of scope.
 
+The repo also ships a **Workbench**, but its product role is deliberately
+narrower than "IDE": it is a **lean local editing and diff surface for artifacts
+and source files**. It supports human and agentic edit/review workflows around
+files, but it is not a Cursor/VS Code replacement and does not own channel,
+TTG, memory, or sync decisions. See
+[`SPEC_WORKBENCH_POSITIONING.md`](./SPEC_WORKBENCH_POSITIONING.md).
+
 ---
 
 ## 2. Principles
@@ -131,6 +138,11 @@ Open Brain is the long-term semantic/MCP knowledge layer. Producer surfaces
 (Codex, Cursor, OpenCode, Telegram, Chat) may create or update artifacts, but
 they do not become separate memory authorities.
 
+The Workbench fits this relationship as a local artifact/worktree editor: it
+can inspect and edit files in allowed roots and make diffs visible, but it does
+not become a second source of truth for TTG binding, memory promotion, or Open
+Brain synchronization.
+
 ---
 
 ## 5. Non-goals (MVP)
@@ -143,6 +155,8 @@ The following are intentionally **not** in scope for the current cycle:
 - Media (images, files) on the send path — text only until the gateway
   supports media natively (`030_ROADMAP.md` backlog).
 - Engine-per-message selection (a channel stays bound to one main agent).
+- Replacing full IDEs such as Cursor or VS Code. The Workbench is intentionally
+  a lean local artifact/worktree edit and diff surface.
 - Multi-user tenancy, authentication, or remote operator UIs.
 
 ---

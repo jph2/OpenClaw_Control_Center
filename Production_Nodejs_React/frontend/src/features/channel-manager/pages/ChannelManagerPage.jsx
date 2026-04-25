@@ -2,16 +2,16 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient, useIsMutating } from '@tanstack/react-query';
 import { Download, Upload, RefreshCw, Save, Check, ChevronUp, ChevronDown, Plus, X, FileJson2 } from 'lucide-react';
-import ChannelManagerChannelRow from '../components/ChannelManagerChannelRow';
-import OpenClawApplyModal from '../components/OpenClawApplyModal.jsx';
-import TelegramAccountPolicyPanel from '../components/TelegramAccountPolicyPanel.jsx';
-import { DEFAULT_TELEGRAM_ACCOUNT_POLICY } from '../utils/defaultTelegramAccountPolicy.js';
-import OpenclawAgentsDefaultsPolicyPanel from '../components/OpenclawAgentsDefaultsPolicyPanel.jsx';
-import { DEFAULT_OPENCLAW_AGENTS_DEFAULTS_POLICY } from '../utils/defaultOpenclawAgentsDefaultsPolicy.js';
-import { useWorkbenchStore } from './Workbench.jsx';
-import { formatSkillOptionLabel } from '../utils/formatSkillOptionLabel.js';
-import { sortTtgChannels } from '../utils/sortTtgChannels.js';
-import { apiUrl } from '../utils/apiUrl.js';
+import ChannelManagerChannelRow from '../../../components/ChannelManagerChannelRow';
+import OpenClawApplyModal from '../../../components/OpenClawApplyModal.jsx';
+import TelegramAccountPolicyPanel from '../../../components/TelegramAccountPolicyPanel.jsx';
+import { DEFAULT_TELEGRAM_ACCOUNT_POLICY } from '../../../utils/defaultTelegramAccountPolicy.js';
+import OpenclawAgentsDefaultsPolicyPanel from '../../../components/OpenclawAgentsDefaultsPolicyPanel.jsx';
+import { DEFAULT_OPENCLAW_AGENTS_DEFAULTS_POLICY } from '../../../utils/defaultOpenclawAgentsDefaultsPolicy.js';
+import { useWorkbenchStore } from '../../workbench';
+import { formatSkillOptionLabel } from '../../../utils/formatSkillOptionLabel.js';
+import { sortTtgChannels } from '../../../utils/sortTtgChannels.js';
+import { apiUrl } from '../../../utils/apiUrl.js';
 
 // Constants have been moved to the Node.js backend.
 // The UI acts purely as a consumer of configurations.

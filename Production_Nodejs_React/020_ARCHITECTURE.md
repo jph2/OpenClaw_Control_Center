@@ -311,7 +311,11 @@ duplicate the same server id.
 ## 7. Workbench file view
 
 The Workbench tab (separate from Channel Manager tabs but shipped by the same
-backend) exposes a filesystem tree under a set of allowed roots:
+backend) is a **lean local editing and diff surface for artifacts and source
+files**. It is not a full IDE replacement. Its product boundary is defined in
+[`SPEC_WORKBENCH_POSITIONING.md`](./SPEC_WORKBENCH_POSITIONING.md).
+
+It exposes a filesystem tree under a set of allowed roots:
 
 - Default: `WORKSPACE_ROOT`.
 - Optional: `WORKBENCH_EXTRA_ROOTS`, `homedir()`, bundled OpenClaw skills
@@ -320,6 +324,23 @@ backend) exposes a filesystem tree under a set of allowed roots:
 
 All filesystem reads are isolated in `try/catch` so EACCES on unrelated system
 directories (`/etc`, `/lost+found`) never kills the tree scan.
+
+Workbench responsibilities:
+
+- open, inspect, edit, save, and discard local text files
+- show diffs and previews for review
+- support artifact/source-file review workflows, including agentic edits
+
+Workbench non-responsibilities:
+
+- TTG binding decisions
+- Channel Manager config ownership
+- OpenClaw Apply / memory Promote
+- Open Brain export/sync
+- Channel Manager chat media upload/preview behavior
+
+Styles remain shared with Channel Manager through
+`frontend/src/shared/styles/theme.css`.
 
 ---
 
