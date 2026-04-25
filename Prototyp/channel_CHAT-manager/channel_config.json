@@ -18,7 +18,7 @@
     {
       "id": "-1003752539559",
       "name": "TG000_General_Chat",
-      "model": "moonshot/kimi-k2.5",
+      "model": "openai-codex/gpt-5.4",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -33,7 +33,7 @@
     {
       "id": "-1003930983368",
       "name": "TG010_General_Discovery_Plus_Research",
-      "model": "moonshot/kimi-k2.5",
+      "model": "openai/gpt-4o",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -320,5 +320,6 @@
       "inactiveSkills": [],
       "enabled": true
     }
-  ]
+  ],
+  "projectMappings": []
 }

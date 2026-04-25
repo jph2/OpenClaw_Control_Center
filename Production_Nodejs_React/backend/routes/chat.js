@@ -94,6 +94,7 @@ export async function handleGroupSend(req, res, next, groupIdParam) {
             sessionId: result.sessionId || null,
             sessionFile: result.sessionFile || null,
             spawnedPid: result.spawnedPid || null,
+            gatewayResultId: result.gatewayResultId || null,
             timing: {
                 ...result.timing,
                 httpTotalMs: totalMs
@@ -121,6 +122,7 @@ export async function handleSessionSend(req, res, next) {
             sessionKey: result.sessionKey,
             sessionId: result.sessionId,
             sessionFile: result.sessionFile,
+            gatewayResultId: result.gatewayResultId || null,
             timing: {
                 ...result.timing,
                 apiTotalMs: totalMs

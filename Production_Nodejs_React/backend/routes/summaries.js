@@ -6,6 +6,16 @@ import { z } from 'zod';
 import { resolveSafe } from '../utils/security.js';
 import { apiLimiter } from '../utils/rateLimiter.js';
 import { runMemoryPromote } from '../services/memoryPromote.js';
+import {
+    buildIdeWorkUnit,
+    computeWorkUnitStatus,
+    readJsonIfExists,
+    readJsonWithStatus,
+    summaryMetaRelativePath,
+    updateMetaAfterPromotion,
+    writeJsonAtomic
+} from '../services/ideWorkUnit.js';
+import { readProjectMappings, writeProjectMappings } from '../services/projectMappingStore.js';
 
 const router = express.Router();
 /** Same router is mounted at `/api/summaries` and `/api/ide-project-summaries` (generic IDE project summary API). */
@@ -16,7 +26,26 @@ const SummaryWriteSchema = z.object({
         .min(1)
         .refine((s) => !s.includes('..') && !path.isAbsolute(s), 'invalid relative path'),
     text: z.string(),
-    createOnly: z.boolean().optional()
+    createOnly: z.boolean().optional(),
+    meta: z
+        .object({
+            ttgId: z.string().optional(),
+            explicitTtgId: z.string().optional(),
+            channelName: z.string().optional(),
+            surface: z.enum(['cursor', 'codex', 'manual', 'unknown']).optional(),
+            projectRoot: z.string().optional(),
+            projectId: z.string().optional(),
+            repoSlug: z.string().optional(),
+            repoRemote: z.string().optional(),
+            head: z.string().optional(),
+            model: z.string().optional(),
+            agent: z.string().optional(),
+            sessionId: z.string().optional(),
+            operator: z.string().optional(),
+            projectMappingKey: z.string().optional(),
+            pathHints: z.array(z.string()).optional()
+        })
+        .optional()
 });
 
 const MemoryPromoteSchema = z
@@ -47,6 +76,18 @@ const MemoryPromoteSchema = z
             });
         }
     });
+
+const ProjectMappingsBodySchema = z.object({
+    projectMappings: z.array(z.object({
+        projectId: z.string().optional(),
+        repoSlug: z.string().optional(),
+        projectMappingKey: z.string().optional(),
+        ttgId: z.string(),
+        label: z.string().optional(),
+        note: z.string().optional(),
+        updatedAt: z.string().optional()
+    }))
+});
 
 function openclawMemoryDir() {
     const ws = process.env.OPENCLAW_WORKSPACE || path.join(homedir(), '.openclaw', 'workspace');
@@ -110,12 +151,64 @@ router.post('/', async (req, res, next) => {
         }
         await fs.mkdir(path.dirname(resolved), { recursive: true });
         await fs.writeFile(resolved, body.text, 'utf8');
-        res.json({ ok: true, relativePath: body.relativePath });
+
+        const metaRel = summaryMetaRelativePath(body.relativePath);
+        const { resolved: metaResolved } = await resolveSafe(base, metaRel.split('/').join(path.sep));
+        const existingMeta = await readJsonIfExists(metaResolved);
+        const projectMappings = await readProjectMappings();
+        const meta = buildIdeWorkUnit({
+            summaryRelativePath: body.relativePath,
+            text: body.text,
+            ttgId: body.meta?.explicitTtgId || body.meta?.ttgId,
+            channelName: body.meta?.channelName,
+            surface: body.meta?.surface,
+            projectRoot: body.meta?.projectRoot,
+            projectId: body.meta?.projectId,
+            repoSlug: body.meta?.repoSlug,
+            repoRemote: body.meta?.repoRemote,
+            head: body.meta?.head,
+            model: body.meta?.model,
+            agent: body.meta?.agent,
+            sessionId: body.meta?.sessionId,
+            operator: body.meta?.operator,
+            projectMappingKey: body.meta?.projectMappingKey,
+            pathHints: body.meta?.pathHints,
+            projectMappings,
+            existing: existingMeta
+        });
+        await writeJsonAtomic(metaResolved, meta);
+
+        res.json({ ok: true, relativePath: body.relativePath, metaRelativePath: metaRel, meta });
     } catch (e) {
         if (e instanceof z.ZodError) {
             return res.status(400).json({ ok: false, error: 'Validation failed', details: e.flatten() });
         }
         if (e.status === 403) return res.status(403).json({ ok: false, error: 'path blocked' });
+        next(e);
+    }
+});
+
+router.get('/project-mappings', async (req, res, next) => {
+    try {
+        const projectMappings = await readProjectMappings();
+        res.json({ ok: true, projectMappings });
+    } catch (e) {
+        if (e instanceof z.ZodError) {
+            return res.status(400).json({ ok: false, error: 'Validation failed', details: e.flatten() });
+        }
+        next(e);
+    }
+});
+
+router.put('/project-mappings', async (req, res, next) => {
+    try {
+        const body = ProjectMappingsBodySchema.parse(req.body);
+        const projectMappings = await writeProjectMappings(body.projectMappings);
+        res.json({ ok: true, projectMappings });
+    } catch (e) {
+        if (e instanceof z.ZodError) {
+            return res.status(400).json({ ok: false, error: 'Validation failed', details: e.flatten() });
+        }
         next(e);
     }
 });
@@ -163,9 +256,21 @@ router.get('/', async (req, res, next) => {
                 try {
                     const { resolved } = await resolveSafe(base, f.relativePath.split('/').join(path.sep));
                     const raw = await fs.readFile(resolved, 'utf8');
-                    return { ...f, preview: raw.slice(0, 2000) };
+                    const metaRel = summaryMetaRelativePath(f.relativePath);
+                    const { resolved: metaResolved } = await resolveSafe(base, metaRel.split('/').join(path.sep));
+                    const metaRead = await readJsonWithStatus(metaResolved);
+                    const meta = metaRead.invalid ? { __invalid: true, error: metaRead.error } : metaRead.value;
+                    return {
+                        ...f,
+                        preview: raw.slice(0, 2000),
+                        metaRelativePath: metaRel,
+                        meta: metaRead.invalid ? null : meta,
+                        metaInvalid: metaRead.invalid,
+                        metaError: metaRead.invalid ? metaRead.error : undefined,
+                        bridgeStatus: computeWorkUnitStatus(meta, true)
+                    };
                 } catch {
-                    return { ...f, preview: '' };
+                    return { ...f, preview: '', meta: null, bridgeStatus: 'draft_saved' };
                 }
             })
         );
@@ -185,7 +290,7 @@ router.get('/', async (req, res, next) => {
 });
 
 /**
- * GET /api/summaries/file?relative=by_tg/foo/bar.md
+ * GET /api/summaries/file?relative=by_ttg/foo/bar.md
  */
 router.get('/file', async (req, res, next) => {
     try {
@@ -199,7 +304,20 @@ router.get('/file', async (req, res, next) => {
         const base = a070BaseResolved();
         const { resolved } = await resolveSafe(base, rel.split('/').join(path.sep));
         const text = await fs.readFile(resolved, 'utf8');
-        res.json({ ok: true, relativePath: rel, text });
+        const metaRel = summaryMetaRelativePath(rel);
+        const { resolved: metaResolved } = await resolveSafe(base, metaRel.split('/').join(path.sep));
+        const metaRead = await readJsonWithStatus(metaResolved);
+        const meta = metaRead.invalid ? { __invalid: true, error: metaRead.error } : metaRead.value;
+        res.json({
+            ok: true,
+            relativePath: rel,
+            text,
+            metaRelativePath: metaRel,
+            meta: metaRead.invalid ? null : meta,
+            metaInvalid: metaRead.invalid,
+            metaError: metaRead.invalid ? metaRead.error : undefined,
+            bridgeStatus: computeWorkUnitStatus(meta, true)
+        });
     } catch (e) {
         if (e.status === 403) return res.status(403).json({ ok: false, error: 'path blocked' });
         next(e);
@@ -262,6 +380,21 @@ router.post('/promote', apiLimiter, async (req, res, next) => {
             memoryMdAck: body.memoryMdAck,
             operator: req.ip || null
         });
+        if (!body.dryRun && result.ok) {
+            const base = a070BaseResolved();
+            const metaRel = summaryMetaRelativePath(body.sourceRelativePath);
+            const { resolved: metaResolved } = await resolveSafe(base, metaRel.split('/').join(path.sep));
+            const existingMeta = await readJsonIfExists(metaResolved);
+            const meta = updateMetaAfterPromotion(existingMeta, result);
+            await writeJsonAtomic(metaResolved, meta);
+            return res.json({
+                ok: true,
+                ...result,
+                metaRelativePath: metaRel,
+                meta,
+                bridgeStatus: computeWorkUnitStatus(meta, true)
+            });
+        }
         res.json({ ok: true, ...result });
     } catch (e) {
         if (e instanceof z.ZodError) {

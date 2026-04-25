@@ -5,6 +5,15 @@ import { formatSkillOptionLabel } from '../utils/formatSkillOptionLabel.js';
 import { formatTtgChannelName } from '../utils/formatTtgChannelName.js';
 
 const TAB_IDE_SUMMARY_LABEL = 'TARS in IDE · IDE project summary';
+const ROW_SELECTION_TOOLTIP =
+    'Select this TTG for bulk configuration changes from the toolbar above, such as setting a model or adding a skill.';
+const rowSelectionTooltipStyle = { top: 'calc(var(--tooltip-y, 0px) - 8px)', left: 'var(--tooltip-x, 0px)' };
+
+function setRowSelectionTooltipPosition(e) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty('--tooltip-x', `${Math.max(12, rect.left)}px`);
+    e.currentTarget.style.setProperty('--tooltip-y', `${rect.top}px`);
+}
 
 export default function ChannelManagerChannelRow({
     tg,
@@ -96,7 +105,7 @@ export default function ChannelManagerChannelRow({
 
     const leftColRef = useRef(null);
     const tarsRelayRef = useRef(null);
-    /** Footer row (Open/Collapse + resize): scroll into view after expand so it sits at bottom of viewport. */
+    /** Footer row (Expand/Collapse + resize): scroll into view after expand so it sits at bottom of viewport. */
     const segmentFooterRef = useRef(null);
     const [dividerTop, setDividerTop] = useState(null);
 
@@ -413,12 +422,20 @@ export default function ChannelManagerChannelRow({
             }}
         >
             <td style={{ borderLeft: `2px solid ${agentDetails.color || 'transparent'}`, width: '40px', textAlign: 'center' }}>
-                <input
-                    type="checkbox"
-                    checked={selectedChannels.includes(tg.id)}
-                    onChange={() => handleToggleSelect(tg.id)}
-                    style={{ cursor: 'pointer', transform: 'scale(1.2)' }}
-                />
+                <span
+                    className="info-tooltip-container bulk-selection-tooltip-container"
+                    onMouseEnter={setRowSelectionTooltipPosition}
+                    onFocus={setRowSelectionTooltipPosition}
+                >
+                    <input
+                        type="checkbox"
+                        checked={selectedChannels.includes(tg.id)}
+                        onChange={() => handleToggleSelect(tg.id)}
+                        aria-label={`Select ${tg.name || tg.id} for bulk model and skill changes`}
+                        style={{ cursor: 'pointer', transform: 'scale(1.2)' }}
+                    />
+                    <span className="info-tooltip-text info-tooltip-text-left bulk-selection-tooltip" style={rowSelectionTooltipStyle}>{ROW_SELECTION_TOOLTIP}</span>
+                </span>
             </td>
 
             <td style={{ width: '250px', verticalAlign: 'top' }}>{renderLeftSidebar()}</td>
@@ -761,7 +778,13 @@ export default function ChannelManagerChannelRow({
                                 Same transcript stream as the OpenClaw gateway (SSE); not a second send path.
                             </div>
                             <div style={{ flex: 1, minHeight: 0 }}>
-                                <ChatPanel channelId={tg.id} channelName={formatTtgChannelName(tg.name) || tg.name} />
+                                <ChatPanel
+                                    channelId={tg.id}
+                                    channelName={formatTtgChannelName(tg.name) || tg.name}
+                                    configuredModel={channelState.model}
+                                    modelOptions={AVAILABLE_MODELS}
+                                    onConfiguredModelChange={(modelId) => handleUpdateChannel(tg.id, 'model', modelId)}
+                                />
                             </div>
                         </div>
                     )}
@@ -800,7 +823,7 @@ export default function ChannelManagerChannelRow({
                             title={`Segment auf ${rowHeightExpanded}px (wie „Configure all“)`}
                             onClick={expandThisSegment}
                         >
-                            Open
+                            Expand
                         </button>
                         <button
                             type="button"

@@ -43,8 +43,12 @@ Everything else is either a means to these three ends or explicitly out of scope
 **OpenClaw is the source of truth for agent traffic.**
 The Channel Manager does not run its own Telegram `getUpdates` poller and does
 not maintain a parallel chat model. Inbound data is read from the canonical
-OpenClaw session JSONL; outbound data is delivered via the OpenClaw CLI (and,
-later, a native session-send API). This principle exists to avoid the 409
+OpenClaw session JSONL; outbound data is delivered through the OpenClaw send
+surface, with the CLI fallback as the default and the native gateway path gated
+behind `OPENCLAW_CM_SEND_TRANSPORT`. A 2026-04-24 beta smoke verified the
+native `session-native-gateway-chat` path on a warm gateway; CLI remains the
+safe default until the OpenClaw gateway import/SDK surface is stable. This
+principle exists to avoid the 409
 `getUpdates` conflicts and the "two-truth" drift we encountered in earlier
 iterations.
 
@@ -120,6 +124,12 @@ Channel Manager:
 
 The canonical Studio root is resolved via `STUDIO_FRAMEWORK_ROOT` (defaulting
 to `WORKSPACE_ROOT/Studio_Framework`).
+
+Open Brain integration keeps this boundary: Studio Framework artifacts remain
+the durable source of truth; OpenClaw memory is operational agent continuity;
+Open Brain is the long-term semantic/MCP knowledge layer. Producer surfaces
+(Codex, Cursor, OpenCode, Telegram, Chat) may create or update artifacts, but
+they do not become separate memory authorities.
 
 ---
 

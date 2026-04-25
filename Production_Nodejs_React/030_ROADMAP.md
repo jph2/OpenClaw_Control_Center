@@ -258,7 +258,7 @@ OpenClaw Gateway's `openclaw.json`, safely.
 
 **Shipped (C1b.2c — 2026-04-20):** **Workspace default model (opt-in)** — `channel_config.json` → `openclawAgentsDefaultsPolicy` (`applyModelOnOpenClawApply`, `modelPrimary`). **Apply** sets `agents.defaults.model.primary` only when the opt-in is true and `modelPrimary` is non-empty; existing `model` object fields (e.g. `fallbacks`) are preserved. Manage Channels panel + `POST /api/channels/updateOpenclawAgentsDefaultsPolicy`; `GET /api/channels` adds `openclawAgentsDefaultsLive.modelPrimary`. Complements ADR-018 (never silent).
 
-**Recommended execution order (operator + implementer, 2026-04-20):** (1) Acceptance matrix in [`000_WIP TEST_20.04.26.md`](./000_WIP%20TEST_20.04.26.md) as needed. (2) **C1b.2b** — shipped. (3) **C1b.2e** — shipped. (4) **C1b.3** — shipped. (5) **C1b.2c** — shipped. **C1b.2d** + CM mirror hardening shipped; CLI cold-start latency remains **§8b.1** (upstream / `tools.gatewayToken`, not CM code).
+**Recommended execution order (operator + implementer, 2026-04-20):** (1) Acceptance matrix in [`000_WIP TEST_20.04.26.md`](./000_WIP%20TEST_20.04.26.md) as needed. (2) **C1b.2b** — shipped. (3) **C1b.2e** — shipped. (4) **C1b.3** — shipped. (5) **C1b.2c** — shipped. **C1b.2d** + CM mirror hardening shipped; remaining CLI-send latency is tracked in **§8b.1** and the proper CM-side remedy is **§8b.4** gateway-native transport.
 
 **Goal:** align operator expectations with reality: **Channel Manager** is the single place to define per-channel **agent model**, **sub-agent / skill policy**, and related knobs that OpenClaw’s gateway actually honors, then **push** them through the same explicit **Apply** path (preview, confirm, backup, audit) already used for `requireMention`.
 
@@ -362,73 +362,44 @@ Channel Manager's own codebase, so they don't block Bundle B.
 
 ### 8b.1 · CLI gateway auth → agent cold-start latency
 
-**Symptom:** each `openclaw agent --session-id … --message …` invocation
-takes **~12 s** before the user message appears in the transcript and
-**~25–30 s** before the final answer, on a warm box with a running
-gateway.
+**Symptom:** CM sends still feel slower than OpenClaw Control UI because
+each message goes through a short-lived `openclaw agent ...` CLI process,
+then the UI observes the result through the JSONL mirror. Older field runs
+showed **~12 s** until user echo and **~25–30 s** until final answer when
+the CLI missed gateway auth and fell back to embedded startup.
 
-**Root cause:** the CLI can reach the local `openclaw-gateway`
-(`127.0.0.1:18789`) but rejects it because this build requires
-`tools.gatewayToken` in `openclaw.json`. The `--token` flag was removed
-in a recent CLI release. Every invocation therefore falls back to
-*embedded* mode (`Error: gateway url override requires explicit
-credentials → falling back to embedded`), which cold-boots a fresh
-agent process and reloads the full session context (~130 k tokens)
-before each turn.
+**Correct auth contract (cleanup correction 2026-04-24):** do **not** add
+`tools.gatewayToken` to `~/.openclaw/openclaw.json`. That is not a valid
+`openclaw.json` key in the installed CLI build; the schema validator rejects
+it with `Unrecognized key "gatewayToken"`. The CLI error hint about
+`gatewayToken in tools` refers to the plugin-SDK call options bag, not the
+`tools` block of `openclaw.json`.
 
-**Workaround tested:** `/tmp/openclaw-cm-send-*.log` now carries a
-visible `Gateway agent failed; falling back to embedded …` line for
-every send, and the backend surfaces any shebang / import / CLI
-startup error as `inject_cli_startup_error` 300 ms after the spawn.
+**Channel Manager state:** `sessionSender.js` injects gateway credentials into
+the CLI child process via env:
 
-**Planned fix (not ours):**
+- `OPENCLAW_GATEWAY_TOKEN`
+- `OPENCLAW_GATEWAY_URL`
 
-1. Bump the OpenClaw CLI to the latest build (user self-service;
-   tentatively 4.15 once available) — expected to reintroduce a
-   supported auth path.
-2. ~~Add `tools.gatewayToken` (or equivalent) to
-   `~/.openclaw/openclaw.json`.~~ **Correction 2026-04-20 (18:50 CEST):**
-   `tools.gatewayToken` is **not** a valid `openclaw.json` key in the
-   installed CLI build (`dist/plugin-sdk/src/config/types.tools.d.ts`
-   `ToolsConfig` has no such field; the schema validator rejects it
-   with `Unrecognized key "gatewayToken"`). The CLI error hint
-   `pass --token or --password (or gatewayToken in tools)` is
-   misleading — it refers to the `tools` parameter bag inside the
-   plugin-SDK `GatewayCallOptions`, not the `tools` block of
-   `openclaw.json`. The correct wiring is via env vars
-   `OPENCLAW_GATEWAY_URL` + `OPENCLAW_GATEWAY_TOKEN` on the CLI child
-   process — which `sessionSender.js` already does (see below).
+Values come from the process env first, otherwise from
+`gateway.auth.token` + `gateway.port` in `openclaw.json`
+(`OPENCLAW_CONFIG_PATH` override supported). This is the supported warm-gateway
+path for the current CLI behavior.
 
-**Channel Manager (2026-04-20):** `sessionSender.js` passes `OPENCLAW_GATEWAY_TOKEN` and
-`OPENCLAW_GATEWAY_URL` into the `openclaw agent` child process: from env if set, else token
-and port are read from `openclaw.json` (`OPENCLAW_CONFIG_PATH` or `~/.openclaw/openclaw.json`).
-This matches what the OpenClaw CLI expects for warm-gateway RPC and avoids embedded fallback
-when the gateway token is configured. **Operator:** Node for the CLI spawn must still be ≥ v22
-(`OPENCLAW_NODE_BIN` / `sessionSender` resolution); fix any remaining latency there separately.
+**Verified 2026-04-20 (18:50 CEST):** `/tmp/openclaw-cm-send-ad454416-*.log`
+no longer showed `Gateway agent failed; falling back to embedded`. The CLI
+reached the warm gateway. `runner: "embedded"` in `executionTrace` is the
+gateway-side runner type (`runner?: "embedded" | "cli"`), not proof of a
+CLI-level fallback. Measured model inference for one Kimi-K2.5 send was
+`meta.durationMs = 2870` ms.
 
-**Verified 2026-04-20 (18:50 CEST):** `/tmp/openclaw-cm-send-ad454416-*.log` (send at
-17:56 CEST, after `openclawGatewayEnv.js` was deployed at 16:54) no longer shows
-the `Gateway agent failed; falling back to embedded` error. The CLI reaches the
-warm gateway successfully; `runner: "embedded"` in `executionTrace` is the
-**gateway-side** runner type (`plugin-sdk/src/agents/pi-embedded-runner/types.d.ts`
-`runner?: "embedded" | "cli"`), not a CLI-level fallback. Measured split for one
-send on Kimi-K2.5: `meta.durationMs = 2870` ms for model inference, plus workspace
-bootstrap re-read on every request (AGENTS.md 7727 → 3707 chars truncation) and
-CLI cold boot (~1–2 s per spawn). Residual user-visible latency therefore comes
-from (a) CLI cold boot per message, (b) gateway-side bootstrap, (c) JSONL-tail
-poll (now 200 ms). Proper remedy is §8b.4 (gateway-native CM transport).
-
-**Status 2026-04-20 (re-verified):** unchanged. TTG000 stopwatch
-run reported **~25 s** until the user echo lands and ~1 s more
-until the model reply — matches the documented envelope. Send log
-still shows `"runner": "embedded"`; `openclaw.json → tools` is
-`null` (no `gatewayToken`); the `openclaw` CLI on PATH additionally
-refuses to launch because the shell's default Node is v20.18.2 and
-the CLI requires ≥ v22.12. All three pointers lead to the same
-root cause. No Channel Manager action taken — this remains a
-wait-for-upstream item; operator-side mitigations (install
-Node ≥ v22, add `tools.gatewayToken`, re-test) stay optional until
-the CLI stabilizes its auth path.
+**Residual latency:** remaining CM-visible delay comes from CLI process
+startup, gateway-side bootstrap work, and JSONL-tail observation
+(`sessionTail` now polls at 200 ms). Proper remedy is §8b.4:
+gateway-native CM transport. CLI auth/Node checks remain relevant only for
+the fallback path. If the fallback is used, ensure Node for the CLI spawn is
+>= v22 (`OPENCLAW_NODE_BIN` or runtime resolver), then verify logs before
+changing config.
 
 ### 8b.2a · OpenClaw webchat reads `agents.defaults.model`, not the Telegram binding
 
@@ -487,7 +458,7 @@ bubbles synchronously. Addressed structurally in Bundle B / P5 via the
 `ChatPanel` split + optional message virtualization. Not on the critical
 path for A.
 
-### 8b.4 · CM OpenClaw Chat — gateway-native path (next major feature)
+### 8b.4 · CM OpenClaw Chat — gateway-native path (implemented 2026-04-24)
 
 **Goal:** Channel Manager **OpenClaw Chat** should use the **same transport as OpenClaw Control UI**: authenticated **WebSocket (or documented HTTP)** to the local gateway (`gateway.port` / `gateway.auth`), not `openclaw agent …` subprocess spawns per message + JSONL tail for user-visible latency.
 
@@ -500,13 +471,217 @@ path for A.
 3. SSE to the browser: push messages from gateway events (and/or continue tailing JSONL only as backup) so transcript order matches Telegram.
 4. Document operator env: token, port, TLS/off-LAN same as OC.
 
+**Implementation slice landed 2026-04-24:**
+
+- `sessionSender.js` is now an orchestrator over two transports:
+  `openclawGatewayTransport.js` and `openclawCliTransport.js`.
+- Default remains `OPENCLAW_CM_SEND_TRANSPORT=cli` / unset. `auto` attempts
+  native gateway only when credentials/module loading are available, then falls
+  back before any native RPC is attempted. `gateway` forces native and surfaces
+  failures.
+- Gateway-native send uses explicit `OPENCLAW_GATEWAY_TOKEN` /
+  `OPENCLAW_GATEWAY_URL` (including values derived from `openclaw.json`) and
+  calls gateway `chat.send` with canonical `sessionKey` when known.
+- CLI fallback was moved from shell command construction to `spawn` args while
+  keeping the existing `/tmp/openclaw-cm-send-*.log` behavior.
+- Beta smoke 2026-04-24: one TTG000 send returned
+  `transport=session-native-gateway-chat`, `gatewayResultId` populated,
+  `gatewayCallMs=76`, `apiTotalMs=79`, and the assistant response landed in the
+  canonical session JSONL.
+
+**Completion slice landed 2026-04-24:**
+
+- Live warm-gateway comparison now puts CM perceived latency in the same band
+  as OpenClaw Control UI for the tested TTG/model path.
+- CM chat header now shows configured model plus live transcript model, with
+  provider-normalized comparison (`moonshot/kimi-k2.5` vs `kimi-k2.5`, etc.).
+- Per-channel model changes now sync to the correct OpenClaw runtime location:
+  `agents.list[].model.primary` for the CM-owned synth agent, not the
+  schema-illegal `channels.telegram.groups[*].model`.
+- Optimistic user bubbles are replaced when the OpenClaw transcript mirror
+  arrives, including timestamp-prefixed user lines and session rebinding.
+- `Apply to OpenClaw` now exposes pending changes with a pulsing
+  `Press to apply...` state and clears when the operator returns to the last
+  clean CM baseline or confirms Apply.
+
+**Residual follow-up (not blocking §8b.4):**
+
+- Keep CLI as the safe production fallback until OpenClaw exposes a stable
+  versioned gateway SDK/import surface; current native import discovery still
+  needs to tolerate hash-named runtime files.
+- Gateway event subscription can later replace JSONL/SSE mirroring, but the
+  current transcript mirror is fast enough for the measured UX target.
+- Consider flipping default from `cli` to `auto` only after another cold/warm
+  smoke pass on the next OpenClaw release.
+
 **Acceptance:**
 
-- Stopwatch: CM chat **user bubble** latency and **assistant** latency within **~same band** as OC on the same machine (modulo model).
+- Stopwatch: CM chat **user bubble** latency and **assistant** latency are now
+  within the same practical band as OC on the same machine (modulo model).
 - No regression for session binding / TTG group ids / `resolveCanonicalSession`.
 - Roadmap §8b.1 mitigations remain relevant for **fallback** CLI only.
 
-**Dependencies:** Stable gateway RPC surface (versioned); may require upstream OpenClaw doc or SDK. **ADR:** append to `040_DECISIONS.md` when implementation approach is chosen.
+**Dependencies:** Stable gateway RPC surface (versioned) remains desired before
+making native/auto the default.
+
+### 8b.5 · TARS in IDE — Cursor/Codex/OpenClaw memory bridge (next)
+
+**Spec:** `SPEC_8B5_IDE_MEMORY_BRIDGE.md`
+**Open Brain guardrail:** `SPEC_OPEN_BRAIN_BOUNDARY_CONDITIONS.md`
+
+**Current status (2026-04-25):** §8b.5 now has a belastbarer, getesteter
+Bridge-Unterbau with clean binding and mapping semantics. Landed slices:
+A070 sidecar metadata, `bridgeStatus`, marker-based promote/read-back, UI
+status display, backend tests, resolver/adapter safety rail
+(`ttgBindingResolver.js`, `ideWorkUnitAdapters.js`), and an operator-managed
+`projectMappings[]` store in `channel_config.json`. Mapping writes use lock +
+temp-file/rename. Resolver policy is frozen and tested: valid explicit wins,
+invalid explicit does not guess, non-explicit conflicts become `ambiguous`.
+The UI no longer hardcodes new summaries as Codex with a fixed project root; it
+collects adapter/project hints and lets the backend normalize + resolve against
+the persisted mapping store. `E2E_GOLDEN_PATH_8B5` is implemented as a
+Playwright proof of the current browser operator flow. Artifact-owned TTG
+binding is now specified for Discovery/Research work via `initial_ttg` and
+`current_ttg` headers; `current_ttg` is the operative routing truth. Open Brain
+integration shifts the architecture to **artifact-centered memory**: Cursor,
+Codex, OpenCode, Telegram, and Chat are producer surfaces; Studio Framework
+artifacts are durable truth; OpenClaw memory is operational agent continuity;
+Open Brain is the long-term semantic/MCP knowledge layer.
+**Maturity:** project-mapping bridge and promote/read-back core are usable now;
+artifact-header Discovery/Research binding, agent-assisted fallback
+classification, Open Brain export/sync, and producer adapters are not complete
+yet.
+**Remaining production gates:** artifact-header resolver ingestion,
+artifact index/resolver, Open Brain export contract, agent-assisted TTG
+classification with review states, and Open Brain sync.
+
+**Next-session gates:**
+
+1. **Ticket C — `ARTIFACT_HEADER_BINDING_V1`**: parse Discovery/Research YAML
+   headers, map `current_ttg` into the work-unit binding result, and surface
+   `binding.method = "artifact_header"` in sidecar/UI.
+2. **Ticket E — `ARTIFACT_INDEX_RESOLVER_V1`**: index Studio artifacts by
+   stable id, path, type, tags, TTG binding, project binding, and content hash.
+3. **Ticket F — `OPEN_BRAIN_EXPORT_CONTRACT_V1`**: define the Studio artifact
+   export/upsert payload for OB1 `thoughts`, including metadata, source path,
+   content hash, no-secrets validation, and dedup identity.
+4. **Ticket D — `AGENT_TTG_CLASSIFICATION_V1`**: if the human leaves no TTG,
+   classify against canonical `TTG*.md` definitions and record
+   `inferred` / `needs_review` rather than pretending the result is confirmed.
+5. **Ticket G — `ARTIFACT_TO_OPEN_BRAIN_SYNC_V1`**: upsert reviewed artifacts
+   into Open Brain and record returned thought ids / fingerprints / audit.
+6. **Producer adapters**: Codex, Cursor, OpenCode, Telegram/Chat exports create
+   or update artifacts; they do not define memory truth.
+7. Extend `E2E_GOLDEN_PATH_8B5` with artifact-header and Open Brain export/sync
+   cases after the corresponding tickets land.
+
+**Recommended order:** wire `ARTIFACT_HEADER_BINDING_V1`, then
+`ARTIFACT_INDEX_RESOLVER_V1`, then `OPEN_BRAIN_EXPORT_CONTRACT_V1`, then
+`AGENT_TTG_CLASSIFICATION_V1`, then Open Brain sync. Producer adapters follow
+as convenience importers.
+
+**Goal:** Turn the third Channel Manager workspace tab into the operational
+bridge between producer work (Cursor/Codex/OpenCode/Chat/Telegram), TTG
+context, Studio artifacts, Studio A070 summaries, OpenClaw memory, and Open
+Brain.
+
+**Why:** After gateway-native chat works, the next architectural risk is not
+graph visualization; it is split-brain context. Work done in the IDE must be
+captured, mapped to the correct TTG/project context, and promoted into
+OpenClaw memory explicitly enough that TARS can use it without hidden state or
+stale assumptions, while keeping Open Brain sync tool-agnostic and
+artifact-centered.
+
+**Scope (first slice):**
+
+1. Define the canonical IDE work-unit shape:
+   - producer surface (`cursor`, `codex`, `opencode`, `telegram`, `chat`, future tools)
+   - project root / repository identity
+   - bound TTG/channel id
+   - artifact header binding (`initial_ttg`, `current_ttg`) for pre-project
+     Discovery/Research work
+   - Open Brain export identity (`artifact_id`, `source_path`, `content_hash`)
+   - A070 summary path
+   - source/provenance metadata (operator, timestamp, model/agent where known)
+   - promotion target in OpenClaw memory
+2. Harden the existing **TARS in IDE · IDE project summary** tab:
+   - create/edit A070 summary drafts
+   - save under Studio A070
+   - preview existing summaries
+   - promote selected summaries to OpenClaw memory
+   - read back OpenClaw memory in the same TTG row
+3. Map producer context into the same artifact contract:
+   `.cursor/agents`, `.cursor/rules`, `.cursor/mcp.json`, exported IDE bundle,
+   Codex session notes, OpenCode context, Telegram/Chat exports, and future
+   producers must create or update the same artifact metadata instead of
+   becoming parallel context systems.
+4. Add a per-TTG sync/status signal for this tab:
+   - no A070 summary yet
+   - draft saved but not promoted
+   - promoted to OpenClaw memory
+   - read-back confirmed / stale / unknown
+5. Keep writes explicit. Saving an A070 summary and promoting into OpenClaw
+   memory are separate operator actions; no silent mutation of identity,
+   auth, or memory files.
+
+**Acceptance:**
+
+- From a TTG row, the operator can capture current producer work into an A070
+  summary or Studio artifact and promote it into OpenClaw memory without leaving
+  Channel Manager.
+- The OpenClaw memory read-only pane shows the promoted result or a clear
+  stale/unknown state.
+- The artifact/summary contains enough provenance to map producer work back to
+  TTG, project, model/agent where known, source file paths, and Open Brain
+  export identity.
+- Cursor, Codex, OpenCode, Telegram, and Chat are documented as producers of
+  the same artifact contract, not separate one-off integrations.
+- No regression to the §8b.4 gateway-native chat path.
+
+**Dependencies:** Existing C2 summary/memory promote endpoints, A070 write
+support, IDE bundle/export bridge, and the current §8b.4 chat beta.
+
+### 8b.6 · TTG agent topology visualization (after §8b.5)
+
+**Goal:** Add a visual operator surface for one TTG's effective runtime shape:
+main agent → assigned model → channel skills → sub-agents → sub-agent skills.
+
+**Why:** Once TTG routing, skill loading, sub-agent skill merging,
+gateway-native chat, and IDE/Codex memory promotion are proven, the next useful
+UI layer is observability of what a conversation channel is actually composed
+of. The current tables remain the editing surface; the topology is a read-only
+map for fast inspection and debugging.
+
+**Scope (first slice):**
+
+1. Define a CM topology data shape from existing sources:
+   `channel_config.json`, OpenClaw effective tools/skills, canonical session,
+   active model, and gateway/runtime metadata where available.
+2. Add a read-only **Topology** view per TTG/channel row:
+   - selected TTG / conversation channel
+   - main agent + active model
+   - channel-level skills
+   - active sub-agents
+   - skills contributed by each sub-agent
+3. Keep the first implementation in the current React app. A different
+   rendering island (Svelte/Lit/etc.) is allowed later only if the graph
+   renderer materially benefits from it; do **not** refactor CM just to match
+   another UI stack.
+4. Treat this as observability first, not control: no execution buttons or
+   runtime mutation until the read-only topology is correct and trusted.
+
+**Acceptance:**
+
+- A selected TTG shows the same effective agent/skill/sub-agent picture that
+  the gateway will use at runtime.
+- The graph updates after Apply/rebind without requiring a page reload.
+- Missing runtime metadata degrades to the configured CM topology with a clear
+  "not yet confirmed at runtime" state.
+- No regression to the Channel Manager's core table/config workflow.
+
+**Dependencies:** Complete §8b.5 and identify a stable source for
+runtime-effective tools/skills (`tools.effective(sessionKey=...)` or
+equivalent gateway API).
 
 ---
 

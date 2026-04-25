@@ -146,11 +146,15 @@ export async function runMemoryPromote({
             reason: 'duplicate',
             destinationPath: destResolved,
             destinationRelative: destRel,
-            sourceRelativePath
+            sourceRelativePath,
+            marker,
+            readbackConfirmed: true
         };
     }
 
-    await fsPromises.mkdir(memBase, { recursive: true });
+    await fsPromises.mkdir(path.dirname(destResolved), { recursive: true });
+    const handle = await fsPromises.open(destResolved, 'a');
+    await handle.close();
 
     const release = await lockfile.lock(destResolved, { retries: { retries: 15, minTimeout: 50 } });
 
@@ -169,7 +173,9 @@ export async function runMemoryPromote({
                 reason: 'duplicate',
                 destinationPath: destResolved,
                 destinationRelative: destRel,
-                sourceRelativePath
+                sourceRelativePath,
+                marker,
+                readbackConfirmed: true
             };
         }
         const next = body + block;
@@ -185,8 +191,17 @@ export async function runMemoryPromote({
         operator,
         sourceRelativePath,
         destinationRelative: destRel,
-        destinationPath: destResolved
+        destinationPath: destResolved,
+        marker
     });
+
+    let readbackConfirmed = false;
+    try {
+        const readback = await fsPromises.readFile(destResolved, 'utf8');
+        readbackConfirmed = readback.includes(marker);
+    } catch {
+        readbackConfirmed = false;
+    }
 
     return {
         ok: true,
@@ -194,6 +209,8 @@ export async function runMemoryPromote({
         skipped: false,
         destinationPath: destResolved,
         destinationRelative: destRel,
-        sourceRelativePath
+        sourceRelativePath,
+        marker,
+        readbackConfirmed
     };
 }

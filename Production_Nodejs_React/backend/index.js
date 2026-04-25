@@ -58,7 +58,9 @@ app.use('/api/ide-project-summaries', summariesRoutes);
 app.use('/api/exports', exportsRoutes);
 
 // Sub-Task 3.1: Initialize Telegram Event Stream
-initTelegramService();
+if (process.env.NODE_ENV !== 'test') {
+    initTelegramService();
+}
 
 app.use((err, req, res, next) => {
     console.error(`[ERROR] ${err.name}: ${err.message}`);

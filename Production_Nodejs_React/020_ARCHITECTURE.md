@@ -171,6 +171,16 @@ backend is restarting.
 | `memoryPromote.js`      | **C2:** append A070 summary into OpenClaw `memory/*.md` or `MEMORY.md`; dedup, lock, audit. | Unchanged.                             |
 | `skillsRegistry.js`     | scans `OPENCLAW_WORKSPACE/skills`, exposes skill metadata.          | Add filter/sort API (Backlog).                 |
 
+Chat send transport lives under `backend/services/chat/`: `sessionSender.js`
+resolves the canonical session and delegates to `openclawCliTransport.js`
+(default/fallback) or `openclawGatewayTransport.js` (gated native gateway RPC).
+Selection is controlled by `OPENCLAW_CM_SEND_TRANSPORT=cli|auto|gateway`; the
+read side continues to mirror canonical JSONL over SSE until gateway event
+subscription is proven. A 2026-04-24 beta smoke verified the native
+`session-native-gateway-chat` send path with ~79 ms API/gateway ACK on the
+warm gateway; assistant delivery still flows through the canonical transcript
+mirror.
+
 ### 4.3 Session identity
 
 The binding model the backend enforces:
@@ -345,3 +355,9 @@ Shortlist preserved from the restoration and documentation history; see
 The Channel Manager **owns its config**, **mirrors OpenClaw's runtime**, and
 **reads Studio artifacts** — and never writes into another owner's domain
 without an explicit, previewed, auditable action.
+
+Open Brain boundary: Studio Framework artifacts are the durable truth,
+OpenClaw memory is operational runtime memory, and Open Brain is the semantic
+index / MCP-accessible long-term brain. Producer tools feed artifacts; they do
+not bypass artifact metadata, TTG binding, review states, dedup, or no-secrets
+export rules.

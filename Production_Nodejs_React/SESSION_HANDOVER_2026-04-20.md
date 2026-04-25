@@ -4,6 +4,13 @@
 **Status:** Pause. All described changes live on disk, not yet committed when this doc was written.  
 **Audience:** next agent / operator picking up the thread.
 
+**Continuation note (2026-04-24):** This is the historical Monday handover.
+The cleanup and §8b.4 transport-boundary slice continued in
+[`SESSION_CLEANUP_2026-04-24.md`](./SESSION_CLEANUP_2026-04-24.md). Current
+state: cleanup Steps 1-4 are complete, `sessionSender.js` delegates to CLI and
+gateway transports, and the next action is a live gateway smoke/performance run
+with `OPENCLAW_CM_SEND_TRANSPORT=auto`.
+
 ---
 
 ## 1. Where we are (one screen)
@@ -20,10 +27,13 @@
 | **Roadmap §8b.1** (CLI gateway auth)              | **Corrected.** The earlier plan to add `tools.gatewayToken` to `openclaw.json` is wrong — the schema validator rejects it (`Unrecognized key "gatewayToken"`). Correct wiring is env-var based and already deployed. |
 | **Gateway service**                               | Restarted during investigation; runs as user unit `openclaw-gateway.service` (PID 2440046, uptime from 18:48 CEST 2026-04-20 onward). |
 
-**Not started / out of scope this session:**
+**Historical note from the 2026-04-20 session:**
 
-- Roadmap §8b.4 — gateway-native CM transport (replaces `openclaw agent …` subprocess with direct WS-RPC). Expected to close the remaining ~20 s CLI-cold-start gap.
-- Bootstrap optimisation (trimming `AGENTS.md` or raising `bootstrapMaxChars`) — small gain (~0.3–0.8 s); skip until §8b.4 lands.
+- Roadmap §8b.4 was not started in that session. It was implemented and
+  validated in the 2026-04-24 continuation; see
+  `SESSION_CLEANUP_2026-04-24.md` and `030_ROADMAP.md`.
+- Bootstrap optimisation remains optional. It is no longer a blocker for the
+  practical CM chat latency target.
 
 ---
 
@@ -156,7 +166,7 @@ Touched: `frontend/src/components/TelegramAccountPolicyPanel.jsx`, `OpenclawAgen
 
 - **Two chat transports on the same machine:**
   - OpenClaw Control UI ("OC") — direct WS-RPC to the gateway. ~2–3 s round-trip on Kimi-K2.5.
-  - Channel Manager ("CM") — **currently** spawns `openclaw agent` as a CLI child; gateway-warm now, but still pays CLI cold-boot (~1–2 s per message). JSONL-tail polling (`chokidar` + interval) is how assistant output reaches the browser. See §8b.4 to close this gap.
+  - Channel Manager ("CM") — at the time of this 2026-04-20 handover, CM spawned `openclaw agent` as a CLI child; gateway-warm already, but still paying CLI cold-boot (~1–2 s per message). JSONL-tail polling (`chokidar` + interval) was how assistant output reached the browser. Continuation on 2026-04-24 added the transport boundary and gated native gateway send path; see `SESSION_CLEANUP_2026-04-24.md` + Roadmap §8b.4.
 - **Session resolution is mirror-only on CM side.** The CM does **not** resolve agent/binding itself; it reads `~/.openclaw/agents/*/sessions/sessions.json` + the canonical session JSONL. Keep it that way — makes the gateway the single source of truth.
 - **`~/.openclaw/openclaw.json` is operator-owned.** CM touches only CM-owned `agents.list[]` / `bindings[]` / `channels.telegram` / (opt-in) `agents.defaults.model.primary`. Do not drift into operator-owned keys (including `tools`, `gateway.auth`, etc.).
 - **Logs to consult for latency work:**
@@ -167,13 +177,10 @@ Touched: `frontend/src/components/TelegramAccountPolicyPanel.jsx`, `OpenclawAgen
 
 ## 5. Next steps (ordered)
 
-1. **Measure current state** with all deployed fixes: send a probe message in CM/Telegram/OC and record stopwatch latencies. Expected: ~5–15 s for CM user bubble → assistant reply, ~3 s for OC, ~5–6 s for Telegram. If CM is still ≥ 20 s, re-check that the frontend/backend were actually restarted with the new code.
-2. **Roadmap §8b.4 — gateway-native CM transport.**
-   - Adopt the gateway WS client that OC uses (`openclaw/dist/plugin-sdk/src/gateway/call.js` pattern with `callGateway({ method: 'agent', params: { … } })`).
-   - Implement behind a feature flag in `sessionSender.js`; keep CLI spawn as fallback for one release.
-   - ADR in `040_DECISIONS.md` before merging.
+1. **§8b.4 is complete for the current CM chat UX slice.** Keep CLI fallback as the safe default until the OpenClaw gateway SDK/import surface is stable enough to flip native/auto by default.
+2. **Optional: gateway-native default smoke.** After the next OpenClaw upgrade, test `OPENCLAW_CM_SEND_TRANSPORT=auto` and `gateway` explicitly before changing defaults.
 3. **Optional: bootstrap hygiene.** Shrink `AGENTS.md` to ≤ 4000 chars so truncation stops firing per-request. One-time operator action; small perf win.
-4. **Cleanup of the session backup:** `/home/claw-agentbox/.openclaw/openclaw.json.bak-20260420-184837` can be `trash`ed once §8b.4 is underway and the investigation is locked in.
+4. **Cleanup of the session backup:** `/home/claw-agentbox/.openclaw/openclaw.json.bak-20260420-184837` can be `trash`ed once the operator no longer wants it.
 
 ---
 

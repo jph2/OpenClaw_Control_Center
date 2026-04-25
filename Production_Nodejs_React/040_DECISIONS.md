@@ -225,7 +225,7 @@ three digits. Default value for a new row in strict mode is
 
 ## ADR-012 — Channel Manager is a config + mirror, not a second chat hub
 
-**Date:** 2026-04-15 · **Status:** accepted
+**Date:** 2026-04-15 · **Status:** superseded by ADR-019 (UI-only optimistic placeholders)
 
 **Context.** There is a temptation to grow a full chat product inside the
 Channel Manager: optimistic append, per-client message store, draft queue,
@@ -238,6 +238,63 @@ the same SSE mirror.
 
 **Consequences.** Kept the chat stack simple. Performance issues (Bundle A)
 are local; they are not symptoms of missing store infrastructure.
+
+---
+
+## ADR-019 — UI-only optimistic placeholders are allowed
+
+**Date:** 2026-04-24 · **Status:** accepted · **Supersedes:** ADR-012 wording only
+
+**Context.** ADR-012 correctly rejected a second authoritative chat store, but
+its wording also rejected every optimistic UI append. On 2026-04-20 the CM chat
+panel gained a temporary user bubble to reduce perceived latency while the
+OpenClaw mirror catches up. The placeholder is marked `cmOptimistic`, is not
+persisted, and is removed when the mirrored JSONL user line arrives.
+
+**Decision.** Channel Manager remains a **configuration hub** and **mirror** of
+OpenClaw's session transcript. It may render UI-only optimistic placeholders
+when they are explicitly marked, never durable, never treated as authoritative,
+and deduped/removed once the OpenClaw mirror confirms the message. Local
+message queues, per-client stores, and alternate transcript ownership remain
+rejected.
+
+**Consequences.** The UX can acknowledge a send immediately without changing
+the source of truth. Gateway/session JSONL remains authoritative for ordering,
+history, and assistant output.
+
+---
+
+## ADR-020 — CM chat send uses a transport boundary
+
+**Date:** 2026-04-24 · **Status:** accepted
+
+**Context.** Roadmap §8b.4 needs CM chat sends to move from `openclaw agent`
+subprocesses toward the same warm gateway path OpenClaw Control UI uses. The
+old `sessionSender.js` mixed session resolution, shell command construction,
+OpenClaw runtime discovery, gateway env injection, logging, and API result
+shape in one place. Replacing that directly would make rollback and comparison
+hard.
+
+**Decision.** `sessionSender.js` remains the stable orchestration boundary and
+delegates actual I/O to explicit transports:
+
+- `openclawCliTransport.js` for the existing fallback path.
+- `openclawGatewayTransport.js` for gateway-native `chat.send` RPC.
+
+The default transport is still CLI. Native send is gated by
+`OPENCLAW_CM_SEND_TRANSPORT=auto|gateway`; `auto` may fall back only before a
+native RPC is attempted, while `gateway` surfaces native failures. The gateway
+transport uses explicit gateway auth from env / `openclaw.json` and supports
+`OPENCLAW_GATEWAY_CALL_MODULE` for the current OpenClaw runtime call module.
+The CLI fallback uses `spawn` args rather than shell-interpolated command
+strings.
+
+**Consequences.** CM can test and compare gateway-native sends without changing
+the production default or losing the known CLI fallback. A 2026-04-24 beta
+smoke verified `session-native-gateway-chat` on the warm gateway. Remaining
+risk is a stable SDK export for `callGateway`, native-default rollout, and
+gateway event subscription for transcript pushes; those are follow-ups, not a
+blocker for the current CM chat UX slice.
 
 ---
 
@@ -369,6 +426,37 @@ resolver work remains the proper long-term fix (ADR-018 decision above).
 
 ---
 
+## ADR-021 — Open Brain integration is artifact-centered
+
+**Date:** 2026-04-25 · **Status:** accepted
+
+**Context.** The initial §8b.5 bridge plan treated Codex/Cursor ingestion as a
+major next gate. After reviewing Open Brain (OB1), the better boundary is one
+level higher: Open Brain is a tool-agnostic semantic knowledge layer and MCP
+memory substrate. If Studio Framework artifacts are the durable source of
+truth, producer tools such as Codex, Cursor, OpenCode, Telegram, and Chat do
+not need bespoke truth paths.
+
+**Decision.** The Channel Manager / Studio / OpenClaw / Open Brain integration
+is artifact-centered:
+
+- Studio Framework artifacts carry stable identity, metadata, TTG binding,
+  project/discovery context, content hash, and provenance.
+- OpenClaw memory is operational agent continuity.
+- Open Brain is the long-term semantic index and MCP-accessible shared brain.
+- Producer adapters create or update artifacts; they do not bypass artifact
+  headers, sidecars, review states, dedup, no-secrets rules, or audit.
+- Open Brain export/sync uses explicit contracts and fingerprints; no secrets
+  are allowed in exportable artifacts or payloads.
+
+**Consequences.** `CODEX_ADAPTER_V1` and future Cursor/OpenCode adapters are
+demoted from architecture-critical truth sources to producer/importer
+conveniences. The new core gates are artifact header binding, artifact indexing,
+Open Brain export contract, reviewable agent classification, and audited Open
+Brain sync. See `SPEC_OPEN_BRAIN_BOUNDARY_CONDITIONS.md`.
+
+---
+
 ## ADR-016 — Documentation: four normative files, everything else archived
 
 **Date:** 2026-04-17 · **Status:** accepted
@@ -387,3 +475,31 @@ reference-only.
 
 **Consequences.** One concise entry-point per question (why / what / when /
 how-decided). Older context remains searchable via the archive.
+
+---
+
+## ADR-021 — MCP server is an IDE integration adapter, not a truth source
+
+**Date:** 2026-04-25 · **Status:** accepted
+
+**Context.** The repo contains a stdio MCP server (`backend/mcp-server.mjs`)
+used by IDE clients. It currently sits under `backend/`, but it is neither the
+Channel Manager UI nor the Workbench. Without an explicit boundary, it risks
+becoming a second path for truth, routing, or memory semantics.
+
+**Decision.** The MCP server is treated as an **IDE integration adapter**:
+
+- It is not a source of truth.
+- It is not part of the Workbench domain.
+- It is not allowed to define TTG truth, memory truth, or artifact truth.
+- It should stay thin and prefer stable backend/API contracts over private
+  file/path knowledge wherever possible.
+- Its role is to expose selected Channel Manager / OpenClaw context and actions
+  to IDE clients over MCP stdio.
+
+**Consequences.** The MCP server should be documented and evolved as an
+integration boundary (`ide-bridge` / adapter layer), not as core domain logic.
+Operational documentation lives next to the component; irreversible
+architecture decisions belong here in ADR form. Future refactors should move it
+into a clearer integration/module location without folding it into Workbench or
+letting it become a parallel authority.

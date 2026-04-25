@@ -30,6 +30,37 @@ const stripToolCallMarkers = (text) => {
         .trim();
 };
 
+const copyTextToClipboard = async (text) => {
+    if (!text) return;
+    if (navigator.clipboard?.writeText && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    try {
+        document.execCommand('copy');
+    } finally {
+        document.body.removeChild(textarea);
+    }
+};
+
+const normalizeModelForCompare = (model) => {
+    const value = String(model || '').trim().toLowerCase();
+    if (!value) return '';
+    const slash = value.lastIndexOf('/');
+    return slash >= 0 ? value.slice(slash + 1) : value;
+};
+
 /**
  * Render one argument object as human-readable JSON for the expanded
  * tool-call chip. Safe against non-serialisable values.
@@ -310,8 +341,12 @@ const MessageBubble = React.memo(({ msg }) => {
     const cleanedText = stripToolCallMarkers(msg.text);
     if (!cleanedText && toolCalls.length === 0) return null;
 
-    const copyToClipboard = (text) => {
-        navigator.clipboard.writeText(text);
+    const copyToClipboard = async (text) => {
+        try {
+            await copyTextToClipboard(text);
+        } catch (err) {
+            console.warn('[ChatPanel] Copy failed:', err);
+        }
     };
 
     return (
@@ -392,7 +427,13 @@ const MessageBubble = React.memo(({ msg }) => {
 });
 
 /** Render-only OpenClaw chat mirror; session + SSE live in `useChatSession`. */
-export default function ChatPanel({ channelId, channelName }) {
+export default function ChatPanel({
+    channelId,
+    channelName,
+    configuredModel = '',
+    modelOptions = [],
+    onConfiguredModelChange = null
+}) {
     const {
         messages,
         sessionBinding,
@@ -444,6 +485,20 @@ export default function ChatPanel({ channelId, channelName }) {
                 (msg.toolResults?.length || 0) > 0
             );
     }, [messages, showSystemMessages]);
+
+    const modelLabelById = useMemo(() => {
+        const entries = (modelOptions || []).map((model) => [model.id, model.name || model.id]);
+        return new Map(entries);
+    }, [modelOptions]);
+
+    const configuredModelLabel = configuredModel
+        ? (modelLabelById.get(configuredModel) || configuredModel)
+        : 'Inherit default';
+    const liveModel = [...messages].reverse().find((msg) => msg.model)?.model || '';
+    const liveModelMatchesConfigured =
+        liveModel &&
+        configuredModel &&
+        normalizeModelForCompare(liveModel) === normalizeModelForCompare(configuredModel);
 
     // Within this distance of the bottom we consider the user "pinned" and
     // safe to auto-scroll on new messages. Anything larger → user is
@@ -548,9 +603,50 @@ export default function ChatPanel({ channelId, channelName }) {
         }}>
             {/* Header */}
             <div style={{ padding: '12px 16px', background: '#1a1b26', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                     <span style={{ color: '#50e3c2' }}>#</span>
-                    {channelName}
+                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{channelName}</span>
+                    <select
+                        value={configuredModel || ''}
+                        onChange={(e) => onConfiguredModelChange?.(e.target.value)}
+                        disabled={!onConfiguredModelChange}
+                        title={`Configured model: ${configuredModelLabel}`}
+                        style={{
+                            minWidth: '220px',
+                            maxWidth: '320px',
+                            height: '28px',
+                            background: '#13141c',
+                            border: '1px solid rgba(80,227,194,0.35)',
+                            color: '#dfe6f3',
+                            borderRadius: '4px',
+                            padding: '3px 8px',
+                            fontSize: '12px',
+                            fontWeight: 500
+                        }}
+                    >
+                        <option value="">Inherit workspace default</option>
+                        {(modelOptions || []).map((model) => (
+                            <option key={model.id} value={model.id}>
+                                {model.name || model.id}
+                            </option>
+                        ))}
+                    </select>
+                    {liveModel && (
+                        <span
+                            title="Model reported by the live OpenClaw transcript"
+                            style={{
+                                fontSize: '11px',
+                                color: liveModelMatchesConfigured ? '#9ff0dc' : '#ffd38a',
+                                background: liveModelMatchesConfigured ? 'rgba(80,227,194,0.10)' : 'rgba(255,190,90,0.12)',
+                                border: `1px solid ${liveModelMatchesConfigured ? 'rgba(80,227,194,0.25)' : 'rgba(255,190,90,0.25)'}`,
+                                borderRadius: '4px',
+                                padding: '3px 6px',
+                                whiteSpace: 'nowrap'
+                            }}
+                        >
+                            live {liveModel}
+                        </span>
+                    )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#888', cursor: 'pointer', userSelect: 'none' }}>

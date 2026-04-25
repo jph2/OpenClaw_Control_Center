@@ -48,8 +48,10 @@ const diffStyles = {
 /**
  * @param {object} props
  * @param {() => Promise<void>} [props.onBeforeApply] — e.g. refetch channels so Apply reads the same state as the UI (disk is already written per edit).
+ * @param {() => void} [props.onApplied] — called after a confirmed write succeeds.
+ * @param {() => void} [props.onNoChanges] — called when the preview proves CM already matches OpenClaw.
  */
-export default function OpenClawApplyModal({ open, onClose, onBeforeApply }) {
+export default function OpenClawApplyModal({ open, onClose, onBeforeApply, onApplied, onNoChanges }) {
     const [loading, setLoading] = useState(false);
     const [applying, setApplying] = useState(false);
     const [error, setError] = useState(null);
@@ -84,13 +86,16 @@ export default function OpenClawApplyModal({ open, onClose, onBeforeApply }) {
                 return;
             }
             setPreview(data);
+            if (data.unchanged) {
+                onNoChanges?.();
+            }
         } catch (e) {
             setError(e.message);
             setPreview(null);
         } finally {
             setLoading(false);
         }
-    }, [onBeforeApply]);
+    }, [onBeforeApply, onNoChanges]);
 
     useEffect(() => {
         if (open) {
@@ -130,6 +135,7 @@ export default function OpenClawApplyModal({ open, onClose, onBeforeApply }) {
             } else if (gr?.error) {
                 extra = `\n\nGateway restart failed: ${gr.error}\nPlease restart manually.`;
             }
+            onApplied?.();
             window.alert(
                 'OpenClaw config updated. A timestamped .bak backup was created beside openclaw.json.' + extra
             );

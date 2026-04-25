@@ -19,8 +19,7 @@ import {
     normalizeAgentsDefaultsPolicyConfig,
     readOpenclawAgentsDefaultsModelPrimary
 } from '../services/openclawApply.js';
-
-const OPENCLAW_JSON_PATH = process.env.OPENCLAW_CONFIG_PATH || '/home/claw-agentbox/.openclaw/openclaw.json';
+import { ProjectMappingsSchema, normalizeProjectMappings } from '../services/projectMappingStore.js';
 
 /** Bundled / managed catalog entries; merged at request time with filesystem scan under OPENCLAW_WORKSPACE/skills (see workspaceSkillRegistry.js). */
 const BUNDLED_SKILL_CATALOG = {
@@ -35,25 +34,6 @@ const BUNDLED_SKILL_CATALOG = {
     clawhub: { desc: 'Search, install and publish agent skills', origin: 'openclaw/skills', cat: 'utility', src: 'bundled', def: false }
 };
 
-async function syncToOpenClawState(channelId, updates) {
-    try {
-        const raw = await fsPromises.readFile(OPENCLAW_JSON_PATH, 'utf8');
-        const state = JSON.parse(raw);
-
-        if (!state.channels?.telegram?.groups) return;
-
-        const group = state.channels.telegram.groups[channelId];
-        if (group) {
-            // OpenClaw schema strictly denies 'model' inside telegram groups. Wait for proper API approach.
-            // if (updates.model) group.model = updates.model;
-            // await fsPromises.writeFile(OPENCLAW_JSON_PATH, JSON.stringify(state, null, 2));
-            console.log(`[Sync] Skipped syncing model (${updates.model}) to OpenClaw (unsupported schema property).`);
-        }
-    } catch (err) {
-        console.error(`[Sync] Failed to sync to OpenClaw state: ${err.message}`);
-    }
-}
-
 // Central Event Emitter for Hot-Reload signals
 const configEvents = new EventEmitter();
 
@@ -66,96 +46,98 @@ const getResolvedConfigPath = async () => {
     return resolved;
 };
 
-// Initialize Config Polling (Chokidar causes EBADF errors)
-setTimeout(async () => {
-    try {
-        const configPath = await getResolvedConfigPath();
-        let lastMtime = 0;
-        
-        const pollConfig = () => {
-            try {
-                if (fs.existsSync(configPath)) {
-                    const stat = fs.statSync(configPath);
-                    if (stat.mtimeMs > lastMtime) {
-                        lastMtime = stat.mtimeMs;
-                        console.log(`[Polling] Detected config change in ${configPath}. Pushing SSE hot-reload event...`);
-                        configEvents.emit('configChange');
-                    }
-                }
-            } catch (err) {
-                // Ignore errors
-            }
-        };
-        
-        setInterval(pollConfig, 10000); // Poll every 10s to reduce CPU load
-        pollConfig(); // Initial check
-        console.log(`[Polling] Active and watching: ${configPath}`);
-    } catch (err) {
-        console.warn('[Polling] Failed to initialize config watcher:', err.message);
-    }
-}, 0);
+if (process.env.NODE_ENV !== 'test') {
+    // Initialize Config Polling (Chokidar causes EBADF errors)
+    setTimeout(async () => {
+        try {
+            const configPath = await getResolvedConfigPath();
+            let lastMtime = 0;
 
-// Workspace skills polling (Chokidar causes EBADF errors)
-setTimeout(() => {
-    try {
-        const skillsDir = resolveWorkspaceSkillsDir();
-        const knownSkills = new Map(); // filePath -> mtime
-        
-        const pollSkills = () => {
-            try {
-                if (!fs.existsSync(skillsDir)) return;
-                
-                const scanDir = (dir) => {
-                    const entries = fs.readdirSync(dir, { withFileTypes: true });
-                    for (const entry of entries) {
-                        const fullPath = path.join(dir, entry.name);
-                        if (entry.isDirectory()) {
-                            scanDir(fullPath);
-                        } else if (entry.name === 'SKILL.md') {
-                            try {
-                                const stat = fs.statSync(fullPath);
-                                const known = knownSkills.get(fullPath);
-                                
-                                if (!known) {
-                                    // New skill file
-                                    knownSkills.set(fullPath, stat.mtimeMs);
-                                    console.log(`[Polling] Workspace skill file added: ${fullPath}`);
-                                    configEvents.emit('configChange');
-                                } else if (stat.mtimeMs > known) {
-                                    // Skill file changed
-                                    knownSkills.set(fullPath, stat.mtimeMs);
-                                    console.log(`[Polling] Workspace skill file changed: ${fullPath}`);
-                                    configEvents.emit('configChange');
-                                }
-                            } catch (err) {
-                                // Skip files we can't stat
-                            }
+            const pollConfig = () => {
+                try {
+                    if (fs.existsSync(configPath)) {
+                        const stat = fs.statSync(configPath);
+                        if (stat.mtimeMs > lastMtime) {
+                            lastMtime = stat.mtimeMs;
+                            console.log(`[Polling] Detected config change in ${configPath}. Pushing SSE hot-reload event...`);
+                            configEvents.emit('configChange');
                         }
                     }
-                };
-                
-                scanDir(skillsDir);
-                
-                // Clean up deleted files
-                for (const [filePath] of knownSkills) {
-                    if (!fs.existsSync(filePath)) {
-                        knownSkills.delete(filePath);
-                        console.log(`[Polling] Workspace skill file deleted: ${filePath}`);
-                        configEvents.emit('configChange');
-                    }
+                } catch (err) {
+                    // Ignore errors
                 }
-            } catch (err) {
-                // Ignore errors
-            }
-        };
-        
-        setInterval(pollSkills, 30000); // Poll every 30s to reduce CPU load (skills change rarely)
-        pollSkills(); // Initial scan
-        console.log(`[Polling] Watching workspace skills: ${skillsDir}`);
-    } catch (err) {
-        console.warn('[Polling] Workspace skills watcher failed:', err.message);
-    }
-}, 0);
+            };
+
+            setInterval(pollConfig, 10000); // Poll every 10s to reduce CPU load
+            pollConfig(); // Initial check
+            console.log(`[Polling] Active and watching: ${configPath}`);
+        } catch (err) {
+            console.warn('[Polling] Failed to initialize config watcher:', err.message);
+        }
+    }, 0);
+
+    // Workspace skills polling (Chokidar causes EBADF errors)
+    setTimeout(() => {
+        try {
+            const skillsDir = resolveWorkspaceSkillsDir();
+            const knownSkills = new Map(); // filePath -> mtime
+
+            const pollSkills = () => {
+                try {
+                    if (!fs.existsSync(skillsDir)) return;
+
+                    const scanDir = (dir) => {
+                        const entries = fs.readdirSync(dir, { withFileTypes: true });
+                        for (const entry of entries) {
+                            const fullPath = path.join(dir, entry.name);
+                            if (entry.isDirectory()) {
+                                scanDir(fullPath);
+                            } else if (entry.name === 'SKILL.md') {
+                                try {
+                                    const stat = fs.statSync(fullPath);
+                                    const known = knownSkills.get(fullPath);
+
+                                    if (!known) {
+                                        // New skill file
+                                        knownSkills.set(fullPath, stat.mtimeMs);
+                                        console.log(`[Polling] Workspace skill file added: ${fullPath}`);
+                                        configEvents.emit('configChange');
+                                    } else if (stat.mtimeMs > known) {
+                                        // Skill file changed
+                                        knownSkills.set(fullPath, stat.mtimeMs);
+                                        console.log(`[Polling] Workspace skill file changed: ${fullPath}`);
+                                        configEvents.emit('configChange');
+                                    }
+                                } catch (err) {
+                                    // Skip files we can't stat
+                                }
+                            }
+                        }
+                    };
+
+                    scanDir(skillsDir);
+
+                    // Clean up deleted files
+                    for (const [filePath] of knownSkills) {
+                        if (!fs.existsSync(filePath)) {
+                            knownSkills.delete(filePath);
+                            console.log(`[Polling] Workspace skill file deleted: ${filePath}`);
+                            configEvents.emit('configChange');
+                        }
+                    }
+                } catch (err) {
+                    // Ignore errors
+                }
+            };
+
+            setInterval(pollSkills, 30000); // Poll every 30s to reduce CPU load (skills change rarely)
+            pollSkills(); // Initial scan
+            console.log(`[Polling] Watching workspace skills: ${skillsDir}`);
+        } catch (err) {
+            console.warn('[Polling] Workspace skills watcher failed:', err.message);
+        }
+    }, 0);
+}
 
 const router = express.Router();
 
@@ -191,6 +173,7 @@ const ChannelConfigSchema = z.object({
     subAgents: z.array(z.any()).nullish(),
     metadata: z.any().nullish(),
     availableModels: z.any().optional(),
+    projectMappings: ProjectMappingsSchema.optional(),
     telegramAccountPolicy: TelegramAccountPolicyConfigSchema.optional(),
     openclawAgentsDefaultsPolicy: AgentsDefaultsPolicyConfigSchema.optional()
 }).passthrough();
@@ -560,6 +543,7 @@ router.get('/', async (req, res, next) => {
             subAgents,
             metadata: metadata,
             availableModels: availableModels,
+            projectMappings: normalizeProjectMappings(localState.projectMappings),
             telegramAccountPolicy: normalizeTelegramAccountPolicyConfig(localState.telegramAccountPolicy),
             openclawAgentsDefaultsPolicy: normalizeAgentsDefaultsPolicyConfig(
                 localState.openclawAgentsDefaultsPolicy
@@ -594,7 +578,7 @@ router.get('/', async (req, res, next) => {
 /**
  * POST /api/channels/update
  * G3 Security Fix-Gate: Atomic Writes with `proper-lockfile`
- * Sub-Task 1.5: (Marvin's Audit) Bounded Contexts. This POST route is ONLY allowed 
+ * Sub-Task 1.5: (Marvin's Audit) Bounded Contexts. This POST route is ONLY allowed
  * to modify TOP-DOWN configurations (channel_config.json). It strictly prohibits modifying *.memory.md
  */
 router.post('/update', async (req, res, next) => {
@@ -689,13 +673,7 @@ router.post('/update', async (req, res, next) => {
 
             await fsPromises.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
 
-            // Sub-Task 1.5: Sovereign State Synchronization
-            // Ensure model changes are pushed to the live OpenClaw Engine config
-            if (payload.model) {
-                await syncToOpenClawState(payload.channelId, { model: payload.model });
-            }
-
-            res.json({ ok: true, message: 'Configuration updated and synchronized.' });
+            res.json({ ok: true, message: 'Configuration updated. Apply to OpenClaw to sync runtime config.' });
         } finally {
             // ALWAYS release the lock whether success or error
             await release();

@@ -13,11 +13,26 @@ function delay(ms) {
 function mirrorUserTextForOptimisticMatch(text) {
     let s = String(text || '').trim();
     for (let i = 0; i < 4; i++) {
-        const m = s.match(/^\[[^\]]*]\s*/);
+        const m = s.match(/^\[[^\]]*\]\s*/);
         if (!m) break;
         s = s.slice(m[0].length).trim();
     }
-    return s;
+    return s.replace(/\s+/g, ' ').trim();
+}
+
+function removeMatchedOptimisticMessages(currentMessages, incomingMessages) {
+    const incomingUserTexts = new Set(
+        (incomingMessages || [])
+            .filter((m) => m?.senderRole === 'user' && typeof m.text === 'string')
+            .map((m) => mirrorUserTextForOptimisticMatch(m.text))
+            .filter(Boolean)
+    );
+    if (incomingUserTexts.size === 0) return currentMessages;
+    return currentMessages.filter((m) => {
+        if (!m.cmOptimistic) return true;
+        const normalized = mirrorUserTextForOptimisticMatch(m.text);
+        return !incomingUserTexts.has(normalized);
+    });
 }
 
 /** Few retries when the browser hits transient connection limits or the Vite proxy blips. */
@@ -99,7 +114,12 @@ export function useChatSession(groupId) {
                     const parsed = JSON.parse(event.data);
                     if (parsed.type === 'INIT' || parsed.type === 'SESSION_REBOUND') {
                         const incoming = parsed.messages || [];
-                        startTransition(() => setMessages(incoming));
+                        startTransition(() =>
+                            setMessages((prev) => [
+                                ...removeMatchedOptimisticMessages(prev, incoming),
+                                ...incoming.filter((msg) => !prev.some((m) => m.id === msg.id))
+                            ])
+                        );
                     } else if (parsed.type === 'MESSAGE') {
                         const incomingMsg = parsed.message;
                         startTransition(() => {
@@ -111,23 +131,7 @@ export function useChatSession(groupId) {
                                     incomingMsg.senderRole === 'user' &&
                                     typeof incomingMsg.text === 'string'
                                 ) {
-                                    const normalizedIn = mirrorUserTextForOptimisticMatch(incomingMsg.text);
-                                    if (
-                                        normalizedIn &&
-                                        prev.some(
-                                            (m) =>
-                                                m.cmOptimistic &&
-                                                String(m.text || '').trim() === normalizedIn
-                                        )
-                                    ) {
-                                        base = prev.filter(
-                                            (m) =>
-                                                !(
-                                                    m.cmOptimistic &&
-                                                    String(m.text || '').trim() === normalizedIn
-                                                )
-                                        );
-                                    }
+                                    base = removeMatchedOptimisticMessages(prev, [incomingMsg]);
                                 }
                                 if (base.find((m) => m.id === incomingMsg.id)) return base;
                                 return [...base, incomingMsg];

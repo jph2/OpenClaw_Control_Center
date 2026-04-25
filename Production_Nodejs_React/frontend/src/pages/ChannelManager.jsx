@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient, useIsMutating } from '@tanstack/react-query';
 import { Download, Upload, RefreshCw, Save, Check, ChevronUp, ChevronDown, Plus, X, FileJson2 } from 'lucide-react';
@@ -32,11 +32,69 @@ const APPLY_OPENCLAW_TITLE_WITH_TG_ACCOUNT =
 const APPLY_OPENCLAW_TITLE_WITHOUT_TG_ACCOUNT =
     'Apply still writes TTG fields, synth agents, and bindings to openclaw.json. Without “On next Apply…” in Bot admission (Telegram), only the four account keys (groupPolicy, dmPolicy, allowFrom, groupAllowFrom) are not merged into the gateway — everything else is. To include admission: enable the checkbox, save, then Apply.';
 
+const BULK_SELECTION_TOOLTIP =
+    'Select TTGs here to apply bulk changes from this toolbar, such as setting one model or adding one skill to every selected channel.';
+
+const APPLY_PREVIEW_QUERY_KEY = ['openclaw-apply-preview-status'];
+const APPLY_DIRTY_STORAGE_KEY = 'channel-manager-apply-openclaw-dirty';
+const APPLY_BASELINE_STORAGE_KEY = 'channel-manager-apply-openclaw-baseline';
+
+const bulkTooltipStyle = { top: 'calc(var(--tooltip-y, 0px) - 8px)', left: 'var(--tooltip-x, 0px)' };
+
+function setBulkTooltipPosition(e) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty('--tooltip-x', `${Math.max(12, rect.left)}px`);
+    e.currentTarget.style.setProperty('--tooltip-y', `${rect.top}px`);
+}
+
+function buildApplyBaselineSignature(configData) {
+    const data = configData?.data;
+    if (!configData?.ok || !data) return '';
+    const sortById = (items) =>
+        [...(Array.isArray(items) ? items : [])].sort((a, b) => String(a?.id || '').localeCompare(String(b?.id || '')));
+    const pickChannel = (c) => ({
+        id: c.id,
+        name: c.name,
+        assignedAgent: c.assignedAgent,
+        model: c.model,
+        skills: c.skills || [],
+        inactiveSubAgents: c.inactiveSubAgents || [],
+        inactiveSkills: c.inactiveSkills || [],
+        caseSkills: c.caseSkills || [],
+        inactiveCaseSkills: c.inactiveCaseSkills || [],
+        require_mention: c.require_mention
+    });
+    const pickAgent = (a) => ({
+        id: a.id,
+        name: a.name,
+        role: a.role,
+        defaultSkills: a.defaultSkills || [],
+        inactiveSkills: a.inactiveSkills || []
+    });
+    const pickSubAgent = (a) => ({
+        id: a.id,
+        name: a.name,
+        parent: a.parent,
+        additionalSkills: a.additionalSkills || [],
+        inactiveSkills: a.inactiveSkills || [],
+        enabled: a.enabled
+    });
+    return JSON.stringify({
+        channels: sortById(data.channels).map(pickChannel),
+        agents: sortById(data.agents).map(pickAgent),
+        subAgents: sortById(data.subAgents).map(pickSubAgent),
+        telegramAccountPolicy: data.telegramAccountPolicy || null,
+        openclawAgentsDefaultsPolicy: data.openclawAgentsDefaultsPolicy || null
+    });
+}
+
 export default function ChannelManager() {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('channels');
     const [openClawApplyOpen, setOpenClawApplyOpen] = useState(false);
+    const [applyDirty, setApplyDirty] = useState(() => localStorage.getItem(APPLY_DIRTY_STORAGE_KEY) === '1');
+    const cleanApplySignatureRef = useRef(localStorage.getItem(APPLY_BASELINE_STORAGE_KEY) || '');
 
     const channelPersistInFlight = useIsMutating({ mutationKey: CM_PERSIST_MUTATION_KEY }) > 0;
 
@@ -108,6 +166,61 @@ export default function ChannelManager() {
         retry: 4,
         retryDelay: (attemptIndex) => Math.min(400 * 2 ** attemptIndex, 8000)
     });
+    const currentApplySignature = useMemo(() => buildApplyBaselineSignature(configData), [configData]);
+
+    const { data: applyPreviewStatus, isFetching: applyPreviewFetching } = useQuery({
+        queryKey: APPLY_PREVIEW_QUERY_KEY,
+        enabled: !!configData?.ok && !openClawApplyOpen && !channelPersistInFlight,
+        queryFn: async () => {
+            const res = await fetch(apiUrl('/api/exports/openclaw/apply'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dryRun: true })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || data.error || `Apply preview failed (${res.status})`);
+            return data;
+        },
+        staleTime: 5000,
+        retry: 1
+    });
+    const markApplyDirty = useCallback(() => {
+        localStorage.setItem(APPLY_DIRTY_STORAGE_KEY, '1');
+        setApplyDirty(true);
+        queryClient.invalidateQueries({ queryKey: APPLY_PREVIEW_QUERY_KEY });
+    }, [queryClient]);
+
+    const clearApplyDirty = useCallback(() => {
+        if (currentApplySignature) {
+            cleanApplySignatureRef.current = currentApplySignature;
+            localStorage.setItem(APPLY_BASELINE_STORAGE_KEY, currentApplySignature);
+        }
+        localStorage.removeItem(APPLY_DIRTY_STORAGE_KEY);
+        setApplyDirty(false);
+        queryClient.invalidateQueries({ queryKey: APPLY_PREVIEW_QUERY_KEY });
+    }, [currentApplySignature, queryClient]);
+
+    useEffect(() => {
+        if (!currentApplySignature) return;
+        if (!cleanApplySignatureRef.current && !applyDirty) {
+            cleanApplySignatureRef.current = currentApplySignature;
+            localStorage.setItem(APPLY_BASELINE_STORAGE_KEY, currentApplySignature);
+            return;
+        }
+        if (applyDirty && cleanApplySignatureRef.current === currentApplySignature) {
+            localStorage.removeItem(APPLY_DIRTY_STORAGE_KEY);
+            setApplyDirty(false);
+        }
+    }, [applyDirty, currentApplySignature]);
+
+    useEffect(() => {
+        if (applyDirty && applyPreviewStatus?.unchanged === true) {
+            clearApplyDirty();
+        }
+    }, [applyDirty, applyPreviewStatus?.unchanged, clearApplyDirty]);
+
+    const applyPreviewHasDiff = !!applyPreviewStatus && applyPreviewStatus.unchanged === false;
+    const applyToOpenClawPending = applyDirty || applyPreviewHasDiff;
 
     /** Drop category/source if the skill catalog no longer contains that value (fixes “stuck” filters after reload). */
     useEffect(() => {
@@ -174,6 +287,10 @@ export default function ChannelManager() {
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['channels'] });
+            queryClient.invalidateQueries({ queryKey: APPLY_PREVIEW_QUERY_KEY });
+        },
+        onSuccess: () => {
+            markApplyDirty();
         }
     });
 
@@ -304,7 +421,13 @@ export default function ChannelManager() {
             return data;
         },
         onError: (err) => window.alert(err?.message || 'Save failed.'),
-        onSettled: () => queryClient.invalidateQueries({ queryKey: ['channels'] })
+        onSuccess: () => {
+            markApplyDirty();
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['channels'] });
+            queryClient.invalidateQueries({ queryKey: APPLY_PREVIEW_QUERY_KEY });
+        }
     });
 
     /** C1b.2c — opt-in agents.defaults.model.primary on Apply */
@@ -350,7 +473,13 @@ export default function ChannelManager() {
             return data;
         },
         onError: (err) => window.alert(err?.message || 'Save failed.'),
-        onSettled: () => queryClient.invalidateQueries({ queryKey: ['channels'] })
+        onSuccess: () => {
+            markApplyDirty();
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['channels'] });
+            queryClient.invalidateQueries({ queryKey: APPLY_PREVIEW_QUERY_KEY });
+        }
     });
 
     const backendAgents = configData?.data?.agents || [];
@@ -694,8 +823,21 @@ export default function ChannelManager() {
                 <div style={{ width: '1px', height: '24px', background: 'var(--border-color)', margin: '0 8px' }}></div>
                 
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'nowrap' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--text-primary)', cursor: 'pointer' }}>
-                        <input type="checkbox" checked={selectedChannels.length === displayChannels.length && displayChannels.length > 0} onChange={handleSelectAll} style={{ cursor: 'pointer', transform: 'scale(1.2)' }} /> Select All ({selectedChannels.length})
+                    <label
+                        className="info-tooltip-container bulk-selection-tooltip-container"
+                        onMouseEnter={setBulkTooltipPosition}
+                        onFocus={setBulkTooltipPosition}
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--text-primary)', cursor: 'pointer' }}
+                    >
+                        <input
+                            type="checkbox"
+                            checked={selectedChannels.length === displayChannels.length && displayChannels.length > 0}
+                            onChange={handleSelectAll}
+                            aria-label="Select all TTGs for bulk model and skill changes"
+                            style={{ cursor: 'pointer', transform: 'scale(1.2)' }}
+                        />
+                        Select All ({selectedChannels.length})
+                        <span className="info-tooltip-text info-tooltip-text-left bulk-selection-tooltip" style={bulkTooltipStyle}>{BULK_SELECTION_TOOLTIP}</span>
                     </label>
                     <select value={bulkModel} onChange={e => setBulkModel(e.target.value)} style={{ width: '160px', padding: '4px 8px', fontSize: '13px', background: '#13141c', border: '1px solid var(--border-color)', color: '#fff' }}>
                         <option value="">Set model...</option>
@@ -718,7 +860,22 @@ export default function ChannelManager() {
             <table className="channel-table" style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTop: 'none' }}>
                 <thead>
                     <tr>
-                        <th style={{ width: '40px', textAlign: 'center' }}><input type="checkbox" checked={selectedChannels.length === displayChannels.length && displayChannels.length > 0} onChange={handleSelectAll} style={{ cursor: 'pointer', transform: 'scale(1.2)' }} /></th>
+                        <th style={{ width: '40px', textAlign: 'center' }}>
+                            <span
+                                className="info-tooltip-container bulk-selection-tooltip-container"
+                                onMouseEnter={setBulkTooltipPosition}
+                                onFocus={setBulkTooltipPosition}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={selectedChannels.length === displayChannels.length && displayChannels.length > 0}
+                                    onChange={handleSelectAll}
+                                    aria-label="Select all TTGs for bulk model and skill changes"
+                                    style={{ cursor: 'pointer', transform: 'scale(1.2)' }}
+                                />
+                                <span className="info-tooltip-text info-tooltip-text-left bulk-selection-tooltip" style={bulkTooltipStyle}>{BULK_SELECTION_TOOLTIP}</span>
+                            </span>
+                        </th>
                         <th style={{ width: '250px' }}>TTG (Telegram Topic Group)</th>
                         <th>Configuration & Chat Workspace</th>
                     </tr>
@@ -1527,7 +1684,7 @@ export default function ChannelManager() {
                         className={
                             channelPersistInFlight
                                 ? 'primary'
-                                : `primary${telegramPolicyDraft.applyOnOpenClawApply ? '' : ' apply-openclaw-partial'}`
+                                : `primary${telegramPolicyDraft.applyOnOpenClawApply ? '' : ' apply-openclaw-partial'}${applyToOpenClawPending ? ' apply-openclaw-pending' : ''}`
                         }
                         disabled={channelPersistInFlight}
                         onClick={() => {
@@ -1537,13 +1694,15 @@ export default function ChannelManager() {
                         title={
                             channelPersistInFlight
                                 ? 'Wait until all save operations finish…'
-                                : telegramPolicyDraft.applyOnOpenClawApply
+                                : applyToOpenClawPending
+                                  ? 'Press to apply: Channel Manager changes differ from openclaw.json.'
+                                  : telegramPolicyDraft.applyOnOpenClawApply
                                   ? APPLY_OPENCLAW_TITLE_WITH_TG_ACCOUNT
                                   : APPLY_OPENCLAW_TITLE_WITHOUT_TG_ACCOUNT
                         }
                     >
                         <FileJson2 size={14} style={{ marginRight: '6px', verticalAlign: 'text-bottom' }} />
-                        Apply to OpenClaw…
+                        {applyToOpenClawPending ? 'Press to apply…' : applyPreviewFetching ? 'Checking Apply…' : 'Apply to OpenClaw…'}
                     </button>
                 </div>
             </header>
@@ -1560,8 +1719,14 @@ export default function ChannelManager() {
             )}
             <OpenClawApplyModal
                 open={openClawApplyOpen}
-                onClose={() => setOpenClawApplyOpen(false)}
+                onClose={() => {
+                    setOpenClawApplyOpen(false);
+                    queryClient.invalidateQueries({ queryKey: ['channels'] });
+                    queryClient.invalidateQueries({ queryKey: APPLY_PREVIEW_QUERY_KEY });
+                }}
                 onBeforeApply={prepareApplyToOpenClaw}
+                onApplied={clearApplyDirty}
+                onNoChanges={clearApplyDirty}
             />
         </div>
     );
