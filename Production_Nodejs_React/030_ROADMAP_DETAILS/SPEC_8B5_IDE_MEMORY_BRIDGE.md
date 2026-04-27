@@ -247,6 +247,81 @@ Failure behavior:
 - Multiple plausible matches: `binding.status = "ambiguous"`.
 - Ambiguous binding blocks promotion until the operator resolves it.
 
+## 7A. Summary -> TTG Scoring + Review (Next Slice)
+
+This is the next implementation slice after the bridge MVP. The goal is to make
+Cursor/Codex/TARS summary capture route to the right TTG without turning
+classification into hidden routing truth.
+
+Principle: the resolver remains deterministic. Hard signals decide routing;
+classification only proposes candidates until an operator or governed artifact
+header confirms them.
+
+Hard signals, in order:
+
+1. Explicit operator-selected `ttgId`.
+2. Artifact header `current_ttg.id`.
+3. Channel Manager `projectMappings[]`.
+4. Artifact header `initial_ttg.id` as weak historical fallback.
+
+Soft scoring inputs:
+
+- Summary title and body.
+- Artifact type (`DISCOVERY`, `RESEARCH`, `IMPLEMENTATION`, etc.).
+- Tags already present in the artifact header or sidecar.
+- TTG definition documents and their frontmatter/body terms.
+- Project/repo/path hints from the IDE adapter.
+- Optional future tag-document vocabulary, normalized into the same TTG
+  definition token set.
+
+Scoring output shape:
+
+```json
+{
+  "status": "inferred|needs_review|ambiguous|unknown",
+  "method": "agent_classification",
+  "ttgId": "-100390983368",
+  "confidence": 0.78,
+  "distribution": [
+    {
+      "ttgId": "-100390983368",
+      "ttgName": "TTG010_General_Discovery_Plus_Research",
+      "percent": 61,
+      "score": 17,
+      "evidence": ["matched tags: research, discovery", "artifact type is DISCOVERY"]
+    }
+  ]
+}
+```
+
+Threshold policy:
+
+- Auto-propose `inferred` only when the top candidate is at least 70% confidence
+  and leads the second candidate by at least 20 percentage points.
+- Mark `needs_review` when the top candidate is plausible but below the
+  auto-propose threshold.
+- Mark `ambiguous` when the top two candidates are close or conflicting hard
+  hints exist.
+- Mark `unknown` when useful TTG evidence is missing.
+
+UI requirements:
+
+- Show the ranked percentage distribution per TTG as bars or compact rows.
+- Show evidence per candidate, not only the score.
+- Allow the operator to confirm one TTG or override with another valid TTG.
+- On confirmation, write/update artifact `current_ttg` plus
+  `binding.status: confirmed` through `upsertArtifactHeaderBinding()`.
+- Keep promotion blocked while binding is `ambiguous`, `unknown`, or unreviewed
+  `needs_review`.
+
+Audit / sidecar requirements:
+
+- Persist classifier candidates, percentages, evidence, timestamp, and selected
+  TTG in the `.meta.json` sidecar or IDE bridge audit.
+- Do not store full hidden IDE transcripts in audit.
+- Do not use percentage matching for promotion read-back; read-back remains
+  marker/hash based.
+
 ## 8. UI States
 
 The third tab computes status from exactly three questions:
@@ -329,6 +404,20 @@ Audit events must not include auth secrets or full hidden IDE transcripts.
 6. Add audit JSONL.
 7. Update docs and smoke tests.
 
+### Next implementation order: Summary -> TTG scoring/review
+
+1. Extend `ttgClassifier` to return normalized percentage distribution plus
+   evidence for all relevant TTG candidates, not only top-three raw scores.
+2. Feed classifier output into the existing resolver path only when no hard
+   `confirmed` signal exists.
+3. Persist classifier candidates and selected TTG in the summary sidecar.
+4. Add `IdeProjectSummaryPanel` affordances for ranked TTG distribution,
+   evidence, confirm, and override.
+5. Confirm writes `current_ttg` and `binding.status: confirmed` into the
+   artifact header; promotion remains blocked before confirmation when needed.
+6. Add tests for high-confidence inference, ambiguous near-ties, hard-signal
+   precedence, sidecar persistence, and header write-back.
+
 ## 12. Acceptance Criteria
 
 - From one TTG row, the operator can save a summary in A070_ide_cursor_summaries (with sidecar metadata).
@@ -337,6 +426,19 @@ Audit events must not include auth secrets or full hidden IDE transcripts.
 - The tab shows read-back confirmation from the target memory file.
 - Cursor and Codex use the same normalized contract.
 - No silent writes to memory, auth, identity, or routing occur.
+
+Next-slice acceptance:
+
+- A summary without hard TTG binding shows a ranked TTG percentage distribution
+  with evidence.
+- A confident top candidate is proposed as `inferred`; ambiguous or weak matches
+  require operator review.
+- Explicit selection, artifact `current_ttg`, and project mapping always outrank
+  content scoring.
+- Confirming a candidate updates the artifact header and sidecar; only confirmed
+  or otherwise unambiguous bindings can be promoted.
+- Tests cover classifier distribution, resolver precedence, UI state mapping,
+  and promotion blocking for ambiguous/unknown bindings.
 - Existing §8b.4 chat behavior does not regress.
 
 ## 13. Current Implementation Slices

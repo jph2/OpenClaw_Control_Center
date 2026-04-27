@@ -40,11 +40,25 @@ Zusätzlich zur Zeile **B** oben: Aufspaltung nach **Zielsystem** und **Was gena
 **C1c / §8b.7A:** Normative Detail-Spec und nächste Gates in
 [`SPEC_CM_DUAL_TARGET_AGENT_SKILL_CONFIG_V1.md`](./SPEC_CM_DUAL_TARGET_AGENT_SKILL_CONFIG_V1.md).
 
+### Next slice — Summary -> TTG scoring/review
+
+Planning status: **ready for implementation start** after operator go-ahead.
+
+| Gate | Expected result |
+| ---- | --------------- |
+| Hard-signal precedence | Explicit TTG, artifact `current_ttg`, and project mapping outrank classifier output. |
+| Classifier distribution | Summary title/body, tags, artifact type, TTG definitions, and adapter hints produce ranked TTG percentages. |
+| Ambiguity handling | Near-ties or weak matches become `ambiguous` / `needs_review`; promotion remains blocked. |
+| Operator confirmation | Confirm writes `current_ttg` + `binding.status: confirmed` to the artifact header. |
+| Audit / sidecar | Candidates, percentages, evidence, timestamp, and selected TTG are persisted without hidden transcript text. |
+| Read-back safety | Promotion read-back stays marker/hash based; no text similarity is used for memory confirmation. |
+
 Remaining gates (high level):
 
 1. **Producer adapters** — durable artifact writes from Cursor/Codex/OpenCode surfaces.
 2. **OB1/MCP** — first-party upsert path beyond HTTP adapter; policy as you define it.
-3. **Polish** — §8b.7 topology / gateway `tools.effective` verification when API stable.
+3. **Summary routing polish** — implement the Summary -> TTG scoring/review slice above.
+4. **Polish** — §8b.7 topology / gateway `tools.effective` verification when API stable.
 
 ### Reifegrad — drei Dokumente (Stand 2026-04-27)
 
@@ -52,9 +66,9 @@ Die **numerische Tabelle** oben ist die Referenz; sie ist an **drei Stellen** mi
 
 | Dokument | Inhalt |
 | -------- | ------ |
-| **`QA_8B5_IDE_MEMORY_BRIDGE.md`** (diese Datei) | Datum + Status-Text; **Master-%** (Artifact Header 88–93%, Classification 72–80%, Index 85–90%, OB Export 88–93%, OB Sync 62–72%, **B** 88–93%, Producer 18–30%); **C1c-Tabelle** OpenClaw vs Cursor; Remaining gates → Adapter / OB1-MCP / §8b.7 / Cursor prune+skill verify. |
-| **`SPEC_8B5_IDE_MEMORY_BRIDGE.md`** | **Gleiche %-Tabelle** (inkl. Zeile **B**); Verdict; empfohlene Schritte (Adapter, OB1, Topologie). |
-| **`030_ROADMAP.md`** §8b.5 | **Current status**; **Maturity** als kompakte Prozentspannen + Verweis auf QA/SPEC; „Not done“ → OB1/MCP, Producer, §8b.7, Polish, C1c Rest. |
+| **`QA_8B5_IDE_MEMORY_BRIDGE.md`** (diese Datei) | Datum + Status-Text; **Master-%** (Artifact Header 88–93%, Classification 72–80%, Index 85–90%, OB Export 88–93%, OB Sync 62–72%, **B** 88–93%, Producer 18–30%); **C1c-Tabelle** OpenClaw vs Cursor; **Next-slice QA** Summary → TTG scoring/review. |
+| **`SPEC_8B5_IDE_MEMORY_BRIDGE.md`** | **Gleiche %-Tabelle** (inkl. Zeile **B**); Verdict; **§7A Summary → TTG Scoring + Review**; Implementierungsreihenfolge und Acceptance Criteria. |
+| **`030_ROADMAP.md`** §8b.5 | **Current status**; **Maturity** als kompakte Prozentspannen + Verweis auf QA/SPEC; nächster Bauabschnitt: Hybrid-TTG-Scoring mit Review-Gate und Header-Writeback. |
 | **`SPEC_CM_DUAL_TARGET_AGENT_SKILL_CONFIG_V1.md`** | C1c Zielbild, Akzeptanzkriterien, offene Gates (Runtime-Readback, `--prune-managed`, Skill/MCP). |
 
 Normative binding statuses:
