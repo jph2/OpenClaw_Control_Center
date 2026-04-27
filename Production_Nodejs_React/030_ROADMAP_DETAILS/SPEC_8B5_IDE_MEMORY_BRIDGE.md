@@ -445,6 +445,13 @@ Implementation maturity snapshot (Reifegrad):
 | **B: CM → Cursor** | 78-85% |
 | Producer Adapters (Codex/Cursor/OpenCode) | 18-30% |
 
+**B hardening target:** C1c / §8b.7A is now split into
+[`SPEC_CM_DUAL_TARGET_AGENT_SKILL_CONFIG_V1.md`](./SPEC_CM_DUAL_TARGET_AGENT_SKILL_CONFIG_V1.md).
+That spec owns the next CM → Cursor lift toward **90-95%** (bundle v2, shared
+renderer, managed blocks, fingerprint v2, target-repo stale checks, tests) and
+the OpenClaw runtime/readback criteria that prove Apply success is also runtime
+success.
+
 Remaining production gates before calling §8b.5 “done” in the strict sense:
 
 1. **Producer adapters** — Codex/Cursor/OpenCode (and peers) create/update Studio artifacts under the same contract; CM is not the only write path for long-form context.

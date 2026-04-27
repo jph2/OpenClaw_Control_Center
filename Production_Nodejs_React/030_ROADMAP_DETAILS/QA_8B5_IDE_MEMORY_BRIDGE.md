@@ -26,6 +26,12 @@ Maturity snapshot (Reifegrad — Schätzung, keine Messautomatik):
 | **B: CM → Cursor** (`apply-ide-export`, engines + subs, stale check) | 78-85% |
 | Producer Adapters (Codex/Cursor/OpenCode) | 18-30% |
 
+**B hardening target:** the next C1c / §8b.7A slice is tracked in
+[`SPEC_CM_DUAL_TARGET_AGENT_SKILL_CONFIG_V1.md`](./SPEC_CM_DUAL_TARGET_AGENT_SKILL_CONFIG_V1.md).
+It raises CM → Cursor toward **90-95%** by adding bundle v2, managed-block
+rendering, file/fingerprint validation, stale-check governance, and tests; it
+also records the OpenClaw runtime/readback gates needed beyond file writes.
+
 Remaining gates (high level):
 
 1. **Producer adapters** — durable artifact writes from Cursor/Codex/OpenCode surfaces.

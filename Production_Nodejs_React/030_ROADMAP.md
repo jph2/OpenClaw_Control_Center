@@ -20,6 +20,7 @@ working on.
 | Phase 0, Bundles A/B/C1/C1b/C2 history | [`030_ROADMAP_DETAILS/historical-bundles.md`](./030_ROADMAP_DETAILS/historical-bundles.md) |
 | §8b follow-ups and detailed active specs | [`030_ROADMAP_DETAILS/8b-followups.md`](./030_ROADMAP_DETAILS/8b-followups.md) |
 | Backlog table, future scope, release cadence | [`030_ROADMAP_DETAILS/backlog-future-release.md`](./030_ROADMAP_DETAILS/backlog-future-release.md) |
+| Dual-target agents / sub-agents / skills (OpenClaw + Cursor) | [`030_ROADMAP_DETAILS/SPEC_CM_DUAL_TARGET_AGENT_SKILL_CONFIG_V1.md`](./030_ROADMAP_DETAILS/SPEC_CM_DUAL_TARGET_AGENT_SKILL_CONFIG_V1.md) |
 | IDE chat capture / A070 specifics | [`030_ROADMAP_DETAILS/ide-chat-capture-a070.md`](./030_ROADMAP_DETAILS/ide-chat-capture-a070.md) |
 | Architecture | [`020_ARCHITECTURE.md`](./020_ARCHITECTURE.md) |
 | ADRs / irreversible decisions | [`040_DECISIONS.md`](./040_DECISIONS.md) |
@@ -39,8 +40,8 @@ becomes too long for this index, move it into a linked file under
 | Cursor / IDE summaries tab | Live; A070 summary list/renderer, summary drafts, memory promote modal, project mapping, artifact index/review, Open Brain export/stub sync. |
 | IDE chat capture | **Partially shipped (6.22):** backend capture endpoints + Summaries UI. Linux flow is **Step 0 terminal mount** + **required Step 1 Save path**. Old in-UI SMB wizard removed. Remaining: nightly summary-delta job, retention, other producers. |
 | IDE Bridge (MCP) | Live for `send_telegram_reply` and `change_agent_mode`. |
-| Exports | Live: `/api/exports/{canonical,openclaw,ide,cursor}`; IDE export apply + stale-check scripts exist. |
-| Config Apply to `openclaw.json` | C1/C1b shipped: group policy, synth agents/bindings, skills merge, orphan prune, account policy, defaults model opt-in, stale-session release script. |
+| Exports | Live: `/api/exports/{canonical,openclaw,ide,cursor}`; IDE export apply + stale-check scripts exist. Next: Cursor projection hardening to 90-95%. |
+| Config Apply to `openclaw.json` | C1/C1b shipped: group policy, synth agents/bindings, skills merge, orphan prune, account policy, defaults model opt-in, stale-session release script. Next: runtime verification/readback. |
 | Summary promotion to memory | Live (C2): explicit `POST /api/summaries/promote` / `POST /api/ide-project-summaries/promote`; no silent memory writes. |
 | Local LLM / LM Studio | Wired; operator must still load model in LM Studio with sufficient `n_ctx` (`>= 16384`, 32768 recommended). |
 | OpenClaw webchat ↔ Telegram binding parity | Known upstream limitation (ADR-018): webchat session resolver still reads defaults for some group sessions. |
@@ -67,6 +68,7 @@ Details live in [`030_ROADMAP_DETAILS/historical-bundles.md`](./030_ROADMAP_DETA
 | Block | Status | Next useful action |
 | ----- | ------ | ------------------ |
 | §8b.5 — IDE Memory Bridge | Mostly implemented foundation; see [`SPEC_8B5_IDE_MEMORY_BRIDGE.md`](./030_ROADMAP_DETAILS/SPEC_8B5_IDE_MEMORY_BRIDGE.md) and [`QA_8B5_IDE_MEMORY_BRIDGE.md`](./030_ROADMAP_DETAILS/QA_8B5_IDE_MEMORY_BRIDGE.md). | Keep live OB1/MCP upsert downstream of corpus onboarding; continue producer-adapter work where it does not create parallel memory truth. |
+| C1c / §8b.7A — Dual-target Agent/Skill configuration | New active hardening block; OpenClaw Apply is ~90-95%, Cursor projection/apply is ~78-85%. See [`SPEC_CM_DUAL_TARGET_AGENT_SKILL_CONFIG_V1.md`](./030_ROADMAP_DETAILS/SPEC_CM_DUAL_TARGET_AGENT_SKILL_CONFIG_V1.md). | Bring CM → Cursor to ~90-95% with bundle v2, shared renderer, safe paths, managed blocks, fingerprint v2, stale-check governance, and tests. Treat OpenClaw file writes and runtime success separately: add configured-vs-runtime topology/readback, stale-session guidance, and account-policy visibility. |
 | 6.22 — IDE chat capture pipeline | Partially shipped; see [`030_ROADMAP_DETAILS/ide-chat-capture-a070.md`](./030_ROADMAP_DETAILS/ide-chat-capture-a070.md). | After path/mount UX stabilization, implement nightly summary-delta job and retention policy. |
 | §8b.6 — Studio corpus onboarding | Planned gate before live Open Brain priority. | Ingest external materials into Studio Framework, normalize headers/structure, then treat export/sync as meaningful. |
 | §8b.7 — TTG topology readout | Planned after §8b.5 is stable. | Define read-only effective topology shape (agent, model, channel skills, sub-agents, runtime confirmation). |
@@ -83,7 +85,7 @@ High-signal later items:
 - Channel Manager chat media V1: [`SPEC_CHANNEL_MANAGER_CHAT_MEDIA_V1.md`](./030_ROADMAP_DETAILS/SPEC_CHANNEL_MANAGER_CHAT_MEDIA_V1.md).
 - Workbench / Channel Manager boundary hardening: [`SPEC_WORKBENCH_POSITIONING.md`](./030_ROADMAP_DETAILS/SPEC_WORKBENCH_POSITIONING.md) and [`SESSION_CLEANUP_2026-04-25.md`](./030_ROADMAP_DETAILS/SESSION_CLEANUP_2026-04-25.md).
 - Slash-command parity and no-fake-send guardrails in CM chat (§8b.10).
-- MCP whitelisting and Sovereign Bridge verification.
+- MCP whitelisting and Sovereign Bridge verification (after C1c / Cursor bundle v2 contracts stabilize).
 - Replacement for the missing `occ-ctl.mjs` entrypoint.
 
 ---
