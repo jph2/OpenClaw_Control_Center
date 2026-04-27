@@ -309,10 +309,18 @@ UI requirements:
 - Show the ranked percentage distribution per TTG as bars or compact rows.
 - Show evidence per candidate, not only the score.
 - Allow the operator to confirm one TTG or override with another valid TTG.
+- Candidate values may arrive as legacy string TTG ids or as classifier objects;
+  all UI filtering, relevance sorting, and confirm defaults must normalize both
+  shapes through a shared helper.
 - On confirmation, write/update artifact `current_ttg` plus
   `binding.status: confirmed` through `upsertArtifactHeaderBinding()`.
 - Keep promotion blocked while binding is `ambiguous`, `unknown`, or unreviewed
   `needs_review`.
+- Promotion eligibility is an explicit allowlist, not a denylist. Only durable
+  confirmed bindings from `explicit`, `artifact_header`, `project_mapping`, or
+  `path_hint` may promote. `agent_classification`, `needs_review`, `ambiguous`,
+  `unknown`, and future unrecognized binding states remain blocked until
+  reviewed.
 
 Audit / sidecar requirements:
 
@@ -321,6 +329,15 @@ Audit / sidecar requirements:
 - Do not store full hidden IDE transcripts in audit.
 - Do not use percentage matching for promotion read-back; read-back remains
   marker/hash based.
+
+Hardening loop captured 2026-04-27:
+
+1. Normalize string/object classifier candidates everywhere in
+   `IdeProjectSummaryPanel` (`format`, active-TTG relevance, and confirm draft).
+2. Convert `assertPromoteBindingAllowed()` from blocking known-bad states to
+   allowing only confirmed durable methods.
+3. Add regression coverage for candidate strings and future unknown binding
+   statuses.
 
 ## 8. UI States
 

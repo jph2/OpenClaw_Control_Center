@@ -1,6 +1,6 @@
 # SPEC - Channel Manager Chat Media Attachments V1
 
-**Status:** active next slice (pulled forward from backlog on 2026-04-27)  
+**Status:** V1 image path implemented; hardening loop active (2026-04-27)  
 **Scope:** Channel Manager chat surface only  
 **Non-goals:** Workbench media browser, generalized asset management,
 multi-file uploader
@@ -262,13 +262,37 @@ Not allowed in the first V1 implementation slice:
 
 Additional constraints:
 
-- define size limit before implementation, proposed default: 10 MB
+- V1 implementation limit is 5 MB to match the OpenClaw gateway
+  `parseMessageWithAttachments(maxBytes: 5e6)` path.
 - define lower audio/video limits separately before enabling those phases
+- validate client-side before reading large files into browser memory
 - validate server-side even if client validates
 - never trust filename
 - previews must only use validated sources
+- image previews may use `data:` / `blob:` URLs locally, but API URL helpers must
+  not rewrite those schemes into relative backend paths.
+- mirrored media file serving must reject path separators, `..`, null bytes,
+  symlinks, and paths outside the OpenClaw media inbound directory. Responses
+  should use an image content type and `X-Content-Type-Options: nosniff`.
+- V1 mirror normalization renders only `image/*` media as image parts. Other
+  media types remain hidden or explicit unsupported placeholders until V1b/V2.
 
 ## 10. Implementation Order
+
+### Current hardening loop (2026-04-27)
+
+The first image implementation landed and needs these hardening fixes before the
+slice is considered stable:
+
+1. Fix optimistic image previews so `data:` URLs are rendered directly instead
+   of being passed through backend API URL normalization.
+2. Add frontend MIME and size checks before `FileReader.readAsDataURL()` for
+   paste/file picker inputs.
+3. Harden `GET /api/chat/media/inbound/:mediaId` with symlink rejection,
+   realpath/scope checks, and `nosniff`.
+4. Keep the send path gateway-only for media; CLI fallback must continue to
+   fail visibly rather than reporting fake success.
+5. Add mirror normalization coverage for `MediaPath(s)` and non-image media.
 
 ### V1 image implementation order
 

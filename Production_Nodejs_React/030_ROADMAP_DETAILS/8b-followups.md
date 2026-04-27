@@ -388,10 +388,10 @@ map for fast inspection and debugging.
 runtime-effective tools/skills (`tools.effective(sessionKey=...)` or
 equivalent gateway API).
 
-### 8b.8 · Channel Manager Chat Media Attachments (active next)
+### 8b.8 · Channel Manager Chat Media Attachments (active hardening)
 
-**Status:** pulled forward from backlog on 2026-04-27; next planned product
-slice after the current §8b.5 scoring implementation.
+**Status:** pulled forward from backlog on 2026-04-27; V1 image send/mirror/render
+path has landed and is now in a hardening loop.
 
 **Spec:** [`SPEC_CHANNEL_MANAGER_CHAT_MEDIA_V1.md`](./SPEC_CHANNEL_MANAGER_CHAT_MEDIA_V1.md)
 
@@ -467,6 +467,15 @@ parts: [{ type: 'text', text: messageText }]
 - Mirror/read path renders image messages from structured data.
 - No Workbench dependency is introduced.
 - Build/test/E2E remain green.
+
+**Current hardening loop (2026-04-27 review):**
+
+1. Fix optimistic preview rendering for local `data:` URLs.
+2. Validate image MIME/size before reading browser files into memory.
+3. Harden mirrored media file serving against symlinks/path escape and add
+   `nosniff`.
+4. Render only `image/*` media from `MediaPath(s)` as image parts.
+5. Keep gateway-only media send semantics; CLI fallback must fail visibly.
 
 ### 8b.9 · Workbench / Channel Manager Boundary Hardening (later)
 
