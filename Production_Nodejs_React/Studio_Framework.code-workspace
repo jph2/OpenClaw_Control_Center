@@ -11,6 +11,9 @@
 		},
 		{
 			"path": "../../../../../../home/claw-agentbox/.openclaw"
+		},
+		{
+			"path": "../../General_Dev"
 		}
 	],
 	"settings": {}
