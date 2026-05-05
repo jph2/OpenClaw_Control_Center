@@ -2,7 +2,7 @@
 
 **Status:** normative  
 **Scope:** Cross-repo clarity for operators and for **any** LLM backend (executive behavior varies by model; **written sources of truth** must not).  
-**See also:** [`SPEC_CM_DUAL_TARGET_AGENT_SKILL_CONFIG_V1.md`](./SPEC_CM_DUAL_TARGET_AGENT_SKILL_CONFIG_V1.md) (CM → OpenClaw + Cursor projection mechanics).
+**See also:** [`SPEC_CM_DUAL_TARGET_AGENT_SKILL_CONFIG_V1.md`](./SPEC_CM_DUAL_TARGET_AGENT_SKILL_CONFIG_V1.md) (CM → OpenClaw + Cursor projection mechanics). **Worker semantics / dual projection programme:** [`SPEC_CM_UNIFIED_WORKER_DUAL_TARGET_PROJECTION_V1.md`](./SPEC_CM_UNIFIED_WORKER_DUAL_TARGET_PROJECTION_V1.md) (§8b.7C / C1e).
 
 ## 1. Three layers (top to bottom)
 

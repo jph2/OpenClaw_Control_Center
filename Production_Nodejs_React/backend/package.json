@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "NODE_ENV=test node --test test/*.test.js",
-    "dev": "nodemon index.js",
-    "start": "node index.js",
+    "dev": "nodemon --exec /usr/bin/node -- index.js",
+    "start": "/usr/bin/node index.js",
     "apply-ide-export": "node ../scripts/apply-ide-export.mjs",
     "check-ide-export-stale": "node ../scripts/check-ide-export-stale.mjs"
   },

@@ -138,6 +138,12 @@ function parseGatewayTimeoutMs(raw = process.env.OPENCLAW_CM_GATEWAY_TIMEOUT_MS)
     return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_GATEWAY_TIMEOUT_MS;
 }
 
+/** When `false`, gateway may ack before final delivery (shorter HTTP hold). Default `true`. */
+function parseGatewayExpectFinal(raw = process.env.OPENCLAW_CM_GATEWAY_EXPECT_FINAL) {
+    const v = String(raw ?? '1').trim().toLowerCase();
+    return v !== '0' && v !== 'false' && v !== 'no' && v !== 'off';
+}
+
 function createIdempotencyKey(randomIdempotencyKey) {
     try {
         if (typeof randomIdempotencyKey === 'function') {
@@ -198,7 +204,7 @@ export async function sendViaOpenclawGateway({
         const result = await gatewayModule.callGateway({
             method: 'chat.send',
             params,
-            expectFinal: true,
+            expectFinal: parseGatewayExpectFinal(),
             timeoutMs,
             url,
             token,

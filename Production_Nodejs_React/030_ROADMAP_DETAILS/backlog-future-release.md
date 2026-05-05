@@ -1,4 +1,6 @@
 > **Note:** This file was split from `030_ROADMAP.md` on 2026-04-26 for easier navigation and smaller context windows. The canonical entry point is [`030_ROADMAP.md`](../030_ROADMAP.md).
+>
+> **Precedence:** If this backlog disagrees with **`030_ROADMAP.md`** on what is active or scheduled, **the roadmap wins** (see also **G6** in [`040_DECISIONS.md`](../040_DECISIONS.md)).
 
 # Backlog, future scope, release cadence
 
@@ -34,6 +36,7 @@ not part of the A → B → C1 → C2 sequence above.
 | 6.27  | **CM chat history — edit and resend previous user prompt.** Add classic message edit/retry affordance for prior user prompts, with explicit transcript semantics (new message derived from edited prompt vs destructive rewrite). Prefer traceable resend over hidden history mutation. |
 | 6.28  | **CM multi-chat visibility / split chat workspaces.** The operator should be able to keep at least two OpenClaw chat sessions visible or quickly switchable at the same time without one chat panel collapsing the other (e.g. General + Idea Capture). Minimum useful target: dual visible chat panes/tabs or pinned parallel chat surfaces for fast cross-session hopping. |
 | 6.29  | **Promoted active 2026-05-05:** **Channel Runtime Binding / canonical session model.** Channel Manager must stop treating `main`, `explicit:<uuid>`, DM, and Telegram group sessions as equivalent in managed channel context. Introduce a channel-first binding abstraction: CM target -> canonical OpenClaw agent -> canonical Telegram gateway session -> canonical transcript source. Add channel-aware deep links, identity badges, mismatch warnings, advanced grouping for non-canonical sessions, and a channel-centered runtime timeline with canonical/off-canonical lanes. See [`SPEC_CHANNEL_RUNTIME_BINDING_V1.md`](./SPEC_CHANNEL_RUNTIME_BINDING_V1.md). |
+| 6.30  | **Promoted active 2026-05-05:** **Unified worker model + dual-target projection.** Current CM `subAgents[]` are Skill Roles / Capability Roles, not runtime workers. C1e defines the migration path toward explicit Worker Specs, OpenClaw projection modes (`mergeIntoSynth`, dedicated worker, spawn policy), Cursor projection modes (`agentMarkdown`, task mapping), worker-run audit, and timeline integration. See [`SPEC_CM_UNIFIED_WORKER_DUAL_TARGET_PROJECTION_V1.md`](./SPEC_CM_UNIFIED_WORKER_DUAL_TARGET_PROJECTION_V1.md). |
 
 ---
 

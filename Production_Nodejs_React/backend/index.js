@@ -77,6 +77,14 @@ app.use((err, req, res, next) => {
 });
 
 if (process.env.NODE_ENV !== 'test') {
+    process.on('uncaughtException', (err) => {
+        console.error('[FATAL uncaughtException]', err);
+        process.exit(1);
+    });
+    process.on('unhandledRejection', (reason) => {
+        console.error('[unhandledRejection]', reason);
+    });
+
     app.listen(PORT, '0.0.0.0', () => {
         console.log(`OpenClaw Unified API listening on http://0.0.0.0:${PORT}`);
         console.log(`Locked to WORKSPACE_ROOT: ${process.env.WORKSPACE_ROOT}`);

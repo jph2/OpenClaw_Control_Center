@@ -2,6 +2,13 @@
 
 **See first:** [`SPEC_GOVERNANCE_STACK_V1.md`](./SPEC_GOVERNANCE_STACK_V1.md) — where CM ends and OpenClaw workspace (soul, rules, guardrails) begins; Cursor is projection-only.
 
+**Architecture evolution (workers / projection semantics):** [`SPEC_CM_UNIFIED_WORKER_DUAL_TARGET_PROJECTION_V1.md`](./SPEC_CM_UNIFIED_WORKER_DUAL_TARGET_PROJECTION_V1.md) — C1e / §8b.7C; this file remains the **mechanical** dual-target hardening spec; the linked spec owns **unified logical worker model** and per-target projection intent.
+
+**Terminology boundary:** in this C1c file, legacy CM `subAgents[]` are still the
+mechanical config rows used by Apply/export. New operator-facing UI and future
+schema work should call them **Skill Roles / Capability Roles** unless they are
+explicitly promoted to **Runtime Workers** under the C1e spec.
+
 **Status:** proposed active hardening block
 **Scope:** Channel Manager source-of-truth to OpenClaw runtime and Cursor repo
 projection

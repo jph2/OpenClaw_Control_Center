@@ -1,6 +1,6 @@
 # Channel Manager — Architecture
 
-**Status:** normative · **Scope:** Production_Nodejs_React · **Last reviewed:** 2026-04-30
+**Status:** normative · **Scope:** Production_Nodejs_React · **Last reviewed:** 2026-05-05
 
 > Describes **what the system is today** (2026-04-18) and the boundaries it
 > should respect. For *why*, see [`010_VISION.md`](./010_VISION.md). For *when*, see
@@ -65,6 +65,18 @@ replacement (Makefile or root `package.json`) is an **Ops backlog** item, not a
 chat-architecture concern.
 
 ### 2.2 Environment
+
+### 2.2.0 Node.js (Cursor Remote / dev shells)
+
+Some Remote-SSH or agent shells prepend **Cursor’s bundled Node** (historically **20.18.x**) **ahead of** `/usr/bin` on `PATH`. Channel Manager **media** uses OpenClaw’s gateway client (`import()` of `openclaw/dist/call-*.js`), which pulls in `undici` and expects **`webidl.util.markAsUncloneable`** — that API is missing on **Node 20.18.2**, so `send-media` fails with **501** and
+`markAsUncloneable is not a function`.
+
+**Mitigations (pick one):**
+
+- **Repo scripts (recommended):** `backend` uses `nodemon --exec /usr/bin/node`; `frontend` `dev` prefixes `PATH` with `/usr/bin` so **Vite** runs on the OS Node (see `package.json` scripts).
+- **Per-user:** symlink OS Node first on PATH, e.g. `ln -sf /usr/bin/node ~/.local/bin/node` (ensure `~/.local/bin` precedes Cursor’s bundled dir in `PATH`).
+
+The OS on this machine ships **Node 24+** under `/usr/bin/node`; use **≥ 20.19** (or current LTS) in general for gateway media.
 
 - `WORKSPACE_ROOT` — Studio workspace root (absolute path).
 - `STUDIO_FRAMEWORK_ROOT` — Studio Framework root (default `$WORKSPACE_ROOT/Studio_Framework`).

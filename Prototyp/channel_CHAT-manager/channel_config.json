@@ -3,7 +3,7 @@
     {
       "id": "-1003732566515",
       "name": "TG001_Idea_Capture",
-      "model": "moonshot/kimi-k2.5",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -18,7 +18,7 @@
     {
       "id": "-1003752539559",
       "name": "TG000_General_Chat",
-      "model": "openai-codex/gpt-5.4",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -33,7 +33,7 @@
     {
       "id": "-1003930983368",
       "name": "TG010_General_Discovery_Plus_Research",
-      "model": "moonshot/kimi-k2.5",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -49,7 +49,7 @@
     {
       "id": "-1003987722298",
       "name": "TG020_omniUSD",
-      "model": "moonshot/kimi-k2.5",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -65,13 +65,13 @@
     {
       "id": "-1003773769165",
       "name": "TG030_DCC_CAD",
-      "model": "moonshot/kimi-k2.5",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
       "inactiveSubAgents": [
-        "researcher",
-        "documenter"
+        "documenter",
+        "researcher"
       ],
       "inactiveSkills": [],
       "caseSkills": [],
@@ -80,7 +80,7 @@
     {
       "id": "-1003362093143",
       "name": "TG040_WebDev_Backend",
-      "model": "moonshot/kimi-k2.5",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -94,7 +94,7 @@
     {
       "id": "-1003852980755",
       "name": "TG050_WebDev_Frontend",
-      "model": "moonshot/kimi-k2.5",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -109,7 +109,7 @@
     {
       "id": "-1003968061817",
       "name": "TG060_Social_Media",
-      "model": "moonshot/kimi-k2.5",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -124,7 +124,7 @@
     {
       "id": "-1003972007076",
       "name": "TG070_QA_Plus_Security",
-      "model": "moonshot/kimi-k2.5",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -139,7 +139,7 @@
     {
       "id": "-1003786975126",
       "name": "TG500_OpenClaw_Governance",
-      "model": "moonshot/kimi-k2.5",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -154,7 +154,7 @@
     {
       "id": "-1003635291803",
       "name": "TG510_Upcoming_Skills",
-      "model": "moonshot/kimi-k2.5",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -169,7 +169,7 @@
     {
       "id": "-1003981558091",
       "name": "TG520_Agentic_Intelligence",
-      "model": "moonshot/kimi-k2.5",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -184,7 +184,7 @@
     {
       "id": "-1003919340245",
       "name": "TG700_Studio_Framework",
-      "model": "moonshot/kimi-k2.5",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -199,7 +199,7 @@
     {
       "id": "-1003773208676",
       "name": "TG800_Experimental_Box",
-      "model": "moonshot/kimi-k2.5",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,
@@ -214,7 +214,7 @@
     {
       "id": "-1003590664626",
       "name": "TG900_troubleshooting",
-      "model": "moonshot/kimi-k2.5",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,

@@ -5,6 +5,8 @@
 **Created:** 2026-05-05  
 **Trigger:** TTG000/TTG001 model/session confusion after stale session-cache fixes
 
+**See also:** [`SPEC_CM_UNIFIED_WORKER_DUAL_TARGET_PROJECTION_V1.md`](./SPEC_CM_UNIFIED_WORKER_DUAL_TARGET_PROJECTION_V1.md) — unified worker semantics and dual-target projection; timeline event types should eventually include delegations and worker identity when C1e progresses.
+
 ---
 
 ## 1. Big Picture
@@ -395,7 +397,15 @@ type ChannelRuntimeEvent = {
     | 'session_rebound'
     | 'session_file_migrated'
     | 'manual_override_detected'
-    | 'session_cache_cleaned';
+    | 'session_cache_cleaned'
+    | 'delegation_requested'
+    | 'worker_run_started'
+    | 'worker_run_completed'
+    | 'worker_run_failed'
+    | 'worker_result_attached'
+    | 'parent_synthesis_completed'
+    | 'cursor_export_completed'
+    | 'cursor_task_mapping_warning';
 
   logicalSessionId?: string;
   sessionKind?:
@@ -416,6 +426,8 @@ type ChannelRuntimeEvent = {
     | 'webchat_main'
     | 'explicit'
     | 'dm'
+    | 'worker'
+    | 'ide_export'
     | 'migration'
     | 'debug';
 

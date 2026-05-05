@@ -84,7 +84,8 @@ export function normalizeGatewayImageAttachment(image) {
         throw err;
     }
 
-    let b64 = stripBase64DataUrlPrefix(image.base64);
+    let b64 = stripBase64DataUrlPrefix(image.base64).replace(/\s+/g, '');
+    while (b64.length % 4 !== 0) b64 += '=';
     if (!isValidBase64Chunk(b64)) {
         const err = new Error('invalid base64 payload');
         err.status = 400;

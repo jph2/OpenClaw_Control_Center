@@ -3,3 +3,5 @@
 
 # Environment secrets — keep only templates (e.g. .env.example) in Git.
 **/.env
+**/.env.*.bak
+**/*.bak

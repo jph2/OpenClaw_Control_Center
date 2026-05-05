@@ -1,6 +1,6 @@
 # Channel Manager — Decisions
 
-**Status:** normative · **Scope:** Production_Nodejs_React · **Last reviewed:** 2026-04-18
+**Status:** normative · **Scope:** Production_Nodejs_React · **Last reviewed:** 2026-04-30
 
 > This file is the **Architectural Decision Record** for the Channel Manager.
 > Each entry captures one irreversible-enough choice, the forces behind it,
@@ -10,6 +10,8 @@
 >
 > For current state see [`020_ARCHITECTURE.md`](./020_ARCHITECTURE.md), for schedule
 > [`030_ROADMAP.md`](./030_ROADMAP.md) ([`030_ROADMAP_DETAILS/`](./030_ROADMAP_DETAILS/README.md)), for framing [`010_VISION.md`](./010_VISION.md).
+>
+> **C1d / C1e:** See **Gate checklist** and **ADR-022 (proposed)** at the end of this file.
 
 ---
 
@@ -504,3 +506,71 @@ Operational documentation lives next to the component; irreversible
 architecture decisions belong here in ADR form. Future refactors should move it
 into a clearer integration/module location without folding it into Workbench or
 letting it become a parallel authority.
+
+---
+
+## Gate checklist — C1d / C1e (before ratifying worker projection)
+
+**Status:** process · **Raised:** 2026-04-30 (MARVIN counter-review) · **Owning
+specs:** [`SPEC_CHANNEL_RUNTIME_BINDING_V1.md`](./030_ROADMAP_DETAILS/SPEC_CHANNEL_RUNTIME_BINDING_V1.md),
+[`SPEC_CM_UNIFIED_WORKER_DUAL_TARGET_PROJECTION_V1.md`](./030_ROADMAP_DETAILS/SPEC_CM_UNIFIED_WORKER_DUAL_TARGET_PROJECTION_V1.md)
+
+Use this list to avoid duplicate mental models and unfunded UI. Items are **not**
+ADRs until promoted into an accepted ADR below.
+
+| # | Gate | Done when |
+| - | ---- | --------- |
+| G1 | **Single effective-runtime shape** | One canonical read-only DTO for “what CM thinks is live for this TTG” is owned by **§8b.7 / C1d** (`SPEC_CHANNEL_RUNTIME_BINDING_V1.md`). C1e **consumes** it for worker/timeline correlation; it does **not** define a second topology schema. |
+| G2 | **OpenClaw worker mechanism chosen** | Before the first runtime worker ships: **either** dedicated `agents.list[]` row(s) **or** OpenClaw **runtime spawn policy** is selected and recorded (see **ADR-022 proposed**). |
+| G3 | **P0 vocabulary measurable** | CM operator UI contains **no** unqualified “Sub-Agent” label; user-facing copy matches **Skill Role** / **Runtime Worker** / **IDE Agent Profile** rules in the unified worker spec §10. Verification: explicit string audit or automated grep/CI over CM UI copy. |
+| G4 | **Timeline event provenance** | Each MVP timeline event type documents **source** (gateway hook, Apply audit, filesystem watcher, FE inference) or **excluded from MVP**. No event type ships as presentation-only fiction. |
+| G5 | **Cursor Task mapping = best-effort** | CM documents that `subagent_type` / Task mapping may go **stale** when the IDE product changes; stale status is an expected operator outcome, not a CM defect. |
+| G6 | **Roadmap beats backlog** | If [`030_ROADMAP.md`](./030_ROADMAP.md) and
+[`030_ROADMAP_DETAILS/backlog-future-release.md`](./030_ROADMAP_DETAILS/backlog-future-release.md)
+disagree on status, **`030_ROADMAP.md` wins**. Promoted backlog rows are mirrors. |
+| G7 | **WorkerSpec before proof** | No `channel_config.json` migration to full **`WorkerSpec`** shape (unified worker spec §4.3) until **one** headless worker path (P3) is demonstrably working **or** ADR-022 is accepted with an explicit “schema slice MVP” field list. |
+
+---
+
+## ADR-022 — CM Skill Roles vs Runtime Workers (C1e) — **proposed**
+
+**Date:** 2026-04-30 · **Status:** proposed (not ratified — satisfies **G2** and **G7**
+above first)
+
+**Context.** **ADR-004** separates CM sub-agents from OpenClaw runtime sub-agents and workspace skills.
+Operators still infer “separate agent / model / session” from CM sub-agent
+toggles because Apply **merges** sub-agent skills into the per-channel synth
+while IDE export emits **separate** `.cursor/agents/*.md` files.
+[`SPEC_CM_UNIFIED_WORKER_DUAL_TARGET_PROJECTION_V1.md`](./030_ROADMAP_DETAILS/SPEC_CM_UNIFIED_WORKER_DUAL_TARGET_PROJECTION_V1.md)
+defines **Skill Roles** (configuration only) vs **Runtime Workers** (testable
+identity, model policy, delegation, audit).
+
+This ADR is the durable hook for that split. **Open choice pending (G2):**
+implementation may use **dedicated `agents.list[]` entries** and/or **OpenClaw
+runtime spawn policy** once evaluated against gateway behavior and cost.
+
+**Decision (proposed).**
+
+- Existing `channel_config.json` **`subAgents[]`** remain **Skill Roles /
+  Capability Roles**: they contribute skills to the per-channel OpenClaw synth
+  (today’s `mergeIntoSynth` / ADR-004 behavior) unless and until explicitly
+  promoted.
+- A **Runtime Worker** requires explicit metadata (see unified worker spec §3)
+  and a target **projection** that provides runtime identity, model or audited
+  inheritance, bounded context, delegation contract, and reconstructable audit
+  (timeline / worker run).
+- **IDE Agent Profiles** (generated `.cursor/agents/*.md`) are **not** proof of
+  a live OpenClaw worker.
+- The **channel synth** remains the default **only Telegram speaker** until a
+  **later** accepted ADR explicitly allows worker-direct channel speech.
+
+**Consequences (if accepted).**
+
+- UI, exports, and docs stop implying parity between OpenClaw merge semantics
+  and Cursor file-per-role layout.
+- First worker implementation follows **G2**; schema expansion follows **G7**.
+
+**Ratification criteria.** Move to **accepted** when: (1) **G2** is decided with
+one implemented path; (2) at least one **Worker Run** is observable end-to-end
+(parent aggregation, audit/timeline); (3) gate **G3** is satisfied for the
+shipped slice.
