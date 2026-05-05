@@ -2,6 +2,12 @@
  * Canonical Channel Manager snapshot + projections for OpenClaw vs Cursor.
  * No filesystem writes — pure JSON for APIs and tooling.
  */
+import {
+    isWorkerCandidateActive,
+    parseWorkerCandidatesLenient,
+    runtimeWorkerAgentId,
+    workerCandidateEffectiveSkillIds
+} from './workerProjection.js';
 
 /** Safe id for `.cursor/agents/<id>.md` (lowercase slug). */
 export const CURSOR_AGENT_ID_PATTERN = /^[a-z][a-z0-9_-]{0,62}$/;
@@ -30,14 +36,18 @@ export function buildCanonicalSnapshot(raw) {
     const channels = Array.isArray(raw.channels) ? raw.channels : [];
     const agents = Array.isArray(raw.agents) ? raw.agents : [];
     const subAgents = Array.isArray(raw.subAgents) ? raw.subAgents : [];
+    const { candidates: workerCandidates, warnings: workerCandidateWarnings } =
+        parseWorkerCandidatesLenient(raw.workerCandidates);
     return {
         version: 1,
         generatedBy: 'ideConfigBridge',
         counts: {
             channels: channels.length,
             agents: agents.length,
-            subAgents: subAgents.length
+            subAgents: subAgents.length,
+            workerCandidates: workerCandidates.length
         },
+        workerCandidateWarnings,
         agents: agents.map((a) => ({
             id: a.id,
             name: a.name,
@@ -59,6 +69,19 @@ export function buildCanonicalSnapshot(raw) {
             enabled: s.enabled !== false,
             kind: 'skillRole',
             projection: buildLegacySkillRoleProjection()
+        })),
+        workerCandidates: workerCandidates.map((w) => ({
+            ...w,
+            kind: 'runtimeWorkerCandidate',
+            runtimeAgentId: runtimeWorkerAgentId(w.id),
+            effectiveSkillIds: workerCandidateEffectiveSkillIds(w, subAgents),
+            active: isWorkerCandidateActive(w),
+            projection: {
+                openclawProjection: w.openclawProjection.mode,
+                cursorProjection: w.cursorProjection.mode,
+                runtimeIdentity: isWorkerCandidateActive(w) ? 'dedicatedPerTask' : 'none',
+                canSpeakToChannel: false
+            }
         })),
         channels: channels.map((c) => ({
             id: c.id,
@@ -86,6 +109,7 @@ export function collectChannelConfigApplyWarnings(raw) {
     const snap = buildCanonicalSnapshot(raw);
     const agentIds = new Set(snap.agents.map((a) => String(a.id || '').trim()).filter(Boolean));
     const warnings = [];
+    warnings.push(...(snap.workerCandidateWarnings || []));
 
     for (const s of snap.subAgents) {
         const id = String(s.id || '').trim();
@@ -131,6 +155,16 @@ export function collectChannelConfigApplyWarnings(raw) {
         }
     }
 
+    for (const worker of snap.workerCandidates || []) {
+        if (!agentIds.has(worker.parentId)) {
+            warnings.push({
+                code: 'worker_parent_missing',
+                message: `Worker Candidate "${worker.id}" has parentId "${worker.parentId}" that does not match a CM main agent id.`,
+                detail: { workerCandidateId: worker.id, parentId: worker.parentId }
+            });
+        }
+    }
+
     return warnings;
 }
 
@@ -164,11 +198,23 @@ export function buildOpenClawProjection(snapshot) {
                     })
                 }))
         })),
+        runtimeWorkers: (snapshot.workerCandidates || [])
+            .filter((w) => w.active)
+            .map((w) => ({
+                id: w.id,
+                displayName: w.displayName,
+                parentId: w.parentId,
+                runtimeAgentId: w.runtimeAgentId,
+                modelProfile: w.modelProfile,
+                effectiveSkillIds: w.effectiveSkillIds,
+                canSpeakToChannel: false,
+                projection: w.projection
+            })),
         agents: snapshot.agents,
         projectionSemantics: {
             currentSubAgentsAre: 'skillRole',
-            runtimeWorkerImplemented: false,
-            openclawProjection: 'mergeIntoSynth',
+            runtimeWorkerImplemented: true,
+            openclawProjection: 'mergeIntoSynth + dedicatedAgentsListEntry',
             cursorProjection: 'agentMarkdown'
         }
     };
@@ -212,6 +258,16 @@ export function buildIdeWorkbenchBundle(snapshot) {
                 code: 'channel_assigned_agent_unknown',
                 channelId: c.id,
                 assignedAgent: aa
+            });
+        }
+    }
+
+    for (const worker of snapshot.workerCandidates || []) {
+        if (!agentIds.has(worker.parentId)) {
+            warnings.push({
+                code: 'worker_parent_missing',
+                workerCandidateId: worker.id,
+                parentId: worker.parentId
             });
         }
     }
@@ -265,7 +321,8 @@ export function buildIdeWorkbenchBundle(snapshot) {
         note: 'IDE workbench projection v2: markdown agents under .cursor/agents/. CM Skill Role skills use inactive filtering; these files are IDE Agent Profiles, not OpenClaw runtime workers. Apply via scripts/apply-ide-export.mjs; stale check uses fingerprint v2.',
         warnings,
         subagents: subagentFiles,
-        engines
+        engines,
+        workerCandidates: snapshot.workerCandidates || []
     };
 }
 

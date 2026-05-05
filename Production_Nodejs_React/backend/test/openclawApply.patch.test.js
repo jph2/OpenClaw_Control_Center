@@ -14,6 +14,7 @@ import {
     isCmOwnedAgentEntry,
     getCmAgentSource,
     buildAgentsAndBindingsApplyPatch,
+    buildRuntimeWorkerAgentEntries,
     computeEffectiveSynthSkills,
     computeActiveSkillRoleProjections,
     mergeOpenClawAgentsAndBindings,
@@ -457,6 +458,100 @@ describe('openclawApply C1b.3 — sub-agent skills in synth allowlist', () => {
                 effectiveSkillIds: ['web_search']
             }
         ]);
+    });
+});
+
+describe('openclawApply C1e — runtime worker candidates', () => {
+    it('projects active worker candidates as headless agents.list entries without bindings', () => {
+        const patch = buildAgentsAndBindingsApplyPatch({
+            channels: [{ id: '-1001', name: 'TTG001', assignedAgent: 'tars' }],
+            agents: [{ id: 'tars', name: 'TARS', defaultSkills: [] }],
+            subAgents: [
+                {
+                    id: 'researcher',
+                    parent: 'tars',
+                    additionalSkills: ['web_search', 'web_fetch'],
+                    inactiveSkills: ['web_fetch']
+                }
+            ],
+            workerCandidates: [
+                {
+                    id: 'research-summary-worker',
+                    displayName: 'Research Summary Worker',
+                    parentId: 'tars',
+                    sourceSkillRoleId: 'researcher',
+                    enabled: true,
+                    status: 'active',
+                    modelProfile: 'inherit',
+                    skillIds: ['clawflow'],
+                    canSpeakToChannel: false,
+                    openclawProjection: { mode: 'dedicatedAgentsListEntry' }
+                }
+            ]
+        });
+
+        const workerEntry = patch.agentEntries.find((a) => a.id === 'worker-research-summary-worker');
+        assert.ok(workerEntry);
+        assert.equal(workerEntry.name, 'Research Summary Worker · Runtime Worker');
+        assert.equal(workerEntry.model, undefined);
+        assert.deepEqual(workerEntry.skills, ['web_search', 'clawflow']);
+        assert.equal(workerEntry.params._cm.source, 'worker:research-summary-worker');
+        assert.equal(patch.bindingEntries.length, 1, 'worker must not create a Telegram binding');
+        assert.deepEqual(patch.runtimeWorkers.map((w) => w.runtimeAgentId), [
+            'worker-research-summary-worker'
+        ]);
+    });
+
+    it('keeps active worker sources during CM orphan prune and removes disabled workers', () => {
+        const activeSources = collectActiveChannelGroupIds({
+            channels: [{ id: '-1001' }],
+            workerCandidates: [
+                { id: 'active-worker', enabled: true, status: 'active', canSpeakToChannel: false },
+                { id: 'disabled-worker', enabled: false, status: 'active', canSpeakToChannel: false }
+            ]
+        });
+        assert.ok(activeSources.has('worker:active-worker'));
+        assert.equal(activeSources.has('worker:disabled-worker'), false);
+
+        const { merged, orphanPruneSummary } = pruneCmOrphanAgentsAndBindings(
+            {
+                agents: {
+                    list: [
+                        {
+                            id: 'worker-active-worker',
+                            name: 'Active',
+                            params: makeCmAgentParams('worker:active-worker')
+                        },
+                        {
+                            id: 'worker-disabled-worker',
+                            name: 'Disabled',
+                            params: makeCmAgentParams('worker:disabled-worker')
+                        }
+                    ]
+                },
+                bindings: []
+            },
+            activeSources
+        );
+        assert.equal(orphanPruneSummary.agentsRemoved, 1);
+        assert.deepEqual(merged.agents.list.map((a) => a.id), ['worker-active-worker']);
+    });
+
+    it('buildRuntimeWorkerAgentEntries rejects worker candidates that could speak to channel', () => {
+        assert.throws(
+            () =>
+                buildRuntimeWorkerAgentEntries({
+                    workerCandidates: [
+                        {
+                            id: 'bad-worker',
+                            enabled: true,
+                            status: 'active',
+                            canSpeakToChannel: true
+                        }
+                    ]
+                }),
+            /Invalid literal value|Invalid input/
+        );
     });
 });
 

@@ -321,5 +321,32 @@
       "enabled": true
     }
   ],
+  "workerCandidates": [
+    {
+      "schemaSlice": "c1e-worker-candidate-v1",
+      "id": "research-summary-worker",
+      "displayName": "Research Summary Worker",
+      "parentId": "tars",
+      "sourceSkillRoleId": "researcher",
+      "enabled": true,
+      "status": "active",
+      "modelProfile": "inherit",
+      "skillIds": [],
+      "deniedSkillIds": [],
+      "contextBoundary": "sharedSummaryOnly",
+      "riskTier": "readOnly",
+      "canSpeakToChannel": false,
+      "openclawProjection": {
+        "mode": "dedicatedAgentsListEntry",
+        "sessionPolicy": "dedicatedPerTask",
+        "transcriptPolicy": "linked",
+        "maxConcurrent": 1
+      },
+      "cursorProjection": {
+        "mode": "notApplicable",
+        "mappingStatus": "unmapped"
+      }
+    }
+  ],
   "projectMappings": []
 }

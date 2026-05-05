@@ -107,6 +107,67 @@ test('buildChannelRuntimeBinding exposes active Skill Roles without claiming run
     );
 });
 
+test('buildChannelRuntimeBinding exposes headless runtime worker candidates for channel parent', async () => {
+    const sessionId = '88888888-8888-4888-8888-888888888888';
+    await withTempSessions(
+        {
+            'agent:tars-1001:telegram:group:-1001': {
+                sessionId,
+                sessionFile: `/tmp/${sessionId}.jsonl`,
+                updatedAt: 1
+            }
+        },
+        () => {
+            const out = buildChannelRuntimeBinding('-1001', {
+                channelConfigRaw: {
+                    channels: [{ id: '-1001', name: 'TTG001_Idea_Capture', assignedAgent: 'tars' }],
+                    subAgents: [
+                        {
+                            id: 'researcher',
+                            name: 'Researcher',
+                            parent: 'tars',
+                            additionalSkills: ['web_search']
+                        }
+                    ],
+                    workerCandidates: [
+                        {
+                            id: 'research-summary-worker',
+                            displayName: 'Research Summary Worker',
+                            parentId: 'tars',
+                            sourceSkillRoleId: 'researcher',
+                            enabled: true,
+                            status: 'active',
+                            modelProfile: 'inherit',
+                            canSpeakToChannel: false,
+                            openclawProjection: { mode: 'dedicatedAgentsListEntry' }
+                        }
+                    ]
+                }
+            });
+
+            assert.equal(out.channelRuntimeBinding.workerPolicy.status, 'configured_headless');
+            assert.equal(out.channelRuntimeBinding.workerPolicy.mechanism, 'dedicatedAgentsListEntry');
+            assert.deepEqual(out.channelRuntimeBinding.workerPolicy.runtimeWorkers, [
+                {
+                    id: 'research-summary-worker',
+                    displayName: 'Research Summary Worker',
+                    parentId: 'tars',
+                    runtimeAgentId: 'worker-research-summary-worker',
+                    projectionMode: 'dedicatedAgentsListEntry',
+                    sessionPolicy: 'dedicatedPerTask',
+                    transcriptPolicy: 'linked',
+                    modelProfile: 'inherit',
+                    contextBoundary: 'sharedSummaryOnly',
+                    riskTier: 'readOnly',
+                    canSpeakToChannel: false,
+                    effectiveSkillIds: ['web_search'],
+                    status: 'headless_agent_configured'
+                }
+            ]);
+        }
+    );
+});
+
 test('buildChannelRuntimeBinding reports mismatch when resolved session belongs to another agent', async () => {
     const sessionId = '22222222-2222-4222-8222-222222222222';
     await withTempSessions(

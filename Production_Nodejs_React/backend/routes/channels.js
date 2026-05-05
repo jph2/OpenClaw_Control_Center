@@ -20,6 +20,10 @@ import {
     readOpenclawAgentsDefaultsModelPrimary
 } from '../services/openclawApply.js';
 import { ProjectMappingsSchema, normalizeProjectMappings } from '../services/projectMappingStore.js';
+import {
+    WorkerCandidateConfigSchema,
+    normalizeWorkerCandidates
+} from '../services/workerProjection.js';
 
 /** Bundled / managed catalog entries; merged at request time with filesystem scan under OPENCLAW_WORKSPACE/skills (see workspaceSkillRegistry.js). */
 const BUNDLED_SKILL_CATALOG = {
@@ -171,6 +175,7 @@ const ChannelConfigSchema = z.object({
         inactiveSkills: z.array(z.string()).nullish()
     })).nullish(),
     subAgents: z.array(z.any()).nullish(),
+    workerCandidates: z.array(WorkerCandidateConfigSchema).nullish(),
     metadata: z.any().nullish(),
     availableModels: z.any().optional(),
     projectMappings: ProjectMappingsSchema.optional(),
@@ -541,6 +546,7 @@ router.get('/', async (req, res, next) => {
             channels: mergedChannels,
             agents,
             subAgents,
+            workerCandidates: normalizeWorkerCandidates(localState.workerCandidates),
             metadata: metadata,
             availableModels: availableModels,
             projectMappings: normalizeProjectMappings(localState.projectMappings),

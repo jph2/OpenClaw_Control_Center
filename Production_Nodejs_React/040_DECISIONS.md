@@ -11,7 +11,7 @@
 > For current state see [`020_ARCHITECTURE.md`](./020_ARCHITECTURE.md), for schedule
 > [`030_ROADMAP.md`](./030_ROADMAP.md) ([`030_ROADMAP_DETAILS/`](./030_ROADMAP_DETAILS/README.md)), for framing [`010_VISION.md`](./010_VISION.md).
 >
-> **C1d / C1e:** See **Gate checklist** and **ADR-022 (proposed)** at the end of this file.
+> **C1d / C1e:** See **Gate checklist** and **ADR-022** at the end of this file.
 
 ---
 
@@ -521,21 +521,21 @@ ADRs until promoted into an accepted ADR below.
 | # | Gate | Done when |
 | - | ---- | --------- |
 | G1 | **Single effective-runtime shape** | One canonical read-only DTO for “what CM thinks is live for this TTG” is owned by **§8b.7 / C1d** (`SPEC_CHANNEL_RUNTIME_BINDING_V1.md`). C1e **consumes** it for worker/timeline correlation; it does **not** define a second topology schema. |
-| G2 | **OpenClaw worker mechanism chosen** | Before the first runtime worker ships: **either** dedicated `agents.list[]` row(s) **or** OpenClaw **runtime spawn policy** is selected and recorded (see **ADR-022 proposed**). |
+| G2 | **OpenClaw worker mechanism chosen** | **Satisfied for MVP by ADR-022:** first worker path uses dedicated, headless `agents.list[]` row(s). OpenClaw runtime spawn policy remains a later option, not the first proof path. |
 | G3 | **P0 vocabulary measurable** | CM operator UI contains **no** unqualified “Sub-Agent” label; user-facing copy matches **Skill Role** / **Runtime Worker** / **IDE Agent Profile** rules in the unified worker spec §10. Verification: explicit string audit or automated grep/CI over CM UI copy. |
 | G4 | **Timeline event provenance** | Each MVP timeline event type documents **source** (gateway hook, Apply audit, filesystem watcher, FE inference) or **excluded from MVP**. No event type ships as presentation-only fiction. |
 | G5 | **Cursor Task mapping = best-effort** | CM documents that `subagent_type` / Task mapping may go **stale** when the IDE product changes; stale status is an expected operator outcome, not a CM defect. |
 | G6 | **Roadmap beats backlog** | If [`030_ROADMAP.md`](./030_ROADMAP.md) and
 [`030_ROADMAP_DETAILS/backlog-future-release.md`](./030_ROADMAP_DETAILS/backlog-future-release.md)
 disagree on status, **`030_ROADMAP.md` wins**. Promoted backlog rows are mirrors. |
-| G7 | **WorkerSpec before proof** | No `channel_config.json` migration to full **`WorkerSpec`** shape (unified worker spec §4.3) until **one** headless worker path (P3) is demonstrably working **or** ADR-022 is accepted with an explicit “schema slice MVP” field list. |
+| G7 | **WorkerSpec before proof** | **Satisfied for schema-slice MVP by ADR-022:** no full `WorkerSpec` migration; only top-level `workerCandidates[]` with the explicit fields listed in ADR-022 may be stored before Worker Run proof. |
 
 ---
 
-## ADR-022 — CM Skill Roles vs Runtime Workers (C1e) — **proposed**
+## ADR-022 — CM Skill Roles vs Runtime Workers (C1e) — **accepted for schema-slice MVP**
 
-**Date:** 2026-04-30 · **Status:** proposed (not ratified — satisfies **G2** and **G7**
-above first)
+**Date:** 2026-04-30 · **Accepted:** 2026-05-05 · **Status:** accepted for
+**G2/G7 schema slice**; Worker Run proof remains pending for P3 completion.
 
 **Context.** **ADR-004** separates CM sub-agents from OpenClaw runtime sub-agents and workspace skills.
 Operators still infer “separate agent / model / session” from CM sub-agent
@@ -545,11 +545,12 @@ while IDE export emits **separate** `.cursor/agents/*.md` files.
 defines **Skill Roles** (configuration only) vs **Runtime Workers** (testable
 identity, model policy, delegation, audit).
 
-This ADR is the durable hook for that split. **Open choice pending (G2):**
-implementation may use **dedicated `agents.list[]` entries** and/or **OpenClaw
-runtime spawn policy** once evaluated against gateway behavior and cost.
+This ADR is the durable hook for that split. **G2 decision:** the first OpenClaw
+worker mechanism is **dedicated headless `agents.list[]` entries** managed by
+Channel Manager. OpenClaw runtime spawn policy remains a later candidate after
+this proof path is observable.
 
-**Decision (proposed).**
+**Decision.**
 
 - Existing `channel_config.json` **`subAgents[]`** remain **Skill Roles /
   Capability Roles**: they contribute skills to the per-channel OpenClaw synth
@@ -563,14 +564,26 @@ runtime spawn policy** once evaluated against gateway behavior and cost.
   a live OpenClaw worker.
 - The **channel synth** remains the default **only Telegram speaker** until a
   **later** accepted ADR explicitly allows worker-direct channel speech.
+- Minimal pre-proof schema slice is top-level **`workerCandidates[]`** only:
+  `schemaSlice`, `id`, `displayName`, `parentId`, optional
+  `sourceSkillRoleId`, `enabled`, `status`, `modelProfile`, `skillIds`,
+  `deniedSkillIds`, `contextBoundary`, `riskTier`, `canSpeakToChannel: false`,
+  `openclawProjection.mode: dedicatedAgentsListEntry`,
+  `openclawProjection.sessionPolicy: dedicatedPerTask`,
+  `openclawProjection.transcriptPolicy: linked`, `maxConcurrent`, and optional
+  Cursor mapping metadata (`cursorProjection.mode`, `mappingStatus`,
+  `taskType`). Any full §4.3 `WorkerSpec` migration still requires Worker Run
+  proof or another ADR.
 
-**Consequences (if accepted).**
+**Consequences.**
 
 - UI, exports, and docs stop implying parity between OpenClaw merge semantics
   and Cursor file-per-role layout.
-- First worker implementation follows **G2**; schema expansion follows **G7**.
+- Apply may project active worker candidates to CM-owned headless
+  `agents.list[]` rows, but must not create Telegram `bindings[]` for them.
+- First Worker Run implementation now has a stable target id (`worker-<id>`);
+  schema expansion still follows **G7**.
 
-**Ratification criteria.** Move to **accepted** when: (1) **G2** is decided with
-one implemented path; (2) at least one **Worker Run** is observable end-to-end
-(parent aggregation, audit/timeline); (3) gate **G3** is satisfied for the
-shipped slice.
+**Remaining P3 criteria.** A Worker Run is not complete until at least one
+delegation is observable end-to-end (parent aggregation, audit/timeline) and
+gate **G3** stays satisfied for shipped UI copy.

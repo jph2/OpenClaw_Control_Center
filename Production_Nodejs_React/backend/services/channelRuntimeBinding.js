@@ -8,6 +8,12 @@ import {
     listAgentSessionsJsonPaths,
     resolveCanonicalSession
 } from './chat/sessionIndex.js';
+import {
+    isWorkerCandidateActive,
+    normalizeWorkerCandidates,
+    runtimeWorkerAgentId,
+    workerCandidateEffectiveSkillIds
+} from './workerProjection.js';
 
 const CHANNEL_CONFIG_RELATIVE_PATH =
     'OpenClaw_Control_Center/Prototyp/channel_CHAT-manager/channel_config.json';
@@ -87,6 +93,34 @@ function skillRolePolicyForChannel(channel, subAgents) {
             openclawProjection: 'mergeIntoSynth',
             runtimeWorkerImplemented: false
         }
+    };
+}
+
+function workerPolicyForChannel(channel, workerCandidates, subAgents) {
+    const assigned = channel?.assignedAgent != null ? String(channel.assignedAgent) : '';
+    const workers = normalizeWorkerCandidates(workerCandidates)
+        .filter((worker) => isWorkerCandidateActive(worker))
+        .filter((worker) => !assigned || worker.parentId === assigned)
+        .map((worker) => ({
+            id: worker.id,
+            displayName: worker.displayName,
+            parentId: worker.parentId,
+            runtimeAgentId: runtimeWorkerAgentId(worker.id),
+            projectionMode: worker.openclawProjection.mode,
+            sessionPolicy: worker.openclawProjection.sessionPolicy,
+            transcriptPolicy: worker.openclawProjection.transcriptPolicy,
+            modelProfile: worker.modelProfile,
+            contextBoundary: worker.contextBoundary,
+            riskTier: worker.riskTier,
+            canSpeakToChannel: false,
+            effectiveSkillIds: workerCandidateEffectiveSkillIds(worker, subAgents),
+            status: 'headless_agent_configured'
+        }));
+    return {
+        runtimeWorkers: workers,
+        status: workers.length > 0 ? 'configured_headless' : 'not_configured',
+        gate: 'C1e/G2+G7',
+        mechanism: 'dedicatedAgentsListEntry'
     };
 }
 
@@ -192,6 +226,9 @@ export function buildChannelRuntimeBinding(channelId, { channelConfigRaw } = {})
     const wantedId = normalizeChannelId(channelId);
     const channels = Array.isArray(channelConfigRaw?.channels) ? channelConfigRaw.channels : [];
     const subAgents = Array.isArray(channelConfigRaw?.subAgents) ? channelConfigRaw.subAgents : [];
+    const workerCandidates = Array.isArray(channelConfigRaw?.workerCandidates)
+        ? channelConfigRaw.workerCandidates
+        : [];
     const channel = channels.find((c) => normalizeChannelId(c?.id) === wantedId);
     if (!channel) {
         const err = new Error(`Channel not found: ${wantedId}`);
@@ -238,11 +275,7 @@ export function buildChannelRuntimeBinding(channelId, { channelConfigRaw } = {})
         modelPolicy: modelPolicyForChannel(channel),
         skillPolicy: skillPolicyForChannel(channel),
         skillRolePolicy: skillRolePolicyForChannel(channel, subAgents),
-        workerPolicy: {
-            runtimeWorkers: [],
-            status: 'not_configured',
-            gate: 'C1e/G2+G7'
-        }
+        workerPolicy: workerPolicyForChannel(channel, workerCandidates, subAgents)
     };
 
     const resolvedSession = {

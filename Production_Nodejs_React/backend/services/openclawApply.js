@@ -40,6 +40,13 @@ import { promisify } from 'util';
 import lockfile from 'proper-lockfile';
 import { z } from 'zod';
 import { collectChannelConfigApplyWarnings } from './ideConfigBridge.js';
+import {
+    isWorkerCandidateActive,
+    normalizeWorkerCandidates,
+    runtimeWorkerAgentId,
+    runtimeWorkerSourceId,
+    workerCandidateEffectiveSkillIds
+} from './workerProjection.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -557,6 +564,56 @@ export function computeActiveSkillRoleProjections(channel, subAgents) {
         });
 }
 
+export function buildRuntimeWorkerAgentEntries(rawChannelConfig) {
+    const subAgents = Array.isArray(rawChannelConfig?.subAgents) ? rawChannelConfig.subAgents : [];
+    const candidates = normalizeWorkerCandidates(rawChannelConfig?.workerCandidates);
+    const agentEntries = [];
+    const runtimeWorkers = [];
+
+    for (const worker of candidates) {
+        if (!isWorkerCandidateActive(worker)) continue;
+
+        const workerAgentId = runtimeWorkerAgentId(worker.id);
+        const effectiveSkillIds = workerCandidateEffectiveSkillIds(worker, subAgents);
+        const agentEntry = {
+            id: workerAgentId,
+            name: `${worker.displayName} · Runtime Worker`,
+            params: makeCmAgentParams(runtimeWorkerSourceId(worker.id))
+        };
+        if (worker.modelProfile && worker.modelProfile !== 'inherit') {
+            agentEntry.model = { primary: worker.modelProfile };
+        }
+        if (effectiveSkillIds.length > 0) {
+            agentEntry.skills = effectiveSkillIds;
+        }
+
+        const agentParsed = CmAgentEntrySchema.safeParse(agentEntry);
+        if (!agentParsed.success) {
+            const err = new Error(
+                `Invalid runtime worker agents.list[] entry for ${worker.id}: ${agentParsed.error.message}`
+            );
+            err.status = 400;
+            throw err;
+        }
+
+        agentEntries.push(agentParsed.data);
+        runtimeWorkers.push({
+            id: worker.id,
+            displayName: worker.displayName,
+            parentId: worker.parentId,
+            runtimeAgentId: workerAgentId,
+            sourceSkillRoleId: worker.sourceSkillRoleId || null,
+            modelProfile: worker.modelProfile,
+            effectiveSkillIds,
+            canSpeakToChannel: false,
+            openclawProjection: worker.openclawProjection,
+            status: 'headless_agent_configured'
+        });
+    }
+
+    return { agentEntries, runtimeWorkers };
+}
+
 /**
  * Build the per-channel patch for `agents.list[]` + `bindings[]`.
  * Does not touch `agents.defaults.*` (C1b.2c applies that in `runOpenClawApply`).
@@ -654,7 +711,15 @@ export function buildAgentsAndBindingsApplyPatch(rawChannelConfig) {
         });
     }
 
-    return { agentEntries, bindingEntries, perChannel };
+    const runtimeWorkerPatch = buildRuntimeWorkerAgentEntries(rawChannelConfig);
+    agentEntries.push(...runtimeWorkerPatch.agentEntries);
+
+    return {
+        agentEntries,
+        bindingEntries,
+        perChannel,
+        runtimeWorkers: runtimeWorkerPatch.runtimeWorkers
+    };
 }
 
 function hasSessionModelOverride(entry) {
@@ -897,6 +962,9 @@ export function collectActiveChannelGroupIds(rawChannelConfig) {
     for (const c of channels) {
         if (c?.id != null) set.add(String(c.id));
     }
+    for (const worker of normalizeWorkerCandidates(rawChannelConfig?.workerCandidates)) {
+        if (isWorkerCandidateActive(worker)) set.add(runtimeWorkerSourceId(worker.id));
+    }
     return set;
 }
 
@@ -1108,6 +1176,7 @@ export async function runOpenClawApply({ channelConfigRaw, dryRun = true, confir
                 orphanPruneSummary,
                 collisions,
                 perChannel: agentsAndBindingsPatch.perChannel,
+                runtimeWorkers: agentsAndBindingsPatch.runtimeWorkers || [],
                 channelConfigWarnings,
                 runtimeVerificationNote
             };
@@ -1131,6 +1200,7 @@ export async function runOpenClawApply({ channelConfigRaw, dryRun = true, confir
                 orphanPruneSummary,
                 collisions,
                 perChannel: agentsAndBindingsPatch.perChannel,
+                runtimeWorkers: agentsAndBindingsPatch.runtimeWorkers || [],
                 beforePretty,
                 afterPretty,
                 diffHash,
@@ -1193,6 +1263,7 @@ export async function runOpenClawApply({ channelConfigRaw, dryRun = true, confir
             orphanPruneSummary,
             sessionCacheSummary,
             perChannel: agentsAndBindingsPatch.perChannel,
+            runtimeWorkers: agentsAndBindingsPatch.runtimeWorkers || [],
             channelConfigWarnings,
             runtimeVerificationNote
         };

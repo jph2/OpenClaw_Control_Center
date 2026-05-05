@@ -1,6 +1,6 @@
 # SPEC_CM_UNIFIED_WORKER_DUAL_TARGET_PROJECTION_V1
 
-**Status:** proposed — architecture programme (normative intent, implementation phasing TBD)
+**Status:** active — schema-slice MVP accepted by ADR-022; Worker Run proof pending
 **Owner surface:** OpenClaw Control Center / Channel Manager (data model + projections)
 **Created:** 2026-04-30
 **Last updated:** 2026-05-05
@@ -194,10 +194,49 @@ The first implementation may store a smaller subset, but it must not collapse
 `skillRole`, `runtimeWorker`, and `ideProfile` back into one ambiguous
 "sub-agent" bucket.
 
+### 4.3.1 Accepted schema-slice MVP (ADR-022)
+
+ADR-022 accepts a pre-proof **schema slice**, not the full `WorkerSpec` above.
+The first persisted shape is top-level `workerCandidates[]`:
+
+```ts
+type WorkerCandidateV1 = {
+  schemaSlice: 'c1e-worker-candidate-v1';
+  id: string;
+  displayName: string;
+  parentId: string;
+  sourceSkillRoleId?: string;
+  enabled: boolean;
+  status: 'candidate' | 'active' | 'inactive' | 'experimental' | 'deprecated';
+  modelProfile: 'inherit' | string;
+  skillIds: string[];
+  deniedSkillIds: string[];
+  contextBoundary: 'sharedSummaryOnly' | 'freshContext' | 'dedicatedSession';
+  riskTier: 'readOnly' | 'writeProposed';
+  canSpeakToChannel: false;
+  openclawProjection: {
+    mode: 'dedicatedAgentsListEntry';
+    sessionPolicy: 'dedicatedPerTask';
+    transcriptPolicy: 'linked';
+    maxConcurrent: number;
+  };
+  cursorProjection?: {
+    mode: 'notApplicable' | 'agentMarkdown' | 'taskTypeMapping';
+    mappingStatus: 'unmapped' | 'manual' | 'verified' | 'stale';
+    taskType?: string;
+  };
+};
+```
+
+Apply projects active candidates to CM-owned headless OpenClaw
+`agents.list[]` rows with id `worker-<id>`. It does **not** create Telegram
+`bindings[]` for workers, and `canSpeakToChannel` is forced to `false`.
+
 ### 4.4 OpenClaw projection paths (options, not commitment)
 
-- **Today:** `mergeIntoSynth` for CM sub-agents (skills only).
-- **Target options:** dedicated `agents.list[]` rows per worker; and/or documented use of **OpenClaw runtime subagents** with CM-driven spawn policy; bindings may remain **one outward-facing synth per channel** with internal delegation (product decision).
+- **Today for Skill Roles:** `mergeIntoSynth` for CM sub-agents (skills only).
+- **Accepted first worker path (G2):** dedicated headless `agents.list[]` rows per explicit `workerCandidates[]` entry.
+- **Later option:** documented use of **OpenClaw runtime subagents** with CM-driven spawn policy; bindings may remain **one outward-facing synth per channel** with internal delegation (product decision).
 
 Recommended order:
 
@@ -449,28 +488,13 @@ third**, never "turn every sub-agent into a worker" as a bulk migration.
 
 ---
 
-## 12. ADR draft candidate
+## 12. ADR pointer
 
-**Recorded as proposed in** [`040_DECISIONS.md`](../040_DECISIONS.md) (**ADR-022**). When G2/G7 gates are satisfied, move ADR-022 to **accepted** and trim this section to a pointer only.
-
-Do not add duplicate decision text to `040_DECISIONS.md` until the first implementation choice is
-made, but this is the likely decision shape:
-
-```text
-ADR-C1e: CM subAgents are Skill Roles. Runtime Workers are explicit opt-in
-entities with projection metadata.
-
-Decision:
-- Existing CM subAgents[] remain Skill Roles and may merge skills into the
-  per-channel OpenClaw synth.
-- A Runtime Worker requires explicit WorkerSpec metadata and a target projection
-  that provides runtime identity, model policy, context boundary, delegation
-  contract, and audit.
-- Cursor agent files are IDE Agent Profiles, not proof of runtime worker
-  identity.
-- The first runtime worker implementation will keep the channel synth as the
-  only Telegram speaker unless a later ADR enables worker speech.
-```
+**Recorded as accepted for the schema-slice MVP in**
+[`040_DECISIONS.md`](../040_DECISIONS.md) (**ADR-022**). The accepted first
+worker path is explicit `workerCandidates[]` projected as dedicated headless
+OpenClaw `agents.list[]` rows. Full Worker Run delegation, parent aggregation,
+and audit/readback remain P3 proof criteria.
 
 ---
 

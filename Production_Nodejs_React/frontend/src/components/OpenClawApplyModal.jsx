@@ -259,8 +259,9 @@ export default function OpenClawApplyModal({ open, onClose, onBeforeApply, onApp
                         <code style={{ color: '#9ff0dc' }}>params._cm</code> on agents, <code style={{ color: '#9ff0dc' }}>comment</code> on
                         bindings. Other <code style={{ color: '#9ff0dc' }}>agents.defaults.*</code> keys untouched except that
                         optional <code style={{ color: '#9ff0dc' }}>model.primary</code>. C1b.2b prunes orphan CM rows. Secrets
-                        redacted in preview. Current Skill Roles are merged into the Channel Synth; Runtime Worker projection
-                        remains <strong style={{ color: '#c8c8d0' }}>none</strong>.
+                        redacted in preview. Current Skill Roles are merged into the Channel Synth; active Runtime Worker
+                        Candidates are projected as headless <code style={{ color: '#9ff0dc' }}>agents.list[]</code> rows
+                        with no Telegram binding.
                     </p>
                     <button
                         type="button"
@@ -580,6 +581,37 @@ export default function OpenClawApplyModal({ open, onClose, onBeforeApply, onApp
                                             ))}
                                         </tbody>
                                     </table>
+                                </div>
+                            )}
+                            {preview?.runtimeWorkers && preview.runtimeWorkers.length > 0 && (
+                                <div
+                                    style={{
+                                        marginTop: 10,
+                                        padding: '8px 10px',
+                                        borderRadius: 6,
+                                        background: '#172620',
+                                        border: '1px solid #2f6b56',
+                                        color: '#b8f0d8',
+                                        fontSize: 11,
+                                        lineHeight: 1.45
+                                    }}
+                                >
+                                    <strong>C1e · Runtime Worker Candidates</strong> — projected as headless{' '}
+                                    <code>agents.list[]</code> entries, no Telegram binding:
+                                    <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                                        {preview.runtimeWorkers.map((w) => (
+                                            <li key={w.id}>
+                                                <code>{w.runtimeAgentId}</code> · {w.displayName || w.id} · model{' '}
+                                                <code>{w.modelProfile || 'inherit'}</code> · skills{' '}
+                                                <code>
+                                                    {(w.effectiveSkillIds || []).length
+                                                        ? w.effectiveSkillIds.join(', ')
+                                                        : 'inherit/defaults'}
+                                                </code>{' '}
+                                                · speak: <code>false</code>
+                                            </li>
+                                        ))}
+                                    </ul>
                                 </div>
                             )}
                         </div>
