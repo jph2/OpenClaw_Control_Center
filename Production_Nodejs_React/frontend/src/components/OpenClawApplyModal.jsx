@@ -252,14 +252,15 @@ export default function OpenClawApplyModal({ open, onClose, onBeforeApply, onApp
                         true (C1b.2e). Optional <code style={{ color: '#9ff0dc' }}>agents.defaults.model.primary</code>{' '}
                         when <code style={{ color: '#9ff0dc' }}>openclawAgentsDefaultsPolicy.applyModelOnOpenClawApply</code>{' '}
                         (C1b.2c, ADR-018 — never silent). Per-channel <strong style={{ color: '#c8c8d0' }}>model</strong> +
-                        skills (main + channel + <strong style={{ color: '#c8c8d0' }}>C1b.3</strong> active CM sub-agents) →
+                        skills (main + channel + <strong style={{ color: '#c8c8d0' }}>C1b.3</strong> active CM Skill Roles) →
                         synthesized <code style={{ color: '#9ff0dc' }}>agents.list[]</code> (id{' '}
                         <code style={{ color: '#9ff0dc' }}>{'<assignedAgent>-<groupIdSlug>'}</code>) +{' '}
                         <code style={{ color: '#9ff0dc' }}>bindings[]</code>. CM ownership:{' '}
                         <code style={{ color: '#9ff0dc' }}>params._cm</code> on agents, <code style={{ color: '#9ff0dc' }}>comment</code> on
                         bindings. Other <code style={{ color: '#9ff0dc' }}>agents.defaults.*</code> keys untouched except that
                         optional <code style={{ color: '#9ff0dc' }}>model.primary</code>. C1b.2b prunes orphan CM rows. Secrets
-                        redacted in preview.
+                        redacted in preview. Current Skill Roles are merged into the Channel Synth; Runtime Worker projection
+                        remains <strong style={{ color: '#c8c8d0' }}>none</strong>.
                     </p>
                     <button
                         type="button"
@@ -559,7 +560,16 @@ export default function OpenClawApplyModal({ open, onClose, onBeforeApply, onApp
                                                     </td>
                                                     <td style={{ padding: '4px 8px' }}>
                                                         {row.effectiveSkills && row.effectiveSkills.length > 0 ? (
-                                                            row.effectiveSkills.join(', ')
+                                                            <>
+                                                                {row.effectiveSkills.join(', ')}
+                                                                {row.activeSkillRoles && row.activeSkillRoles.length > 0 && (
+                                                                    <div style={{ color: '#7dd3c0', marginTop: 3 }}>
+                                                                        Skill Roles:{' '}
+                                                                        {row.activeSkillRoles.map((r) => r.name || r.id).join(', ')}
+                                                                        {' · '}OpenClaw: mergeIntoSynth · Runtime Worker: no
+                                                                    </div>
+                                                                )}
+                                                            </>
                                                         ) : (
                                                             <span style={{ color: '#7a8396' }}>
                                                                 (defaults)

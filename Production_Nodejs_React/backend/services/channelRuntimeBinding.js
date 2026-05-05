@@ -2,7 +2,7 @@ import fs from 'fs';
 import fsPromises from 'fs/promises';
 import path from 'path';
 import { resolveSafe } from '../utils/security.js';
-import { groupIdSlug } from './openclawApply.js';
+import { computeActiveSkillRoleProjections, groupIdSlug } from './openclawApply.js';
 import {
     hydrateOpenclawSessionIndex,
     listAgentSessionsJsonPaths,
@@ -76,6 +76,17 @@ function skillPolicyForChannel(channel) {
         .filter(Boolean);
     return {
         enabledSkills: Array.from(new Set(skills))
+    };
+}
+
+function skillRolePolicyForChannel(channel, subAgents) {
+    return {
+        roles: computeActiveSkillRoleProjections(channel, subAgents),
+        semantics: {
+            currentSubAgentsAre: 'skillRole',
+            openclawProjection: 'mergeIntoSynth',
+            runtimeWorkerImplemented: false
+        }
     };
 }
 
@@ -180,6 +191,7 @@ function derivedRuntimeEvents({ channel, synthAgentId, expectedSessionKey, resol
 export function buildChannelRuntimeBinding(channelId, { channelConfigRaw } = {}) {
     const wantedId = normalizeChannelId(channelId);
     const channels = Array.isArray(channelConfigRaw?.channels) ? channelConfigRaw.channels : [];
+    const subAgents = Array.isArray(channelConfigRaw?.subAgents) ? channelConfigRaw.subAgents : [];
     const channel = channels.find((c) => normalizeChannelId(c?.id) === wantedId);
     if (!channel) {
         const err = new Error(`Channel not found: ${wantedId}`);
@@ -224,7 +236,13 @@ export function buildChannelRuntimeBinding(channelId, { channelConfigRaw } = {})
             expectedTranscriptFile: invariant.sessionFile || resolved.sessionFile || null
         },
         modelPolicy: modelPolicyForChannel(channel),
-        skillPolicy: skillPolicyForChannel(channel)
+        skillPolicy: skillPolicyForChannel(channel),
+        skillRolePolicy: skillRolePolicyForChannel(channel, subAgents),
+        workerPolicy: {
+            runtimeWorkers: [],
+            status: 'not_configured',
+            gate: 'C1e/G2+G7'
+        }
     };
 
     const resolvedSession = {

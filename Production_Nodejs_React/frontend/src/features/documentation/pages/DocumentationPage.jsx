@@ -310,7 +310,7 @@ export default function DocumentationPage() {
                                         <strong style={{ color: 'var(--text-primary)' }}>Channel Manager</strong>
                                     </td>
                                     <td style={td}>
-                                        Per-TTG policy (model, skills, sub-agents), global agent/skill catalogs, Apply to{' '}
+                                        Per-TTG policy (model, skills, Skill Roles), global agent/skill catalogs, Apply to{' '}
                                         <code style={{ color: 'var(--accent)' }}>openclaw.json</code>, embedded chat and IDE column per row
                                     </td>
                                     <td style={td}>
@@ -372,7 +372,7 @@ export default function DocumentationPage() {
                                     <strong>Per TTG row</strong> — three sub-tabs:
                                     <ul className="doc-list-outline-sub">
                                         <li>
-                                            <strong>Configuration</strong> — model, skills, sub-agents, relay skills, require-mention
+                                            <strong>Configuration</strong> — model, skills, Skill Roles, relay skills, require-mention
                                         </li>
                                         <li>
                                             <strong>OpenClaw Chat</strong> — embedded chat for this Telegram group
@@ -409,10 +409,10 @@ export default function DocumentationPage() {
                                     </ul>
                                 </li>
                                 <li>
-                                    <strong>Agents:</strong> master data for main agents (engines) and sub-agents
+                                    <strong>Agents:</strong> master data for main agents (engines) and Skill Roles
                                     <ul className="doc-list-outline-sub">
                                         <li>Create, parent engine, extra skills, enable/disable</li>
-                                        <li>Feeds skill and sub-agent assignment in channel rows</li>
+                                        <li>Feeds skill and Skill Role assignment in channel rows</li>
                                     </ul>
                                 </li>
                                 <li>
@@ -426,7 +426,7 @@ export default function DocumentationPage() {
                             <ul className="doc-list-outline">
                                 <li>
                                     <strong>Scope:</strong> configure <strong>this</strong> Telegram group — model, channel skills, active
-                                    sub-agents, CASE/IDE relay skills, require-mention, and other canonical config fields
+                                    Skill Roles, CASE/IDE relay skills, require-mention, and other canonical config fields
                                 </li>
                                 <li>
                                     <strong>Persistence:</strong> changes usually save to the backend immediately (auto-save)

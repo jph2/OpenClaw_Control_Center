@@ -62,6 +62,51 @@ test('buildChannelRuntimeBinding returns aligned binding for canonical Telegram 
     );
 });
 
+test('buildChannelRuntimeBinding exposes active Skill Roles without claiming runtime workers', async () => {
+    const sessionId = '77777777-7777-4777-8777-777777777777';
+    await withTempSessions(
+        {
+            'agent:tars-1001:telegram:group:-1001': {
+                sessionId,
+                sessionFile: `/tmp/${sessionId}.jsonl`,
+                updatedAt: 1
+            }
+        },
+        () => {
+            const out = buildChannelRuntimeBinding('-1001', {
+                channelConfigRaw: {
+                    channels: [
+                        {
+                            id: '-1001',
+                            name: 'TTG001_Idea_Capture',
+                            assignedAgent: 'tars',
+                            inactiveSubAgents: ['disabled-for-channel']
+                        }
+                    ],
+                    subAgents: [
+                        {
+                            id: 'researcher',
+                            name: 'Researcher',
+                            parent: 'tars',
+                            additionalSkills: ['web_search']
+                        },
+                        {
+                            id: 'disabled-for-channel',
+                            parent: 'tars',
+                            additionalSkills: ['x']
+                        }
+                    ]
+                }
+            });
+
+            assert.equal(out.channelRuntimeBinding.skillRolePolicy.semantics.currentSubAgentsAre, 'skillRole');
+            assert.equal(out.channelRuntimeBinding.skillRolePolicy.semantics.runtimeWorkerImplemented, false);
+            assert.deepEqual(out.channelRuntimeBinding.skillRolePolicy.roles.map((r) => r.id), ['researcher']);
+            assert.deepEqual(out.channelRuntimeBinding.workerPolicy.runtimeWorkers, []);
+        }
+    );
+});
+
 test('buildChannelRuntimeBinding reports mismatch when resolved session belongs to another agent', async () => {
     const sessionId = '22222222-2222-4222-8222-222222222222';
     await withTempSessions(

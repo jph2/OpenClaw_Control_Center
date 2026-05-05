@@ -10,6 +10,19 @@ export function isSafeCursorAgentId(id) {
     return CURSOR_AGENT_ID_PATTERN.test(String(id || '').trim());
 }
 
+export const LEGACY_SKILL_ROLE_PROJECTION = Object.freeze({
+    kind: 'skillRole',
+    openclawProjection: 'mergeIntoSynth',
+    cursorProjection: 'agentMarkdown',
+    runtimeIdentity: 'none',
+    runtimeWorker: false,
+    visibility: 'ideOnly'
+});
+
+export function buildLegacySkillRoleProjection(extra = {}) {
+    return { ...LEGACY_SKILL_ROLE_PROJECTION, ...extra };
+}
+
 /**
  * @param {object} raw - Parsed channel_config.json
  */
@@ -43,7 +56,9 @@ export function buildCanonicalSnapshot(raw) {
             description: s.description,
             additionalSkills: s.additionalSkills || [],
             inactiveSkills: s.inactiveSkills || [],
-            enabled: s.enabled !== false
+            enabled: s.enabled !== false,
+            kind: 'skillRole',
+            projection: buildLegacySkillRoleProjection()
         })),
         channels: channels.map((c) => ({
             id: c.id,
@@ -52,6 +67,7 @@ export function buildCanonicalSnapshot(raw) {
             assignedAgent: c.assignedAgent,
             skills: c.skills || [],
             caseSkills: c.caseSkills || [],
+            inactiveSubAgents: c.inactiveSubAgents || [],
             inactiveCaseSkills: c.inactiveCaseSkills || []
         }))
     };
@@ -77,7 +93,7 @@ export function collectChannelConfigApplyWarnings(raw) {
         if (!isSafeCursorAgentId(id)) {
             warnings.push({
                 code: 'unsafe_cursor_agent_id',
-                message: `Sub-agent id "${id}" is not a safe Cursor filename token (use lowercase letters, digits, _ -).`,
+                message: `Skill Role id "${id}" is not a safe Cursor filename token (use lowercase letters, digits, _ -).`,
                 detail: { subAgentId: id }
             });
         }
@@ -85,7 +101,7 @@ export function collectChannelConfigApplyWarnings(raw) {
         if (!parent || !agentIds.has(parent)) {
             warnings.push({
                 code: 'subagent_parent_missing',
-                message: `Sub-agent "${id}" has parent "${parent || 'null'}" that does not match a CM main agent id.`,
+                message: `Skill Role "${id}" has parent "${parent || 'null'}" that does not match a CM main agent id.`,
                 detail: { subAgentId: id, parent }
             });
         }
@@ -126,15 +142,35 @@ export function collectChannelConfigApplyWarnings(raw) {
 export function buildOpenClawProjection(snapshot) {
     return {
         kind: 'openclaw_merge_hints',
-        version: 1,
+        version: 2,
         note: 'Review before merging into ~/.openclaw/openclaw.json. Channel Manager remains SoT in Prototyp/channel_CHAT-manager/channel_config.json. For requireMention sync, use Apply to OpenClaw in the UI or POST /api/exports/openclaw/apply.',
         telegramGroups: snapshot.channels.map((c) => ({
             id: c.id,
             label: c.name,
             assignedAgent: c.assignedAgent,
-            model: c.model
+            model: c.model,
+            skillRoles: snapshot.subAgents
+                .filter(
+                    (s) =>
+                        s.parent === c.assignedAgent &&
+                        s.enabled !== false &&
+                        !(c.inactiveSubAgents || []).includes(s.id)
+                )
+                .map((s) => ({
+                    id: s.id,
+                    name: s.name,
+                    projection: buildLegacySkillRoleProjection({
+                        summary: 'Merged into the per-channel synth skills allowlist; no separate OpenClaw runtime worker.'
+                    })
+                }))
         })),
-        agents: snapshot.agents
+        agents: snapshot.agents,
+        projectionSemantics: {
+            currentSubAgentsAre: 'skillRole',
+            runtimeWorkerImplemented: false,
+            openclawProjection: 'mergeIntoSynth',
+            cursorProjection: 'agentMarkdown'
+        }
     };
 }
 
@@ -195,6 +231,10 @@ export function buildIdeWorkbenchBundle(snapshot) {
             inactiveSkills: [...inactive],
             effectiveSkillIds,
             skillIds: effectiveSkillIds,
+            kind: 'skillRole',
+            projection: buildLegacySkillRoleProjection({
+                summary: 'IDE Agent Profile export only; not proof of a live runtime worker.'
+            }),
             suggestedFrontmatter: {
                 name: s.id,
                 description: descBase,
@@ -222,7 +262,7 @@ export function buildIdeWorkbenchBundle(snapshot) {
         kind: 'ide_workbench_bundle',
         bundleSchemaVersion: 2,
         version: 1,
-        note: 'IDE workbench projection v2: markdown agents under .cursor/agents/. CM sub-agent skills use inactive filtering. Apply via scripts/apply-ide-export.mjs; stale check uses fingerprint v2.',
+        note: 'IDE workbench projection v2: markdown agents under .cursor/agents/. CM Skill Role skills use inactive filtering; these files are IDE Agent Profiles, not OpenClaw runtime workers. Apply via scripts/apply-ide-export.mjs; stale check uses fingerprint v2.',
         warnings,
         subagents: subagentFiles,
         engines

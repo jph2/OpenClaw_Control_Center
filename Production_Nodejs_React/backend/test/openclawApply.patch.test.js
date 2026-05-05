@@ -15,6 +15,7 @@ import {
     getCmAgentSource,
     buildAgentsAndBindingsApplyPatch,
     computeEffectiveSynthSkills,
+    computeActiveSkillRoleProjections,
     mergeOpenClawAgentsAndBindings,
     collectActiveChannelGroupIds,
     pruneCmOrphanAgentsAndBindings,
@@ -416,6 +417,46 @@ describe('openclawApply C1b.3 — sub-agent skills in synth allowlist', () => {
         });
         assert.deepEqual(p.agentEntries[0].skills, ['clawflow', 'web_search', 'deep-research']);
         assert.deepEqual(p.perChannel[0].effectiveSkills, ['clawflow', 'web_search', 'deep-research']);
+        assert.deepEqual(p.perChannel[0].projection, {
+            channelSynth: 'agents.list[] + bindings[]',
+            skillRoles: 'mergeIntoSynth',
+            runtimeWorkers: 'none'
+        });
+        assert.deepEqual(p.perChannel[0].activeSkillRoles, [
+            {
+                id: 'researcher',
+                name: 'researcher',
+                kind: 'skillRole',
+                openclawProjection: 'mergeIntoSynth',
+                cursorProjection: 'agentMarkdown',
+                runtimeIdentity: 'none',
+                runtimeWorker: false,
+                effectiveSkillIds: ['deep-research']
+            }
+        ]);
+    });
+
+    it('computeActiveSkillRoleProjections exposes current no-runtime-worker semantics', () => {
+        const roles = computeActiveSkillRoleProjections(
+            { id: '-1', assignedAgent: 'tars', inactiveSubAgents: ['off-channel'] },
+            [
+                { id: 'researcher', name: 'Researcher', parent: 'tars', additionalSkills: ['web_search'] },
+                { id: 'off-channel', parent: 'tars', additionalSkills: ['x'] },
+                { id: 'wrong-parent', parent: 'case', additionalSkills: ['y'] }
+            ]
+        );
+        assert.deepEqual(roles, [
+            {
+                id: 'researcher',
+                name: 'Researcher',
+                kind: 'skillRole',
+                openclawProjection: 'mergeIntoSynth',
+                cursorProjection: 'agentMarkdown',
+                runtimeIdentity: 'none',
+                runtimeWorker: false,
+                effectiveSkillIds: ['web_search']
+            }
+        ]);
     });
 });
 

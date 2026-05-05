@@ -70,7 +70,7 @@ export default function Landing() {
                 }}>
                     <div style={{ fontSize: '2rem', marginBottom: '16px' }}>💬</div>
                     <h2 style={{ color: '#fff', fontSize: '1.25rem', marginBottom: '8px' }}>Channel Manager</h2>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.5' }}>Manage Agentic Channel mappings, active sub-agents, and cross-platform syncing.</p>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.5' }}>Manage Agentic Channel mappings, active Skill Roles, and cross-platform syncing.</p>
                 </Link>
 
                 {/* Node 3: Documentation */}

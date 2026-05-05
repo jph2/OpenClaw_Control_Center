@@ -138,7 +138,7 @@ export default function ChannelManager() {
 
     const [bulkSkill, setBulkSkill] = useState('');
 
-    /** Create sub-agent modal (Agents tab) */
+    /** Create Skill Role modal (Agents tab). Stored in legacy `subAgents[]`. */
     const [createSubAgentOpen, setCreateSubAgentOpen] = useState(false);
     const [newSubAgentId, setNewSubAgentId] = useState('');
     const [newSubAgentName, setNewSubAgentName] = useState('');
@@ -358,7 +358,7 @@ export default function ChannelManager() {
             return data;
         },
         onError: (err) => {
-            window.alert(err?.message || 'Sub-Agent konnte nicht gelöscht werden.');
+            window.alert(err?.message || 'Skill Role konnte nicht gelöscht werden.');
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: ['channels'] })
     });
@@ -573,7 +573,7 @@ export default function ChannelManager() {
     const handleDeleteSubAgent = (sub) => {
         const label = sub.name?.trim() || sub.id;
         const ok = window.confirm(
-            `Sub-Agent „${label}“ (${sub.id}) wirklich löschen? Die Zuordnung und Einträge in Kanälen werden bereinigt.`
+            `Skill Role „${label}“ (${sub.id}) wirklich löschen? Die Zuordnung und Einträge in Kanälen werden bereinigt.`
         );
         if (!ok) return;
         deleteSubAgentMutation.mutate(sub.id);
@@ -1243,7 +1243,7 @@ export default function ChannelManager() {
                             ))}
                         </select>
 
-                        <div style={{ fontSize: '11px', color: agent.color, marginBottom: '8px', marginTop: '20px' }}>Sub-Agents</div>
+                        <div style={{ fontSize: '11px', color: agent.color, marginBottom: '8px', marginTop: '20px' }}>Skill Roles</div>
                         {backendSubAgents
                             .filter((sub) => sub.parent === agent.id)
                             .map((sub) => {
@@ -1286,7 +1286,7 @@ export default function ChannelManager() {
                                                 whiteSpace: 'nowrap'
                                             }}
                                         >
-                                            SUB-AGENT
+                                            SKILL ROLE
                                         </span>
                                         <button
                                             type="button"
@@ -1325,7 +1325,7 @@ export default function ChannelManager() {
                                 borderRadius: '4px'
                             }}
                         >
-                            <option value="">+ Sub-Agent zuordnen…</option>
+                            <option value="">+ Skill Role zuordnen…</option>
                             {backendSubAgents
                                 .filter((s) => s.parent !== agent.id)
                                 .map((s) => (
@@ -1394,9 +1394,9 @@ export default function ChannelManager() {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px', marginBottom: '20px', marginTop: '8px' }}>
                 <div>
-                    <h2 style={{ marginBottom: '4px', marginTop: 0 }}>Sub-Agents — Zusätzliche Skills</h2>
+                    <h2 style={{ marginBottom: '4px', marginTop: 0 }}>Skill Roles — Zusätzliche Skills</h2>
                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-                        Pro Sub-Agent: zusätzliche Skills (über die Zuordnung oben beim jeweiligen Hauptagenten).
+                        Legacy <code style={{ fontSize: '11px' }}>subAgents[]</code>: zusätzliche Skills, OpenClaw-Projektion als Merge in den Channel Synth; kein Runtime Worker.
                     </p>
                 </div>
                 <button
@@ -1405,7 +1405,7 @@ export default function ChannelManager() {
                     className="primary"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 14px', whiteSpace: 'nowrap' }}
                 >
-                    <Plus size={16} aria-hidden /> Sub-Agent anlegen
+                    <Plus size={16} aria-hidden /> Skill Role anlegen
                 </button>
             </div>
             <div style={{ display: 'grid', gap: '16px' }}>
@@ -1419,10 +1419,13 @@ export default function ChannelManager() {
                                     <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
                                         {sub.parent || '—'}
                                     </span>
+                                    <span title="OpenClaw: merged into Channel Synth; Runtime Worker: no; Cursor: IDE Agent Profile" style={{ fontSize: '10px', background: 'rgba(80,227,194,0.10)', border: '1px solid rgba(80,227,194,0.30)', padding: '2px 6px', borderRadius: '4px', color: '#9ff0dc', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                                        Skill Role
+                                    </span>
                                     <button
                                         type="button"
-                                        aria-label={`Sub-Agent ${sub.id} löschen`}
-                                        title="Sub-Agent löschen"
+                                        aria-label={`Skill Role ${sub.id} löschen`}
+                                        title="Skill Role löschen"
                                         disabled={deleteSubAgentMutation.isPending}
                                         onClick={() => handleDeleteSubAgent(sub)}
                                         style={{
@@ -1518,9 +1521,9 @@ export default function ChannelManager() {
                     }}
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <h3 id="create-subagent-title" style={{ marginTop: 0 }}>Sub-Agent anlegen</h3>
+                    <h3 id="create-subagent-title" style={{ marginTop: 0 }}>Skill Role anlegen</h3>
                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '-8px' }}>
-                        Neue Zeile in <code style={{ fontSize: '11px' }}>channel_config.json</code> (eindeutige ID).
+                        Neue Legacy-Zeile in <code style={{ fontSize: '11px' }}>channel_config.json</code> unter <code style={{ fontSize: '11px' }}>subAgents[]</code>; Projektion bleibt Skill-Merge, kein Runtime Worker.
                     </p>
                     <div style={{ display: 'grid', gap: '12px', marginTop: '16px' }}>
                         <label style={{ display: 'grid', gap: '4px', fontSize: '12px' }}>

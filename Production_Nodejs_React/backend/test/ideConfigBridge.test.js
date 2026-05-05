@@ -18,6 +18,9 @@ describe('ideConfigBridge', () => {
         });
         assert.equal(snap.channels.length, 1);
         assert.equal(snap.subAgents[0].id, 'researcher');
+        assert.equal(snap.subAgents[0].kind, 'skillRole');
+        assert.equal(snap.subAgents[0].projection.openclawProjection, 'mergeIntoSynth');
+        assert.equal(snap.subAgents[0].projection.runtimeWorker, false);
     });
 
     it('projects cursor bundle with agent file paths (legacy kind)', () => {
@@ -50,6 +53,9 @@ describe('ideConfigBridge', () => {
         assert.equal(ide.kind, 'ide_workbench_bundle');
         assert.equal(ide.bundleSchemaVersion, 2);
         assert.deepEqual(ide.subagents[0].effectiveSkillIds, ['x']);
+        assert.equal(ide.subagents[0].kind, 'skillRole');
+        assert.equal(ide.subagents[0].projection.cursorProjection, 'agentMarkdown');
+        assert.equal(ide.subagents[0].projection.runtimeIdentity, 'none');
     });
 
     it('collectChannelConfigApplyWarnings flags unknown parent', () => {
@@ -68,8 +74,15 @@ describe('ideConfigBridge', () => {
     });
 
     it('buildOpenClawProjection still returns hints', () => {
-        const snap = buildCanonicalSnapshot({ channels: [], agents: [], subAgents: [] });
+        const snap = buildCanonicalSnapshot({
+            channels: [{ id: '-1', assignedAgent: 'tars', inactiveSubAgents: [] }],
+            agents: [{ id: 'tars', name: 'TARS' }],
+            subAgents: [{ id: 'researcher', name: 'Researcher', parent: 'tars' }]
+        });
         const p = buildOpenClawProjection(snap);
         assert.equal(p.kind, 'openclaw_merge_hints');
+        assert.equal(p.version, 2);
+        assert.equal(p.projectionSemantics.runtimeWorkerImplemented, false);
+        assert.equal(p.telegramGroups[0].skillRoles[0].projection.runtimeWorker, false);
     });
 });

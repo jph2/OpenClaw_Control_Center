@@ -200,7 +200,7 @@ export default function ChannelManagerChannelRow({
                                 </span>
                                 <button
                                     type="button"
-                                    title="Remove sub-agent from main agent (all channels)"
+                                    title="Remove Skill Role from main agent (all channels)"
                                     onClick={() => onSubAgentUnassignParent?.(subId)}
                                     style={{
                                         background: 'none',
@@ -250,7 +250,7 @@ export default function ChannelManagerChannelRow({
                             outline: 'none'
                         }}
                     >
-                        <option value="">+ add subagent</option>
+                        <option value="">+ add Skill Role</option>
                         {addable.map((s) => (
                             <option key={`${blockKey}-opt-${s.id}`} value={s.id}>
                                 {s.name || s.id}
@@ -319,7 +319,7 @@ export default function ChannelManagerChannelRow({
                 </div>
 
                 <div style={{ marginTop: '8px', marginBottom: '8px', fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                    Sub-agents
+                    Skill Roles
                 </div>
                 {renderSubAgentBlock('planner')}
             </>
@@ -342,7 +342,7 @@ export default function ChannelManagerChannelRow({
                             TARS in IDE
                         </div>
                         <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                            Sub-agents
+                            Skill Roles
                         </div>
                         {renderSubAgentBlock('ide')}
                     </div>
@@ -405,7 +405,7 @@ export default function ChannelManagerChannelRow({
                     >
                         TARS in IDE
                     </div>
-                    <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Sub-agents</div>
+                    <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Skill Roles</div>
                     {renderSubAgentBlock('ide')}
                 </div>
             </div>
@@ -514,8 +514,8 @@ export default function ChannelManagerChannelRow({
                                         if (skill.source === 'agent') badge = 'INHERITED BY AGENT';
                                         if (skill.source === 'sub') {
                                             const subMeta = backendSubAgents.find((x) => x.id === skill.subId);
-                                            const subLabel = (subMeta?.name || skill.subId || 'sub-agent').trim();
-                                            badge = `Inherited from sub-agent · ${subLabel}`;
+                                            const subLabel = (subMeta?.name || skill.subId || 'Skill Role').trim();
+                                            badge = `Inherited from Skill Role · ${subLabel}`;
                                         }
 
                                         const isChannelSkill = skill.source === 'channel';

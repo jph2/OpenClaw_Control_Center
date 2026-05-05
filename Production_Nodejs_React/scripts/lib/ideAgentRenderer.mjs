@@ -87,7 +87,7 @@ readonly: false
 
 ${skillsLine}${inactive}
 
-_Sub-agents with \`parent: ${id}\` are separate files in this folder._
+_Skill Roles with \`parent: ${id}\` are exported as IDE Agent Profile files in this folder._
 
 _Generated in the managed region. Edit custom prose only below the managed end marker._
 `;
@@ -122,9 +122,10 @@ readonly: ${fm.readonly === true}
 
 # ${entry.displayName || entry.name}
 
-**CM sub-agent id:** \`${entry.name}\`  
+**CM Skill Role id:** \`${entry.name}\`  
 **Parent engine:** ${parentLine}  
-**Enabled (CM):** \`${entry.enabled !== false}\`
+**Enabled (CM):** \`${entry.enabled !== false}\`  
+**Projection:** OpenClaw \`mergeIntoSynth\`; Cursor \`IDE Agent Profile\`; Runtime Worker \`no\`
 
 ## Skills (IDs from Channel Manager)
 

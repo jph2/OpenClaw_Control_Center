@@ -521,6 +521,42 @@ export function computeEffectiveSynthSkills(channel, agent, subAgents) {
     return normalizeChannelSkillIds([...base, ...extra]);
 }
 
+export function computeActiveSkillRoleProjections(channel, subAgents) {
+    const assigned = channel?.assignedAgent != null ? String(channel.assignedAgent) : '';
+    const inactiveSub = new Set(
+        Array.isArray(channel?.inactiveSubAgents)
+            ? channel.inactiveSubAgents.map((x) => String(x))
+            : []
+    );
+    return (Array.isArray(subAgents) ? subAgents : [])
+        .filter((sub) => {
+            if (!sub || sub.id == null) return false;
+            if (sub.enabled === false) return false;
+            if (assigned && String(sub.parent ?? '') !== assigned) return false;
+            return !inactiveSub.has(String(sub.id));
+        })
+        .sort((a, b) => String(a?.id ?? '').localeCompare(String(b?.id ?? '')))
+        .map((sub) => {
+            const inactiveSkills = new Set(
+                Array.isArray(sub.inactiveSkills) ? sub.inactiveSkills.map((x) => String(x)) : []
+            );
+            return {
+                id: String(sub.id),
+                name: sub.name || String(sub.id),
+                kind: 'skillRole',
+                openclawProjection: 'mergeIntoSynth',
+                cursorProjection: 'agentMarkdown',
+                runtimeIdentity: 'none',
+                runtimeWorker: false,
+                effectiveSkillIds: normalizeChannelSkillIds(
+                    (Array.isArray(sub.additionalSkills) ? sub.additionalSkills : []).filter(
+                        (skillId) => !inactiveSkills.has(String(skillId))
+                    )
+                )
+            };
+        });
+}
+
 /**
  * Build the per-channel patch for `agents.list[]` + `bindings[]`.
  * Does not touch `agents.defaults.*` (C1b.2c applies that in `runOpenClawApply`).
@@ -560,6 +596,7 @@ export function buildAgentsAndBindingsApplyPatch(rawChannelConfig) {
         const modelStr =
             typeof c.model === 'string' && c.model.trim().length > 0 ? c.model.trim() : null;
         const effectiveSkills = computeEffectiveSynthSkills(c, agentDef, subAgents);
+        const activeSkillRoles = computeActiveSkillRoleProjections(c, subAgents);
         const agentLabel = agentDef?.name || assignedAgent;
         const channelName = c.name || groupId;
 
@@ -607,7 +644,13 @@ export function buildAgentsAndBindingsApplyPatch(rawChannelConfig) {
             assignedAgent,
             synthAgentId: synthId,
             effectiveModel: modelStr,
-            effectiveSkills
+            effectiveSkills,
+            activeSkillRoles,
+            projection: {
+                channelSynth: 'agents.list[] + bindings[]',
+                skillRoles: 'mergeIntoSynth',
+                runtimeWorkers: 'none'
+            }
         });
     }
 

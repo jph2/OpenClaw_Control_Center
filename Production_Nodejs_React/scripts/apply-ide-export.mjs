@@ -113,9 +113,9 @@ function validateBundleForApply(bundle) {
     }
     for (const s of bundle.subagents || []) {
         const id = String(s.name || '').trim();
-        const origin = `sub-agent "${id}"`;
+        const origin = `Skill Role "${id}"`;
         if (id && !isSafeCursorAgentId(id)) {
-            errors.push(`Unsafe sub-agent id "${id}" (allowed: lowercase [a-z0-9_-]).`);
+            errors.push(`Unsafe Skill Role id "${id}" (allowed: lowercase [a-z0-9_-]).`);
         }
         const rel = String(s.relativePath || `.cursor/agents/${id}.md`);
         const norm = rel.replace(/\\/g, '/');
@@ -175,7 +175,7 @@ async function main() {
   --api-base <url>   e.g. http://127.0.0.1:3000 — fetch /api/exports/ide
   --config <path>    channel_config.json (else WORKSPACE_ROOT default)
 
-Writes: sub-agents + main engines. Managed region: <!-- cm-managed:start --> … <!-- cm-managed:end -->
+Writes: Skill Role IDE profiles + main engines. Managed region: <!-- cm-managed:start --> … <!-- cm-managed:end -->
 Stale check: npm run check-ide-export-stale -- --target <same-dir>
 
 Env: WORKSPACE_ROOT — used for default --config path when --api-base is omitted
@@ -242,7 +242,7 @@ Env: WORKSPACE_ROOT — used for default --config path when --api-base is omitte
     if (args.dryRun || !args.write) {
         const subs = filesToWrite.filter((p) => p.kind === 'subagent').length;
         const eng = filesToWrite.filter((p) => p.kind === 'engine').length;
-        console.log(`Dry run: ${filesToWrite.length} file(s) (${subs} sub-agents, ${eng} engines) → ${agentsDir}`);
+        console.log(`Dry run: ${filesToWrite.length} file(s) (${subs} Skill Role IDE profiles, ${eng} engines) → ${agentsDir}`);
         console.log(`Fingerprint v1 (bundle payload): ${fpV1}`);
         console.log(`Fingerprint v2 (managed regions): ${fpV2}`);
         if (orphans.length) {

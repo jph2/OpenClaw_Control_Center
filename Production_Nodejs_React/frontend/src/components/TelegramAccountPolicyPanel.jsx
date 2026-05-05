@@ -492,9 +492,9 @@ export default function TelegramAccountPolicyPanel({
                             <p style={{ margin: '8px 0 0', fontSize: 11, color: '#9aa0b4', lineHeight: 1.55 }}>
                                 In the <strong style={{ color: '#c4cad4' }}>TTG</strong> table below, the same skill ID
                                 can appear on <strong style={{ color: '#c4cad4' }}>multiple rows</strong> (channel,
-                                sub-agent, main agent) — each row only toggles <strong style={{ color: '#c4cad4' }}>its
+                                Skill Role, main agent) — each row only toggles <strong style={{ color: '#c4cad4' }}>its
                                 </strong> source via <code style={{ fontSize: 10, color: '#9ff0dc' }}>inactiveSkills
-                                </code>, without deleting entries from sub-agents.
+                                </code>, without deleting entries from Skill Roles.
                             </p>
                             <p style={{ margin: '10px 0 0', fontSize: 11, color: '#9aa0b4', lineHeight: 1.55 }}>
                                 On <strong style={{ color: '#c4cad4' }}>Apply to OpenClaw</strong>, only{' '}

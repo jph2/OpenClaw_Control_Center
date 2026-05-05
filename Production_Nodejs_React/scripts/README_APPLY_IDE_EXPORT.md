@@ -1,6 +1,6 @@
 # Apply IDE export (B — Cursor `.cursor/agents`)
 
-Materializes **engine + sub-agent** stubs from Channel Manager into a target repo’s `.cursor/agents/*.md`.
+Materializes **engine + Skill Role IDE profile** stubs from Channel Manager into a target repo’s `.cursor/agents/*.md`.
 
 - **Source of truth:** `Prototyp/channel_CHAT-manager/channel_config.json` (and CM UI).
 - **Does not** write `~/.cursor` — only the path you pass as `--target`.
@@ -35,7 +35,7 @@ node scripts/apply-ide-export.mjs --write --target /path/to/repo \
 
 ## Workflow
 
-1. Edit agents/subagents/skills in CM → **Apply to OpenClaw** as usual.
+1. Edit agents/Skill Roles/skills in CM → **Apply to OpenClaw** as usual.
 2. Run this script with `--dry-run`, review the list (bundle **warnings** and **orphan** CM files may appear).
 3. Run with `--write`, then **commit** the `.cursor/agents` diff in the IDE repo.
 

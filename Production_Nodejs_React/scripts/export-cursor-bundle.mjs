@@ -24,6 +24,7 @@ function buildAgentMarkdown(entry) {
     if (entry.parentEngine) {
         lines.push(`Parent engine: \`${entry.parentEngine}\``, '');
     }
+    lines.push('Projection: OpenClaw `mergeIntoSynth`; Cursor `IDE Agent Profile`; Runtime Worker `no`', '');
     const skills = Array.isArray(entry.skillIds) ? entry.skillIds : [];
     lines.push('## Suggested skills', '');
     if (skills.length === 0) {

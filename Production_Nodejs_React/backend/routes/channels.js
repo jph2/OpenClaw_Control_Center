@@ -838,7 +838,7 @@ router.post('/createSubAgent', async (req, res, next) => {
                 return res.status(409).json({
                     ok: false,
                     error: true,
-                    message: `Sub-agent id "${payload.id}" already exists.`
+                    message: `Skill Role id "${payload.id}" already exists.`
                 });
             }
 
@@ -867,7 +867,7 @@ router.post('/createSubAgent', async (req, res, next) => {
             parsed.channels = normalizeChannelsAssignedAgentTars(parsed.channels || []);
             const finalState = ChannelConfigSchema.parse(parsed);
             await fsPromises.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
-            res.json({ ok: true, message: 'Sub-agent created.', subAgent: row });
+            res.json({ ok: true, message: 'Skill Role created.', subAgent: row });
         } finally {
             await release();
         }
@@ -898,7 +898,7 @@ router.post('/deleteSubAgent', async (req, res, next) => {
                 return res.status(404).json({
                     ok: false,
                     error: true,
-                    message: `Sub-agent "${payload.subAgentId}" not found.`
+                    message: `Skill Role "${payload.subAgentId}" not found.`
                 });
             }
 
@@ -912,7 +912,7 @@ router.post('/deleteSubAgent', async (req, res, next) => {
             parsed.channels = normalizeChannelsAssignedAgentTars(parsed.channels || []);
             const finalState = ChannelConfigSchema.parse(parsed);
             await fsPromises.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
-            res.json({ ok: true, message: 'Sub-agent removed.' });
+            res.json({ ok: true, message: 'Skill Role removed.' });
         } finally {
             await release();
         }
