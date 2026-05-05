@@ -319,7 +319,9 @@ artifact-centered.
 **Dependencies:** Existing C2 summary/memory promote endpoints, A070_ide_cursor_summaries write
 support, IDE bundle/export bridge, and the current §8b.4 chat beta.
 
-### 8b.6 · General_Dev -> Studio corpus migration & header normalization (active planning)
+### 8b.6 · General_Dev -> Studio corpus migration & header normalization
+
+**Status (freeze `2026-04-27-1fe240e`, 2026-04-29):** **Staging and import pass closed** at batch level. Operator truth + review pointers: Studio [`BATCH.md`](../../../Studio_Framework/095_Migration_Staging/General_Dev/2026-04-27-1fe240e/BATCH.md). Channel Manager `030_ROADMAP.md` §3 lists this closure; §4 tracks ongoing **programme** work (review queues, §8b.6C, future freezes).
 
 **Detailed spec:** [`SPEC_GENERAL_DEV_STUDIO_MIGRATION_V1.md`](./SPEC_GENERAL_DEV_STUDIO_MIGRATION_V1.md)
 
@@ -363,7 +365,7 @@ Studio corpus.
 
 ### 8b.6B · General_Dev lessons & reimplementation candidates
 
-**Status (batch `2026-04-27-1fe240e`):** triage **closed 2026-04-28** — lesson records archived under Studio `095_Migration_Staging/General_Dev/2026-04-27-1fe240e/lessons/_archive/`; outcomes in [`STUDIO_BRIDGE.md`](../../Studio_Framework/095_Migration_Staging/General_Dev/2026-04-27-1fe240e/lessons/STUDIO_BRIDGE.md). See `030_ROADMAP.md` §3.
+**Status (batch `2026-04-27-1fe240e`):** triage **closed 2026-04-28** — lesson records archived under Studio `095_Migration_Staging/General_Dev/2026-04-27-1fe240e/lessons/_archive/`; outcomes in [`STUDIO_BRIDGE.md`](../../../Studio_Framework/095_Migration_Staging/General_Dev/2026-04-27-1fe240e/lessons/STUDIO_BRIDGE.md). See `030_ROADMAP.md` §3.
 
 **Detailed spec:** [`SPEC_GENERAL_DEV_LESSONS_REIMPLEMENTATION_CANDIDATES_V1.md`](./SPEC_GENERAL_DEV_LESSONS_REIMPLEMENTATION_CANDIDATES_V1.md)
 
@@ -391,6 +393,36 @@ decision (`reimplement`, `document-only`, `archive`, `defer`, `reject`).
 **Hard constraint:** raw legacy tools are not promoted to production by copying
 them. Valuable behavior is re-specified and rebuilt in the current Studio/CM
 architecture after review.
+
+### 8b.6E · Legacy rules / guardrails reclassification
+
+**Status (2026-04-30):** active cleanup spec created after the full
+`060_Domain_Guardrails/` tree was moved from active Studio standards into
+`RULES_to_REVIEW`. This is now the roadmap enforcement track for the
+boot-level `~/.openclaw/workspace/GOVERNANCE.md` intelligence-placement policy.
+It corrects the first import wave: legacy General_Dev rules, guardrails, router
+files, harness ideas, and domain knowledge must be reviewed by **function and
+owner surface**, not restored by old path.
+
+**Detailed spec:** [`SPEC_8B6E_LEGACY_RULES_GUARDRAILS_RECLASSIFICATION_V1.md`](./SPEC_8B6E_LEGACY_RULES_GUARDRAILS_RECLASSIFICATION_V1.md)
+
+**Intent:** Decide where each useful piece of legacy intelligence belongs in
+the new stack:
+
+1. **Studio Framework** keeps durable artifacts, TTG work products, domain
+   best practices, anti-patterns, examples, patterns, and referenceable
+   knowledge.
+2. **OpenClaw workspace** owns behavioral governance: soul, AGENTS,
+   GOVERNANCE, memory policy, harness rules, and cross-tool guardrails.
+3. **Channel Manager** owns orchestration: effective config, bindings,
+   Apply/export, topology, and operator-facing specs.
+4. **Cursor / IDE** receives projections and pointers only.
+5. Scripts, generated indexes, large vendor dumps, and local logs are routed to
+   tooling, reference/archive, or discard decisions.
+
+**Next useful action:** build disposition tables for `RULES_to_REVIEW`, starting
+with `060_Domain_Guardrails`, then remove any active Studio ghost placeholders
+once roadmap/docs no longer need them as transition anchors.
 
 ### 8b.7 · TTG agent topology visualization (after §8b.5)
 

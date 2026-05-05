@@ -65,12 +65,14 @@ if (process.env.NODE_ENV !== 'test') {
 app.use((err, req, res, next) => {
     console.error(`[ERROR] ${err.name}: ${err.message}`);
     
-    // Do not leak stack traces unless explicitly in dev mode
-    const isDev = process.env.NODE_ENV === 'development';
-    
+    // Operator console: show safe message details whenever not in production.
+    // (NODE_ENV is often unset during local `npm start`, which hid errors before.)
+    const exposeMessage =
+        process.env.NODE_ENV !== 'production' || process.env.CM_EXPOSE_ERROR_DETAILS === '1';
+
     res.status(err.status || 500).json({
         error: true,
-        message: isDev ? err.message : 'Internal Server Error'
+        message: exposeMessage ? err.message : 'Internal Server Error'
     });
 });
 

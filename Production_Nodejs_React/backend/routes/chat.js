@@ -192,7 +192,7 @@ export async function handleSessionSendMedia(req, res, next) {
         const { sessionId } = req.params;
         const body = SessionSendMediaSchema.parse(req.body);
         const attachment = normalizeGatewayImageAttachment(body.image);
-        const result = await sendMessageToChat(sessionId, body.message, {
+        const result = await sendMessageToChat(body.sessionKey || sessionId, body.message, {
             attachments: [attachment]
         });
         const totalMs = Date.now() - requestStartedAt;
@@ -251,7 +251,7 @@ export async function handleSessionSend(req, res, next) {
         const { sessionId } = req.params;
         const body = SessionSendSchema.parse(req.body);
 
-        const result = await sendMessageToChat(sessionId, body.message);
+        const result = await sendMessageToChat(body.sessionKey || sessionId, body.message);
 
         const totalMs = Date.now() - requestStartedAt;
         res.json({

@@ -709,7 +709,12 @@ export default function ChatPanel({
             const result = await sendMedia({ text: cap, image: img });
             if (!result.ok) {
                 console.error(result.error);
-                alert('Bild konnte nicht gesendet werden (Gateway nötig, max. 5 MB, PNG/JPEG/WebP/GIF).');
+                const hint = result.error?.message ? String(result.error.message) : '';
+                alert(
+                    hint
+                        ? `Bild konnte nicht gesendet werden:\n\n${hint}`
+                        : 'Bild konnte nicht gesendet werden (Gateway nötig, max. 5 MB, PNG/JPEG/WebP/GIF).'
+                );
                 setPendingImage(img);
                 setInputValue(cap);
             }
@@ -721,7 +726,8 @@ export default function ChatPanel({
         const result = await sendMessage(textToSend);
         if (!result.ok) {
             console.error(result.error);
-            alert('Failed to send message.');
+            const hint = result.error?.message ? String(result.error.message) : '';
+            alert(hint ? `Senden fehlgeschlagen:\n\n${hint}` : 'Failed to send message.');
             setInputValue(textToSend);
         }
     };

@@ -48,6 +48,30 @@ function removeMatchedOptimisticMessages(currentMessages, incomingMessages) {
     });
 }
 
+/**
+ * Turn a non-OK fetch into an Error with best-effort body text (JSON `message` or short text).
+ * @param {Response} res
+ */
+async function throwIfResNotOk(res) {
+    if (res.ok) return;
+    let detail = `${res.status} ${res.statusText || ''}`.trim();
+    try {
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+            const j = await res.json();
+            if (j && typeof j.message === 'string' && j.message) detail = j.message;
+        } else {
+            const t = await res.text();
+            if (t && t.length < 600) detail = t;
+        }
+    } catch {
+        /* keep detail */
+    }
+    const err = new Error(detail || 'Request failed');
+    err.status = res.status;
+    throw err;
+}
+
 /** Few retries when the browser hits transient connection limits or the Vite proxy blips. */
 async function fetchSessionJson(groupId, maxAttempts = 4) {
     let lastErr = null;
@@ -230,7 +254,7 @@ export function useChatSession(groupId) {
                 });
             }
 
-            if (!res.ok) throw new Error('Send failed');
+            await throwIfResNotOk(res);
             const data = await res.json();
             setLastSendMeta(data);
             setMessages((prev) =>
@@ -312,7 +336,7 @@ export function useChatSession(groupId) {
                 });
             }
 
-            if (!res.ok) throw new Error('Send failed');
+            await throwIfResNotOk(res);
             const data = await res.json();
             setLastSendMeta(data);
             setMessages((prev) =>

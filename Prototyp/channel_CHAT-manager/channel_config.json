@@ -18,7 +18,7 @@
     {
       "id": "-1003752539559",
       "name": "TG000_General_Chat",
-      "model": "moonshot/kimi-k2.5",
+      "model": "openai-codex/gpt-5.4",
       "skills": [],
       "assignedAgent": "tars",
       "ideOverride": false,

@@ -1,6 +1,6 @@
 # SPEC - General_Dev -> Studio Framework Migration V1
 
-**Status:** planned active roadmap item; hardening pass added (2026-04-27)  
+**Status:** active · batch `2026-04-27-1fe240e` **staging/import pass closed** 2026-04-29 (operator narrative: Studio [`BATCH.md`](../../../Studio_Framework/095_Migration_Staging/General_Dev/2026-04-27-1fe240e/BATCH.md)). Ongoing: `*_to_REVIEW` queues, manifest deferrals, §8b.6C/D maturation, future freezes.
 **Scope:** migration planning, inventory, quality/security gates, and controlled
 import of `General_Dev` knowledge artifacts into `Studio_Framework`  
 **Owner surface:** Studio Framework corpus + Channel Manager roadmap/audit support  
@@ -151,6 +151,23 @@ Only accepted files move into final Studio locations such as:
 
 The final import must follow
 `Studio_Framework/050_Artifacts/README_ARTIFACT_INGESTION_AND_ONBOARDING.md`.
+
+### 4.1 Batch closure (staging / import pass complete)
+
+A migration **batch** may declare **staging and import pass complete** when, for
+that source **freeze**, planned admits into governed targets, consumptions into
+`CONSUMED_IMPORTS___DONE/`, and quarantines/deferrals are finished — i.e. no
+further “hidden” bulk import is expected **inside** the batch folder.
+
+**Canonical operator narrative** for each batch lives in:
+
+`Studio_Framework/095_Migration_Staging/General_Dev/<batch-id>/BATCH.md`
+
+That file names **remaining work** explicitly: sibling folders under
+`095_Migration_Staging/General_Dev/` whose names end in `_to_REVIEW` (or
+equivalent), plus `manifest.jsonl` rows still **`deferred`**, **`proposed`**, or
+**`blocked`**. **New** bulk staging from `General_Dev` requires a **new** freeze
+and **new** `batch-id`; do not treat a closed batch as an open import bucket.
 
 ## 5. Classification And Target Mapping
 

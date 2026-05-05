@@ -446,8 +446,10 @@ V1 is complete when:
 
 `Studio_Framework/095_Migration_Staging/General_Dev/2026-04-27-1fe240e/lessons/_archive/2026-04-27-1fe240e/`
 
-**Outcomes, deferrals, and upcoming items** (single screen): [`STUDIO_BRIDGE.md`](../../Studio_Framework/095_Migration_Staging/General_Dev/2026-04-27-1fe240e/lessons/STUDIO_BRIDGE.md)
+**Outcomes, deferrals, and upcoming items** (single screen): [`STUDIO_BRIDGE.md`](../../../Studio_Framework/095_Migration_Staging/General_Dev/2026-04-27-1fe240e/lessons/STUDIO_BRIDGE.md)
 
-Channel Manager roadmap: **§8b.6B** batch triage marked **closed** in `030_ROADMAP.md` §3; follow-up implementation is **§8b.6C**, **§8b.6D**, and backlog **6.23** — not a new lesson pass for this wave.
+**Batch staging/import closure (operator):** [`BATCH.md`](../../../Studio_Framework/095_Migration_Staging/General_Dev/2026-04-27-1fe240e/BATCH.md)
+
+Channel Manager roadmap: **§8b.6B** batch triage marked **closed** in `030_ROADMAP.md` §3; **§8b.6** staging/import pass for this freeze marked **closed** in §3 (2026-04-29). Follow-up implementation is **§8b.6C**, **§8b.6D**, review queues, and backlog **6.23** — not a new lesson pass for this wave.
 
 This SPEC remains the **methodology** for future `General_Dev` mirror batches or other legacy corpora.

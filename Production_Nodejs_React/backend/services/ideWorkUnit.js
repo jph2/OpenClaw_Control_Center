@@ -181,16 +181,36 @@ export function computeWorkUnitStatus(meta, hasSummary = true) {
     return 'not_promoted';
 }
 
+export function buildRoutingSuggestionFromClassification(classification) {
+    if (!classification || classification.status === 'unknown' || !classification.ttgId) {
+        return null;
+    }
+    return {
+        status: 'proposed',
+        method: 'agent_classification',
+        ttgId: classification.ttgId,
+        ttgName: classification.ttgName || '',
+        confidence: classification.confidence,
+        evidence: classification.evidence || [],
+        candidates: classification.candidates || [],
+        distribution: classification.distribution || [],
+        reason: `Agent suggests this TTG; human confirmation required (${classification.status}).`
+    };
+}
+
 /**
  * Merge TTG classifier output into sidecar meta. Hard resolver signals
  * (explicit, header, project mapping, path hint) always win; classifier
- * fills binding only when the resolver did not produce an authoritative TTG.
+ * is advisory only and never writes the operative binding. Human confirmation
+ * is required before a suggested TTG becomes routing truth.
  */
 export function mergeTtgClassificationIntoMeta(meta, classification) {
     if (!meta || !classification) return meta;
     const now = new Date().toISOString();
+    const routingSuggestion = buildRoutingSuggestionFromClassification(classification);
     const next = {
         ...meta,
+        ...(routingSuggestion ? { routingSuggestion } : {}),
         ttgClassification: {
             status: classification.status,
             method: classification.method,
@@ -210,20 +230,7 @@ export function mergeTtgClassificationIntoMeta(meta, classification) {
     if (binding.status === 'ambiguous' || binding.status === 'confirmed' || hardMethod || headerInferred) {
         return next;
     }
-    if (classification.status === 'unknown') {
-        return next;
-    }
-    return {
-        ...next,
-        binding: {
-            status: classification.status,
-            method: 'agent_classification',
-            ttgId: classification.ttgId,
-            ...(classification.candidates?.length ? { candidates: classification.candidates } : {}),
-            reason: `agent classification (${classification.status})`
-        },
-        ttgId: classification.ttgId || meta.ttgId || null
-    };
+    return next;
 }
 
 /** Block memory promotion until binding is operator- or artifact-confirmed (not classifier-only). */
@@ -240,14 +247,48 @@ export function assertPromoteBindingAllowed(meta) {
     }
     const st = meta.binding?.status;
     const method = meta.binding?.method;
-    const promotableMethods = new Set(['explicit', 'artifact_header', 'project_mapping', 'path_hint']);
+    const promotableMethods = new Set(['explicit', 'artifact_header', 'project_mapping', 'path_hint', 'operator_confirmed']);
     if (st !== 'confirmed' || !promotableMethods.has(method)) {
         const err = new Error(
-            `Promotion blocked: binding must be confirmed by explicit, artifact_header, project_mapping, or path_hint (got ${st || 'unknown'} / ${method || 'none'})`
+            `Promotion blocked: binding must be confirmed by explicit, artifact_header, project_mapping, path_hint, or operator_confirmed (got ${st || 'unknown'} / ${method || 'none'})`
         );
         err.status = 400;
         throw err;
     }
+}
+
+export function confirmWorkUnitRouting(meta, {
+    ttgId,
+    ttgName = '',
+    reason = 'operator accepted routing suggestion'
+} = {}) {
+    if (!meta || typeof meta !== 'object' || meta.__invalid) {
+        const err = new Error('missing or invalid summary metadata');
+        err.status = 400;
+        throw err;
+    }
+    if (!ttgId) {
+        const err = new Error('ttgId is required');
+        err.status = 400;
+        throw err;
+    }
+    const now = new Date().toISOString();
+    return {
+        ...meta,
+        ttgId,
+        channelName: ttgName || meta.channelName || '',
+        binding: {
+            status: 'confirmed',
+            method: 'operator_confirmed',
+            ttgId,
+            ttgName,
+            reason
+        },
+        routingSuggestion: meta.routingSuggestion
+            ? { ...meta.routingSuggestion, status: 'accepted', acceptedAt: now }
+            : undefined,
+        updatedAt: now
+    };
 }
 
 export function updateMetaAfterPromotion(meta, result) {

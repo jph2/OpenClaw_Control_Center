@@ -23,6 +23,7 @@ import {
     assertPromoteBindingAllowed,
     buildIdeWorkUnit,
     computeWorkUnitStatus,
+    confirmWorkUnitRouting,
     mergeTtgClassificationIntoMeta,
     readJsonIfExists,
     readJsonWithStatus,
@@ -111,6 +112,16 @@ const MemoryPromoteSchema = z
             });
         }
     });
+
+const SummaryRoutingConfirmSchema = z.object({
+    sourceRelativePath: z
+        .string()
+        .min(1)
+        .refine((s) => !s.includes('..') && !path.isAbsolute(s), 'invalid source path'),
+    ttgId: z.string().refine((value) => isValidTtgId(value), 'invalid TTG id'),
+    ttgName: z.string().optional().default(''),
+    reason: z.string().optional().default('operator accepted routing suggestion')
+});
 
 const IdeCaptureRunSchema = z.object({
     force: z.boolean().optional().default(false)
@@ -705,6 +716,53 @@ router.get('/memory', async (req, res, next) => {
 /**
  * GET /api/summaries/memory/file?relative=...
  */
+/**
+ * POST /api/summaries/routing/confirm
+ * Human-in-the-loop confirmation for an A070 summary sidecar. Agent/classifier
+ * proposals are advisory only; this endpoint materializes the selected TTG as
+ * the operative summary binding without touching Channel Manager agent/skill
+ * configuration.
+ */
+router.post('/routing/confirm', apiLimiter, async (req, res, next) => {
+    try {
+        const body = SummaryRoutingConfirmSchema.parse(req.body);
+        const base = a070BaseResolved();
+        const metaRel = summaryMetaRelativePath(body.sourceRelativePath);
+        const { resolved: metaResolved } = await resolveSafe(base, metaRel.split('/').join(path.sep));
+        const existingMeta = await readJsonWithStatus(metaResolved);
+        if (!existingMeta.exists) {
+            return res.status(404).json({ ok: false, error: 'summary metadata not found' });
+        }
+        if (existingMeta.invalid) {
+            return res.status(400).json({
+                ok: false,
+                error: 'summary metadata is invalid',
+                details: existingMeta.error
+            });
+        }
+        const meta = confirmWorkUnitRouting(existingMeta.value, {
+            ttgId: body.ttgId,
+            ttgName: body.ttgName,
+            reason: body.reason
+        });
+        await writeJsonAtomic(metaResolved, meta);
+        res.json({
+            ok: true,
+            sourceRelativePath: body.sourceRelativePath,
+            metaRelativePath: metaRel,
+            meta,
+            bridgeStatus: computeWorkUnitStatus(meta, true)
+        });
+    } catch (e) {
+        if (e instanceof z.ZodError) {
+            return res.status(400).json({ ok: false, error: 'Validation failed', details: e.flatten() });
+        }
+        if (e.status === 400) return res.status(400).json({ ok: false, error: e.message });
+        if (e.status === 403) return res.status(403).json({ ok: false, error: 'path blocked' });
+        next(e);
+    }
+});
+
 /**
  * POST /api/summaries/promote
  * Append a summary from A070_ide_cursor_summaries into `~/.openclaw/workspace/memory/YYYY-MM-DD.md` or `MEMORY.md` (Bundle C2).

@@ -174,7 +174,9 @@ function channelRelevance(record, channelId) {
     const b = record.binding || {};
     if (b.ttgId === channelId) return 4;
     if (record.ttg?.current?.id === channelId) return 4;
+    if (record.routingSuggestion?.ttgId === channelId) return 3;
     if ((b.candidates || []).some((c) => candidateTtgId(c) === channelId)) return 3;
+    if ((record.classificationEvidence?.distribution || []).some((c) => candidateTtgId(c) === channelId)) return 3;
     if (String(record.sourcePath || '').includes(channelId)) return 2;
     return 0;
 }
@@ -241,13 +243,14 @@ function confirmDraftFromRecord(record) {
     }
     const b = record.binding || {};
     const cur = record.ttg?.current;
+    const suggestion = record.routingSuggestion || {};
     const firstCandidate = Array.isArray(b.candidates) ? b.candidates[0] : null;
-    const id = b.ttgId || cur?.id || candidateTtgId(firstCandidate) || '';
-    const name = cur?.name || candidateTtgName(firstCandidate) || '';
+    const id = b.ttgId || cur?.id || suggestion.ttgId || candidateTtgId(firstCandidate) || '';
+    const name = cur?.name || suggestion.ttgName || candidateTtgName(firstCandidate) || '';
     return {
         ttgId: id ? String(id) : '',
         ttgName: name ? String(name) : '',
-        reason: 'operator confirmed TTG binding'
+        reason: suggestion.ttgId ? 'operator accepted routing suggestion' : 'operator confirmed TTG binding'
     };
 }
 
@@ -635,6 +638,32 @@ export default function IdeProjectSummaryPanel({ channelId, channelName }) {
             queryClient.invalidateQueries({ queryKey: ['studio-artifact-index'] });
             setSelectedArtifactSourcePath(null);
             setObExportPreview(null);
+        }
+    });
+
+    const confirmSummaryRoutingMutation = useMutation({
+        mutationFn: async () => {
+            const suggestion = selectedMeta?.routingSuggestion;
+            if (!selectedRel || !suggestion?.ttgId) {
+                throw new Error('Select a summary with a routing suggestion first.');
+            }
+            const res = await fetch('/api/ide-project-summaries/routing/confirm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sourceRelativePath: selectedRel,
+                    ttgId: String(suggestion.ttgId),
+                    ttgName: suggestion.ttgName || '',
+                    reason: 'operator accepted routing suggestion'
+                })
+            });
+            const j = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(j.error || res.statusText);
+            return j;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['ide-project-summaries', channelId] });
+            queryClient.invalidateQueries({ queryKey: ['ideSummaryFile', selectedRel, panel] });
         }
     });
 
@@ -2087,6 +2116,31 @@ sudo chown -R "$APIUSER:$APIUSER" /media/cursor-workspace`}
                                 {selectedArtifactRecord.binding?.reason && (
                                     <div>Binding note: {selectedArtifactRecord.binding.reason}</div>
                                 )}
+                                {selectedArtifactRecord.routingSuggestion?.ttgId && (
+                                    <div>
+                                        Routing suggestion:{' '}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setConfirmTtgId(String(selectedArtifactRecord.routingSuggestion.ttgId));
+                                                setConfirmTtgName(selectedArtifactRecord.routingSuggestion.ttgName || '');
+                                                setConfirmReason('operator accepted routing suggestion');
+                                            }}
+                                            style={{
+                                                padding: '2px 6px',
+                                                fontSize: 10,
+                                                background: '#1d2532',
+                                                border: '1px solid var(--border-color)',
+                                                color: '#50e3c2',
+                                                borderRadius: 4,
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            {selectedArtifactRecord.routingSuggestion.ttgName
+                                                || selectedArtifactRecord.routingSuggestion.ttgId}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                             {(selectedArtifactRecord.classificationEvidence?.distribution || []).length > 0 && (
                                 <div style={{ marginBottom: 12, fontSize: 11 }}>
@@ -2436,7 +2490,7 @@ sudo chown -R "$APIUSER:$APIUSER" /media/cursor-workspace`}
                                         <div style={{ color: statusColor, fontWeight: 700, marginBottom: 6 }}>
                                             {STATUS_LABELS[selectedStatus] || 'Draft saved'}
                                         </div>
-                                        <div>TTG: <code>{selectedMeta?.ttgId || channelId || 'unknown'}</code></div>
+                                        <div>Confirmed TTG: <code>{selectedMeta?.ttgId || 'unconfirmed'}</code></div>
                                         <div>Project: <code>{selectedMeta?.projectId || 'unknown'}</code></div>
                                         <div>Surface: <code>{selectedMeta?.surface || 'unknown'}</code></div>
                                         <div>Binding: <code>{selectedMeta?.binding?.status || 'unknown'}</code></div>
@@ -2447,6 +2501,50 @@ sudo chown -R "$APIUSER:$APIUSER" /media/cursor-workspace`}
                                         {selectedMeta?.binding?.candidates?.length > 0 && (
                                             <div>
                                                 Candidates: <code>{formatBindingCandidates(selectedMeta.binding.candidates)}</code>
+                                            </div>
+                                        )}
+                                        {selectedMeta?.routingSuggestion?.ttgId && (
+                                            <div
+                                                style={{
+                                                    marginTop: 8,
+                                                    padding: 8,
+                                                    border: '1px solid rgba(80,227,194,0.35)',
+                                                    borderRadius: 6,
+                                                    background: 'rgba(80,227,194,0.08)'
+                                                }}
+                                            >
+                                                <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                                                    Suggested TTG:{' '}
+                                                    <code>
+                                                        {selectedMeta.routingSuggestion.ttgName
+                                                            || selectedMeta.routingSuggestion.ttgId}
+                                                    </code>
+                                                </div>
+                                                <div style={{ marginTop: 4 }}>
+                                                    {selectedMeta.routingSuggestion.reason || 'Human confirmation required.'}
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => confirmSummaryRoutingMutation.mutate()}
+                                                    disabled={confirmSummaryRoutingMutation.isPending}
+                                                    style={{
+                                                        marginTop: 8,
+                                                        padding: '5px 9px',
+                                                        fontSize: 11,
+                                                        background: '#1d2532',
+                                                        border: '1px solid var(--border-color)',
+                                                        color: '#50e3c2',
+                                                        borderRadius: 4,
+                                                        cursor: confirmSummaryRoutingMutation.isPending ? 'wait' : 'pointer'
+                                                    }}
+                                                >
+                                                    {confirmSummaryRoutingMutation.isPending ? 'Confirming…' : 'Accept suggestion'}
+                                                </button>
+                                                {confirmSummaryRoutingMutation.error && (
+                                                    <div style={{ marginTop: 6, color: '#ff8f8f' }}>
+                                                        {confirmSummaryRoutingMutation.error.message}
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                         {selectedMeta?.ttgClassification?.distribution?.length > 0 && (

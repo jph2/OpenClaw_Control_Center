@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { extractMarkdownFrontmatter, parseArtifactHeaderBinding } from './artifactHeaderBinding.js';
 import { classifyArtifactTtg, loadTtgDefinitions } from './ttgClassifier.js';
+import { buildRoutingSuggestionFromClassification } from './ideWorkUnit.js';
 import { mergeOpenBrainSyncIntoRecords } from './openBrainSyncAudit.js';
 
 const SCHEMA_VERSION = 'studio-framework.artifact-index.v1';
@@ -196,6 +197,7 @@ export function indexMarkdownArtifact({ studioRoot, filePath, markdown, ttgDefin
         contentHash: '',
         secretGate: detectSecretLikeContent(text, sourcePath),
         classificationEvidence: null,
+        routingSuggestion: null,
         exportEligibility: { status: 'needs_review', reason: '' },
         promote: {
             status: 'not_promoted',
@@ -215,22 +217,7 @@ export function indexMarkdownArtifact({ studioRoot, filePath, markdown, ttgDefin
             ttgDefinitions
         });
         record.classificationEvidence = classification;
-        if (classification.status !== 'unknown') {
-            record.binding = {
-                status: classification.status,
-                method: 'agent_classification',
-                ttgId: classification.ttgId || null,
-                candidates: classification.candidates || [],
-                reason: `agent classification confidence ${classification.confidence}`
-            };
-            if (classification.ttgId) {
-                record.ttg.current = {
-                    id: classification.ttgId,
-                    name: classification.ttgName || '',
-                    reason: 'agent classification proposal; requires review'
-                };
-            }
-        }
+        record.routingSuggestion = buildRoutingSuggestionFromClassification(classification);
     }
     record.contentHash = sha256(canonicalJson(buildContentHashInput(record, text)));
     record.exportEligibility = exportEligibility({

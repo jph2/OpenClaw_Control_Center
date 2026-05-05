@@ -4,6 +4,7 @@ import {
     assertPromoteBindingAllowed,
     buildIdeWorkUnit,
     computeWorkUnitStatus,
+    confirmWorkUnitRouting,
     inferTtgId,
     mergeTtgClassificationIntoMeta,
     summaryMetaRelativePath,
@@ -104,16 +105,40 @@ binding:
         assert.equal(merged.ttgId, '-1003752539559');
         assert.equal(merged.binding.method, 'explicit');
         assert.equal(merged.ttgClassification.status, 'inferred');
+        assert.equal(merged.routingSuggestion.ttgId, '-1003930983368');
     });
 
-    it('assertPromoteBindingAllowed rejects classifier-only binding', () => {
+    it('mergeTtgClassificationIntoMeta records classifier output as suggestion only', () => {
+        const unit = buildIdeWorkUnit({
+            summaryRelativePath: 'drafts/summary.md',
+            projectId: 'x'
+        });
+        const merged = mergeTtgClassificationIntoMeta(unit, {
+            status: 'inferred',
+            method: 'agent_classification',
+            ttgId: '-1003930983368',
+            ttgName: 'TTG010_General_Discovery_Plus_Research',
+            confidence: 0.9,
+            evidence: ['matched discovery'],
+            candidates: [],
+            distribution: [{ ttgId: '-1003930983368', percent: 100, score: 10, evidence: [], code: '010', ttgName: 'TTG010' }]
+        });
+        assert.equal(merged.ttgId, null);
+        assert.equal(merged.binding.status, 'unknown');
+        assert.equal(merged.binding.method, 'none');
+        assert.equal(merged.routingSuggestion.status, 'proposed');
+        assert.equal(merged.routingSuggestion.ttgId, '-1003930983368');
+    });
+
+    it('assertPromoteBindingAllowed rejects unconfirmed classifier suggestion', () => {
         assert.throws(
             () =>
                 assertPromoteBindingAllowed({
-                    ttgId: '-1003752539559',
-                    binding: { status: 'inferred', method: 'agent_classification' }
+                    ttgId: null,
+                    binding: { status: 'unknown', method: 'none' },
+                    routingSuggestion: { status: 'proposed', ttgId: '-1003752539559' }
                 }),
-            /binding must be confirmed/i
+            /no resolved TTG id/i
         );
     });
 
@@ -143,5 +168,31 @@ binding:
                 binding: { status: 'confirmed', method: 'explicit' }
             })
         );
+    });
+
+    it('confirmWorkUnitRouting turns a suggestion into operator-confirmed binding', () => {
+        const unit = buildIdeWorkUnit({
+            summaryRelativePath: 'drafts/summary.md',
+            projectId: 'x'
+        });
+        const withSuggestion = mergeTtgClassificationIntoMeta(unit, {
+            status: 'inferred',
+            method: 'agent_classification',
+            ttgId: '-1003930983368',
+            ttgName: 'TTG010_General_Discovery_Plus_Research',
+            confidence: 0.9,
+            evidence: [],
+            candidates: [],
+            distribution: []
+        });
+        const confirmed = confirmWorkUnitRouting(withSuggestion, {
+            ttgId: '-1003930983368',
+            ttgName: 'TTG010_General_Discovery_Plus_Research'
+        });
+        assert.equal(confirmed.ttgId, '-1003930983368');
+        assert.equal(confirmed.binding.status, 'confirmed');
+        assert.equal(confirmed.binding.method, 'operator_confirmed');
+        assert.equal(confirmed.routingSuggestion.status, 'accepted');
+        assert.doesNotThrow(() => assertPromoteBindingAllowed(confirmed));
     });
 });

@@ -15,7 +15,13 @@ export async function sendMessageToChat(chatId, text, options = {}) {
     const requestStartedAt = Date.now();
     const canonical = resolveCanonicalSession(chatId);
     const realChatId = canonical.chatId;
-    const sendMode = resolveGatewaySendMode();
+    const transportEnvRaw = String(process.env.OPENCLAW_CM_SEND_TRANSPORT || '').trim();
+    const baseSendMode = resolveGatewaySendMode();
+    const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+    // Media requires gateway `chat.send` with attachments; CLI path is text-only. If the operator
+    // has not set OPENCLAW_CM_SEND_TRANSPORT, default attachment sends to `auto` so we try the
+    // warm gateway (token/URL from env or openclaw.json) instead of failing with 501.
+    const sendMode = hasAttachments && !transportEnvRaw ? 'auto' : baseSendMode;
 
     logOpenclawSend('inject_start', {
         rawChatId: String(chatId),
@@ -23,13 +29,14 @@ export async function sendMessageToChat(chatId, text, options = {}) {
         sessionKey: canonical.sessionKey,
         sessionId: canonical.sessionId,
         sendMode,
+        sendModeEnv: transportEnvRaw || null,
+        sendModeBase: baseSendMode,
         textLen: String(text).length,
         attachmentCount: Array.isArray(attachments) ? attachments.length : 0,
         requestStartedAt
     });
 
     const trimmedText = String(text || '').trim();
-    const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
 
     if (hasAttachments && !shouldAttemptGatewayNative(sendMode)) {
         const err = new GatewayNativeTransportUnavailable(

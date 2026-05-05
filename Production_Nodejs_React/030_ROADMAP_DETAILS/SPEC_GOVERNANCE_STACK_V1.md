@@ -34,7 +34,7 @@ Different models differ in tool use, verbosity, and edge-case handling. The **st
 - **Studio_Framework** keeps **one** `.cursor/rules` file — **`openclaw-workspace-authority.mdc`** — as an IDE bootstrap pointer; **do not** add further normative `.mdc` shards there (avoid a second rulebook).
 - **Do not** place **authoritative** rules, skills definitions, soul, or identity **only** in `Studio_Framework/.cursor/rules` (or any sibling repo’s `.cursor/rules`) as long-form policy.
 - **Do not** treat `.cursor/agents/*.md` as the **source** of persona/soul — generator stubs describe **CM wiring**; **behavioral basis** is **`SOUL.md`** and **`AGENTS.md`** on the OpenClaw workspace host.
-- **Migration / corpus gates** (e.g. admin ops quarantine) are **SPEC’d in this repo** (e.g. `SPEC_GENERAL_DEV_STUDIO_MIGRATION_V1.md`); Studio may mirror **playbooks** but not override CM migration law.
+- **Migration / corpus gates** (e.g. admin ops quarantine) are **SPEC’d in this repo** (e.g. `SPEC_GENERAL_DEV_STUDIO_MIGRATION_V1.md`); Studio may mirror **playbooks** but not override CM migration law. **Per-batch closure** (staging/import complete, consumed snapshots, review queues) is recorded in Studio `095_Migration_Staging/General_Dev/<batch-id>/BATCH.md`.
 
 ## 4. References
 

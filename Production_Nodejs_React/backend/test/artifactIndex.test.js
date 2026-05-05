@@ -70,7 +70,7 @@ describe('artifactIndex', () => {
         assert.equal(record.exportEligibility.status, 'needs_review');
     });
 
-    it('can attach agent classification evidence for unbound artifacts', () => {
+    it('can attach agent classification evidence as routing suggestion for unbound artifacts', () => {
         const record = indexMarkdownArtifact({
             studioRoot: '/studio',
             filePath: '/studio/050_Artifacts/A010_discovery-research/no-header.md',
@@ -85,10 +85,12 @@ describe('artifactIndex', () => {
             ]
         });
 
-        assert.equal(record.binding.method, 'agent_classification');
-        assert.equal(['inferred', 'needs_review'].includes(record.binding.status), true);
-        assert.equal(record.binding.ttgId, '-1003930983368');
-        assert.equal(record.ttg.current.id, '-1003930983368');
+        assert.equal(record.binding.method, 'none');
+        assert.equal(record.binding.status, 'unknown');
+        assert.equal(record.binding.ttgId, null);
+        assert.equal(record.ttg.current, null);
+        assert.equal(record.routingSuggestion.status, 'proposed');
+        assert.equal(record.routingSuggestion.ttgId, '-1003930983368');
         assert.equal(record.classificationEvidence.method, 'agent_classification');
         assert.equal(record.exportEligibility.status, 'needs_review');
     });

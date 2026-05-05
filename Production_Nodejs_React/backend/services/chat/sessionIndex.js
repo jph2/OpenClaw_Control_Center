@@ -204,6 +204,11 @@ export function refreshChatMirrorFromCanonicalSession(chatId) {
 export function resolveCanonicalSession(chatId) {
     let key = normalizeChatIdForBuffer(String(chatId));
     let inputSessionId = null;
+    const requestedSessionKeyMatch = key.match(TELEGRAM_GROUP_KEY_RE);
+    const requestedSessionKey = requestedSessionKeyMatch ? key : null;
+    if (requestedSessionKeyMatch) {
+        key = requestedSessionKeyMatch[2];
+    }
 
     const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (uuidPattern.test(key)) {
@@ -223,6 +228,17 @@ export function resolveCanonicalSession(chatId) {
 
     for (const sessionsPath of listAgentSessionsJsonPaths()) {
         const parsed = readSessionsJsonSafe(sessionsPath);
+        if (requestedSessionKey && parsed[requestedSessionKey]) {
+            const entry = parsed[requestedSessionKey];
+            return {
+                chatId: key,
+                sessionKey: requestedSessionKey,
+                sessionId: entry.sessionId || inputSessionId,
+                sessionFile: entry.sessionFile ? path.resolve(entry.sessionFile) : sessionFile,
+                deliveryContext: entry.deliveryContext || null
+            };
+        }
+
         for (const [candidateKey, entry] of Object.entries(parsed)) {
             if (!entry || typeof entry !== 'object') continue;
             const m = candidateKey.match(TELEGRAM_GROUP_KEY_RE);

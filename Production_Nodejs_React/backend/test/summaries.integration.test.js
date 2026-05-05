@@ -518,7 +518,7 @@ status: active
         assert.match(res.body.error, /not eligible/i);
     });
 
-    it('blocks promote when binding is classifier-only (must confirm TTG first)', async () => {
+    it('blocks promote when routing is only an agent suggestion (must confirm TTG first)', async () => {
         const cfgPath = path.join(tmpRoot, 'OpenClaw_Control_Center', 'Prototyp', 'channel_CHAT-manager', 'channel_config.json');
         await fs.writeFile(
             cfgPath,
@@ -560,7 +560,11 @@ tags: [discovery, research, analysis]
             })
             .expect(200);
 
-        assert.equal(write.body.meta.binding.method, 'agent_classification');
+        assert.equal(write.body.meta.binding.status, 'unknown');
+        assert.equal(write.body.meta.binding.method, 'none');
+        assert.equal(write.body.meta.ttgId, null);
+        assert.equal(write.body.meta.routingSuggestion.status, 'proposed');
+        assert.equal(write.body.meta.routingSuggestion.ttgId, '-1003930983368');
         assert.ok(write.body.meta.ttgClassification?.distribution?.length > 0);
 
         const res = await request(app)
@@ -576,7 +580,64 @@ tags: [discovery, research, analysis]
 
         assert.equal(res.body.ok, false);
         assert.match(res.body.error, /Promotion blocked/i);
-        assert.match(res.body.error, /classifier-only|explicit TTG|artifact header/i);
+        assert.match(res.body.error, /no resolved TTG id|confirmed/i);
+    });
+
+    it('confirms a summary routing suggestion before promotion', async () => {
+        const cfgPath = path.join(tmpRoot, 'OpenClaw_Control_Center', 'Prototyp', 'channel_CHAT-manager', 'channel_config.json');
+        await fs.writeFile(
+            cfgPath,
+            JSON.stringify(
+                {
+                    channels: [{ id: '-1003930983368', name: 'TTG010_General_Discovery_Plus_Research' }],
+                    agents: [],
+                    subAgents: [],
+                    projectMappings: []
+                },
+                null,
+                2
+            ),
+            'utf8'
+        );
+        const ttgDir = path.join(process.env.STUDIO_FRAMEWORK_ROOT, '000_TelegramTopicGroups_Def');
+        await fs.mkdir(ttgDir, { recursive: true });
+        await fs.writeFile(
+            path.join(ttgDir, 'TTG010_General_Discovery_Plus_Research.md'),
+            `---
+title: TTG010 General Discovery
+tags: [discovery, research, analysis]
+---
+
+# Discovery lane
+`,
+            'utf8'
+        );
+
+        const relativePath = 'drafts/2026-04-27__all__confirm-suggestion__summary.md';
+        await request(app)
+            .post('/api/ide-project-summaries')
+            .send({
+                relativePath,
+                text: '# Note\n\nStructured discovery and research with analysis for the API.',
+                createOnly: true,
+                meta: { surface: 'manual', projectId: 'confirm-suggestion' }
+            })
+            .expect(200);
+
+        const confirm = await request(app)
+            .post('/api/ide-project-summaries/routing/confirm')
+            .send({
+                sourceRelativePath: relativePath,
+                ttgId: '-1003930983368',
+                ttgName: 'TTG010_General_Discovery_Plus_Research',
+                reason: 'operator accepted routing suggestion'
+            })
+            .expect(200);
+
+        assert.equal(confirm.body.meta.ttgId, '-1003930983368');
+        assert.equal(confirm.body.meta.binding.status, 'confirmed');
+        assert.equal(confirm.body.meta.binding.method, 'operator_confirmed');
+        assert.equal(confirm.body.meta.routingSuggestion.status, 'accepted');
     });
 
     it('promote writes marker, confirms readback, and updates sidecar meta', async () => {

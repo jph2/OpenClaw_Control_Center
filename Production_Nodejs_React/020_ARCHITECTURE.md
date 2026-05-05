@@ -1,6 +1,6 @@
 # Channel Manager — Architecture
 
-**Status:** normative · **Scope:** Production_Nodejs_React · **Last reviewed:** 2026-04-18
+**Status:** normative · **Scope:** Production_Nodejs_React · **Last reviewed:** 2026-04-30
 
 > Describes **what the system is today** (2026-04-18) and the boundaries it
 > should respect. For *why*, see [`010_VISION.md`](./010_VISION.md). For *when*, see
@@ -57,7 +57,7 @@
 | Express backend | `3000`          | `npm start`     | REST + SSE + `channel_config.json` writer    |
 | Vite dev server | `5173`          | `npm run dev`   | React UI + `/api` proxy (dev and preview)    |
 | MCP stdio       | n/a (stdio)     | `run-mcp.sh`    | IDE ⇆ Channel Manager bridge                  |
-| OpenClaw        | `8080`, `4260`  | external        | Gateway (Telegram, sessions)                 |
+| OpenClaw gateway | *see `gateway.port` in* `~/.openclaw/openclaw.json` | external    | WebSocket RPC (`chat.send`, …). **Channel Manager** must use the same URL in `OPENCLAW_GATEWAY_URL` (see §4.3). Historic examples include `8080` / `18789` depending on install. |
 
 The historic multi-process launcher `occ-ctl.mjs` is **not present** in the
 current repo. Starting is done via `npm` scripts; documenting a single-command
@@ -195,6 +195,17 @@ The binding model the backend enforces:
 Rebind: when `sessions.json` shows a new `sessionFile` for a known `group_id`,
 the backend emits `SESSION_REBOUND` over SSE with a fresh buffer; the frontend
 treats it like `INIT`.
+
+**HTTP send routes:** `POST /api/chat/session/:sessionId/send` and
+`POST /api/chat/session/:sessionId/send-media` accept an optional JSON
+`sessionKey` (full `agent:*:telegram:group:<id>`). The backend prefers this over
+resolving from `:sessionId` alone so **session rebind** and index drift cannot
+drop the Rosetta key while the UI still holds a stale UUID. Without a resolvable
+key, native gateway `chat.send` fails fast (`canonical sessionKey is unavailable`).
+
+**Gateway URL:** set `OPENCLAW_GATEWAY_URL` in `backend/.env` to
+`http://127.0.0.1:<port>` where `<port>` is `gateway.port` in `openclaw.json`.
+A mismatch produces WebSocket abnormal close (**1006**) against the wrong host.
 
 ### 4.4 Config schema (`channel_config.json`)
 
