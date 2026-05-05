@@ -497,10 +497,11 @@ OpenClaw `agents.list[]` rows.
 
 The current P3 proof slice records headless Worker Runs in
 `Prototyp/channel_CHAT-manager/worker_runs_audit.jsonl` with a bounded input
-envelope, result artifact, event trail, and parent-aggregation status. This
-proves CM audit/readback and UI visibility while keeping `canSpeakToChannel:
-false`. Live model delegation and richer parent aggregation remain the next P3
-criteria.
+envelope, result artifact, event trail, and parent-aggregation status. CM can
+also request OpenClaw's native subagent spawn path for the headless worker and
+records the returned `childSessionKey` / OpenClaw `runId` when accepted. This
+proves live spawn wiring while keeping `canSpeakToChannel: false`. Completion
+readback and richer parent aggregation remain the next P3 criteria.
 
 ---
 

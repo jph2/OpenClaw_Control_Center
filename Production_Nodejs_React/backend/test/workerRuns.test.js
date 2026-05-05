@@ -99,6 +99,62 @@ test('createWorkerRun records a headless audit/readback run without Telegram wri
     });
 });
 
+test('createWorkerRun can spawn a live OpenClaw subagent and records child run ids', async () => {
+    await withTempWorkerRunEnv(async () => {
+        const calls = [];
+        const out = await createWorkerRun({
+            channelId: '-1001',
+            workerId: 'research-summary-worker',
+            task: 'Summarize the newest research notes.',
+            executionMode: 'openclawSubagent',
+            channelConfigRaw: channelConfigWithWorker(),
+            operator: 'test',
+            spawnSubagentDirect: async (params, ctx) => {
+                calls.push({ params, ctx });
+                return {
+                    status: 'accepted',
+                    childSessionKey: 'agent:worker-research-summary-worker:subagent:test',
+                    runId: 'oc-run-123',
+                    mode: 'run',
+                    note: 'accepted'
+                };
+            }
+        });
+
+        assert.equal(out.run.status, 'live_spawn_accepted');
+        assert.equal(out.run.mode, 'openclaw_subagent_spawn');
+        assert.equal(out.run.completedAt, null);
+        assert.equal(out.run.liveDelegation.runId, 'oc-run-123');
+        assert.equal(out.run.liveDelegation.childSessionKey, 'agent:worker-research-summary-worker:subagent:test');
+        assert.equal(out.run.parentAggregation.status, 'waiting_for_worker_completion');
+        assert.equal(out.run.parentAggregation.telegramWrite, 'not_performed');
+        assert.equal(calls[0].params.agentId, 'worker-research-summary-worker');
+        assert.equal(calls[0].params.mode, 'run');
+        assert.equal(calls[0].params.cleanup, 'keep');
+        assert.equal(calls[0].ctx.agentSessionKey, 'agent:tars-1001:telegram:group:-1001');
+        assert.ok(out.run.events.some((e) => e.type === 'openclaw_subagent_spawn_accepted'));
+    });
+});
+
+test('createWorkerRun records live spawn failures as readback-visible runs', async () => {
+    await withTempWorkerRunEnv(async () => {
+        const out = await createWorkerRun({
+            channelId: '-1001',
+            workerId: 'research-summary-worker',
+            task: 'Summarize the newest research notes.',
+            executionMode: 'openclawSubagent',
+            channelConfigRaw: channelConfigWithWorker(),
+            spawnSubagentDirect: async () => ({ status: 'error', error: 'agent missing' })
+        });
+
+        assert.equal(out.run.status, 'live_spawn_failed');
+        assert.equal(out.run.liveDelegation.status, 'error');
+        assert.equal(out.run.liveDelegation.error, 'agent missing');
+        assert.equal(out.run.parentAggregation.telegramWrite, 'not_performed');
+        assert.ok(out.run.events.some((e) => e.type === 'openclaw_subagent_spawn_failed'));
+    });
+});
+
 test('createWorkerRun rejects workers that are not active for the channel parent', async () => {
     await withTempWorkerRunEnv(async () => {
         await assert.rejects(

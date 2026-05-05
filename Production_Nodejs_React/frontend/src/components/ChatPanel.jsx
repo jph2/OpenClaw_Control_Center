@@ -830,7 +830,7 @@ export default function ChatPanel({
     const handleRunWorker = async () => {
         const task = inputValue.trim();
         if (!activeWorkerId || !task || isRunningWorker) return;
-        const result = await runWorker?.({ workerId: activeWorkerId, task });
+        const result = await runWorker?.({ workerId: activeWorkerId, task, executionMode: 'openclawSubagent' });
         if (!result?.ok) {
             const hint = result?.error?.message ? String(result.error.message) : '';
             alert(hint ? `Worker Run fehlgeschlagen:\n\n${hint}` : 'Worker Run fehlgeschlagen.');
@@ -1111,7 +1111,7 @@ export default function ChatPanel({
                                         </option>
                                     ))}
                                 </select>
-                                <span style={{ color: '#8fa6a0' }}>headless · audit/readback · no Telegram binding</span>
+                                <span style={{ color: '#8fa6a0' }}>headless · OpenClaw subagent spawn · no Telegram binding</span>
                             </>
                         ) : (
                             <span style={{ color: '#8fa6a0' }}>no active Worker Candidate for this channel</span>
@@ -1290,7 +1290,7 @@ export default function ChatPanel({
                             type="button"
                             onClick={handleRunWorker}
                             disabled={isRunningWorker || !inputValue.trim() || !activeWorkerId}
-                            title="Eingabetext als headless Worker Run aufzeichnen"
+                            title="Eingabetext als headless OpenClaw Worker Run starten"
                             aria-label="Worker Run starten"
                             style={{
                                 position: 'absolute',

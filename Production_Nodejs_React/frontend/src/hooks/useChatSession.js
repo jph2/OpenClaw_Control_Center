@@ -402,7 +402,7 @@ export function useChatSession(groupId) {
         }
     };
 
-    const runWorker = async ({ workerId, task }) => {
+    const runWorker = async ({ workerId, task, executionMode = 'openclawSubagent' }) => {
         const trimmed = String(task || '').trim();
         if (!groupId || !workerId || !trimmed || isRunningWorker) {
             return { ok: false, error: 'missing_or_busy' };
@@ -413,7 +413,7 @@ export function useChatSession(groupId) {
             const res = await fetch(apiUrl(`/api/chat/${groupKey}/worker-runs`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ workerId, task: trimmed })
+                body: JSON.stringify({ workerId, task: trimmed, executionMode })
             });
             await throwIfResNotOk(res);
             const data = await res.json();
