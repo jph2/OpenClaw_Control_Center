@@ -122,6 +122,10 @@ export function getApplyAuditLogPath() {
     return path.join(path.dirname(p), 'channel-manager-openclaw-apply-audit.jsonl');
 }
 
+function getOpenClawAgentsRoot() {
+    return process.env.OPENCLAW_AGENTS_DIR || path.join(homedir(), '.openclaw', 'agents');
+}
+
 /**
  * Reload the user-level OpenClaw gateway so it re-reads openclaw.json (no hot-reload today).
  * Skip with CHANNEL_MANAGER_SKIP_GATEWAY_RESTART=1 if you manage the service elsewhere.
@@ -610,6 +614,83 @@ export function buildAgentsAndBindingsApplyPatch(rawChannelConfig) {
     return { agentEntries, bindingEntries, perChannel };
 }
 
+function hasSessionModelOverride(entry) {
+    return Boolean(
+        entry?.modelOverride ||
+            entry?.providerOverride ||
+            entry?.modelOverrideSource === 'user'
+    );
+}
+
+/**
+ * Clear stale last-resolved model/auth cache fields from CM-owned Telegram sessions.
+ * OpenClaw may otherwise keep using a previous model from sessions.json after
+ * Channel Manager has correctly applied a new model to openclaw.json.
+ */
+export async function clearCmSessionModelCaches(perChannel, { agentsRoot = getOpenClawAgentsRoot() } = {}) {
+    const summary = {
+        filesScanned: 0,
+        filesUpdated: 0,
+        entriesUpdated: 0,
+        entriesSkippedForOverride: 0,
+        backupPaths: []
+    };
+
+    for (const channel of Array.isArray(perChannel) ? perChannel : []) {
+        if (!channel?.synthAgentId || !channel?.groupId) continue;
+        const sessionsPath = path.join(agentsRoot, channel.synthAgentId, 'sessions', 'sessions.json');
+        if (!fs.existsSync(sessionsPath)) continue;
+        summary.filesScanned += 1;
+
+        let parsed;
+        try {
+            parsed = JSON.parse(await fsPromises.readFile(sessionsPath, 'utf8'));
+        } catch (err) {
+            console.warn(`[openclawApply] Could not read sessions cache ${sessionsPath}:`, err.message);
+            continue;
+        }
+
+        const sessionKey = `agent:${channel.synthAgentId}:telegram:group:${channel.groupId}`;
+        const entry = parsed?.[sessionKey];
+        if (!entry || typeof entry !== 'object') continue;
+
+        if (hasSessionModelOverride(entry)) {
+            summary.entriesSkippedForOverride += 1;
+            continue;
+        }
+
+        const hadModelCache =
+            Object.prototype.hasOwnProperty.call(entry, 'model') ||
+            Object.prototype.hasOwnProperty.call(entry, 'modelProvider');
+        const hasUserAuthOverride = entry.authProfileOverrideSource === 'user';
+        const hadAutoAuthCache =
+            !hasUserAuthOverride &&
+            (Object.prototype.hasOwnProperty.call(entry, 'authProfileOverride') ||
+                Object.prototype.hasOwnProperty.call(entry, 'authProfileOverrideSource') ||
+                Object.prototype.hasOwnProperty.call(entry, 'authProfileOverrideCompactionCount'));
+        if (!hadModelCache && !hadAutoAuthCache) continue;
+
+        delete entry.model;
+        delete entry.modelProvider;
+        if (!hasUserAuthOverride) {
+            delete entry.authProfileOverride;
+            delete entry.authProfileOverrideSource;
+            delete entry.authProfileOverrideCompactionCount;
+        }
+
+        const ts = new Date().toISOString().replace(/[:.]/g, '-');
+        const backupPath = `${sessionsPath}.${ts}.pre-cm-apply-cache-clear.bak`;
+        await fsPromises.copyFile(sessionsPath, backupPath);
+        await fsPromises.writeFile(sessionsPath, `${JSON.stringify(parsed, null, 2)}\n`, 'utf8');
+
+        summary.backupPaths.push(backupPath);
+        summary.filesUpdated += 1;
+        summary.entriesUpdated += 1;
+    }
+
+    return summary;
+}
+
 /**
  * Additive upsert — never removes rows here (orphan prune is **C1b.2b** in
  * `pruneCmOrphanAgentsAndBindings`, run after this step). Collisions (same
@@ -931,6 +1012,7 @@ export async function runOpenClawApply({ channelConfigRaw, dryRun = true, confir
     const release = await lockfile.lock(targetPath, { retries: 5 });
     /** Filled only after a successful disk write; gateway restart runs after lock release. */
     let applyWriteResult = null;
+    let sessionCacheSummary = null;
     let channelConfigWarnings = [];
     const runtimeVerificationNote =
         'Writing openclaw.json does not prove live gateway routing. After Apply, confirm Telegram ' +
@@ -1053,6 +1135,8 @@ export async function runOpenClawApply({ channelConfigRaw, dryRun = true, confir
                 'channels.telegram.groups+optional C1b.2e+C1b.2c agents.defaults.model.primary+agents.list[]+bindings[] (C1b.2a+C1b.2b)'
         });
 
+        sessionCacheSummary = await clearCmSessionModelCaches(agentsAndBindingsPatch.perChannel);
+
         applyWriteResult = {
             ok: true,
             dryRun: false,
@@ -1064,6 +1148,7 @@ export async function runOpenClawApply({ channelConfigRaw, dryRun = true, confir
             agentsDefaultsPolicy: agentsDefaultsBuild,
             agentsBindingsSummary,
             orphanPruneSummary,
+            sessionCacheSummary,
             perChannel: agentsAndBindingsPatch.perChannel,
             channelConfigWarnings,
             runtimeVerificationNote

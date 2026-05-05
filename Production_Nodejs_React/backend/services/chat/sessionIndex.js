@@ -18,6 +18,7 @@ const LEGACY_MAIN_SESSIONS_JSON = path.join(DEFAULT_AGENTS_ROOT, 'main/sessions/
 
 /** agent-id-prefix agnostic: `agent:<agentId>:telegram:group:<gid>`. */
 const TELEGRAM_GROUP_KEY_RE = /^agent:([^:]+):telegram:group:(-?\d+)$/;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Maps OpenClaw session UUID → Telegram group id (across all agents). */
 const sessionUuidToTelegramGroupId = new Map();
@@ -92,6 +93,22 @@ export function getCanonicalSessionFileForGroup(groupId) {
     return telegramGroupIdToSessionFile.get(key);
 }
 
+function normalizeSessionFilePath(sessionFile) {
+    return sessionFile && typeof sessionFile === 'string' ? path.resolve(sessionFile) : null;
+}
+
+function sessionIdFromSessionFile(sessionFile) {
+    const abs = normalizeSessionFilePath(sessionFile);
+    if (!abs) return null;
+    const ext = path.extname(abs).toLowerCase();
+    const base = path.basename(abs, ext === '.jsonl' ? ext : undefined);
+    return UUID_RE.test(base) ? base.toLowerCase() : null;
+}
+
+function canonicalSessionIdForEntry(entry, fallbackSessionId = null) {
+    return sessionIdFromSessionFile(entry?.sessionFile) || entry?.sessionId || fallbackSessionId;
+}
+
 /** Iterable of absolute session file paths currently bound to some Telegram group. */
 export function listCanonicalSessionFilePaths() {
     return new Set(telegramGroupIdToSessionFile.values());
@@ -109,6 +126,37 @@ function readSessionsJsonSafe(sessionsPath) {
         console.warn('[Chat/sessionIndex] Failed to read', sessionsPath, '-', e.message);
         return {};
     }
+}
+
+/**
+ * Non-secret fields from an OpenClaw `sessions.json` entry — helps the CM UI
+ * explain why transcript model ≠ Channel Manager row (overrides, last run).
+ *
+ * @param {object|null|undefined} entry
+ * @returns {object|null}
+ */
+function extractOpenClawSessionHints(entry) {
+    if (!entry || typeof entry !== 'object') return null;
+    const hints = {};
+    if (typeof entry.modelOverrideSource === 'string' && entry.modelOverrideSource) {
+        hints.modelOverrideSource = entry.modelOverrideSource;
+    }
+    if (typeof entry.modelOverride === 'string' && entry.modelOverride) {
+        hints.modelOverride = entry.modelOverride;
+    }
+    if (typeof entry.providerOverride === 'string' && entry.providerOverride) {
+        hints.providerOverride = entry.providerOverride;
+    }
+    if (typeof entry.model === 'string' && entry.model) {
+        hints.lastResolvedModel = entry.model;
+    }
+    if (typeof entry.modelProvider === 'string' && entry.modelProvider) {
+        hints.lastResolvedProvider = entry.modelProvider;
+    }
+    if (typeof entry.authProfileOverride === 'string' && entry.authProfileOverride) {
+        hints.authProfileOverride = entry.authProfileOverride;
+    }
+    return Object.keys(hints).length ? hints : null;
 }
 
 /**
@@ -152,6 +200,10 @@ export function hydrateOpenclawSessionIndex() {
                 sessionUuidToTelegramGroupId.set(sid.toLowerCase(), gid);
                 totalSessionIds++;
             }
+            const sessionFileSessionId = sessionIdFromSessionFile(entry.sessionFile);
+            if (sessionFileSessionId) {
+                sessionUuidToTelegramGroupId.set(sessionFileSessionId, gid);
+            }
 
             const updatedAt = typeof entry.updatedAt === 'number' ? entry.updatedAt : 0;
             const prev = winners.get(gid);
@@ -159,8 +211,8 @@ export function hydrateOpenclawSessionIndex() {
 
             if (!prev || updatedAt > prevUpdatedAt) {
                 winners.set(gid, { agentId, updatedAt });
-                if (entry.sessionFile && typeof entry.sessionFile === 'string') {
-                    const abs = path.resolve(entry.sessionFile);
+                const abs = normalizeSessionFilePath(entry.sessionFile);
+                if (abs) {
                     nextGroupFile.set(gid, abs);
                     telegramGroupIdToSessionFile.set(gid, abs);
                 } else {
@@ -193,6 +245,7 @@ export function hydrateOpenclawSessionIndex() {
  * Variant A: re-resolve canonical sessionFile from sessions.json and refill buffer (call on each SSE connect).
  */
 export function refreshChatMirrorFromCanonicalSession(chatId) {
+    hydrateOpenclawSessionIndex();
     const key = normalizeChatIdForBuffer(String(chatId));
     const sessionFile = telegramGroupIdToSessionFile.get(key);
     if (!sessionFile) {
@@ -210,8 +263,7 @@ export function resolveCanonicalSession(chatId) {
         key = requestedSessionKeyMatch[2];
     }
 
-    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (uuidPattern.test(key)) {
+    if (UUID_RE.test(key)) {
         inputSessionId = key.toLowerCase();
         const telegramGroupId = sessionUuidToTelegramGroupId.get(inputSessionId);
         if (telegramGroupId) {
@@ -225,6 +277,7 @@ export function resolveCanonicalSession(chatId) {
     let sessionId = inputSessionId;
     let deliveryContext = null;
     let winningUpdatedAt = -1;
+    let winningEntry = null;
 
     for (const sessionsPath of listAgentSessionsJsonPaths()) {
         const parsed = readSessionsJsonSafe(sessionsPath);
@@ -233,9 +286,10 @@ export function resolveCanonicalSession(chatId) {
             return {
                 chatId: key,
                 sessionKey: requestedSessionKey,
-                sessionId: entry.sessionId || inputSessionId,
-                sessionFile: entry.sessionFile ? path.resolve(entry.sessionFile) : sessionFile,
-                deliveryContext: entry.deliveryContext || null
+                sessionId: canonicalSessionIdForEntry(entry, inputSessionId),
+                sessionFile: normalizeSessionFilePath(entry.sessionFile) || sessionFile,
+                deliveryContext: entry.deliveryContext || null,
+                openClawSessionHints: extractOpenClawSessionHints(entry)
             };
         }
 
@@ -249,8 +303,9 @@ export function resolveCanonicalSession(chatId) {
 
             winningUpdatedAt = updatedAt;
             sessionKey = candidateKey;
-            sessionId = entry.sessionId || sessionId;
+            sessionId = canonicalSessionIdForEntry(entry, sessionId);
             deliveryContext = entry.deliveryContext || null;
+            winningEntry = entry;
         }
     }
 
@@ -259,7 +314,8 @@ export function resolveCanonicalSession(chatId) {
         sessionKey,
         sessionId,
         sessionFile,
-        deliveryContext
+        deliveryContext,
+        openClawSessionHints: extractOpenClawSessionHints(winningEntry)
     };
 }
 

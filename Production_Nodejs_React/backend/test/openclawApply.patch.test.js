@@ -1,5 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import {
     buildTelegramGroupsApplyPatch,
     mergeOpenClawTelegramGroups,
@@ -24,6 +27,7 @@ import {
     mergeOpenClawAgentsDefaultsModel,
     readOpenclawAgentsDefaultsModelPrimary,
     normalizeAgentsDefaultsPolicyConfig,
+    clearCmSessionModelCaches,
     CM_MARKER_PREFIX,
     CM_AGENT_PARAM_KEY,
     CM_AGENT_MANAGED_BY
@@ -682,5 +686,130 @@ describe('openclawApply C1b.2b — pruneCmOrphanAgentsAndBindings', () => {
     it('getCmSourceFromComment parses group id from CM comment', () => {
         assert.equal(getCmSourceFromComment(makeCmComment('-1003752539559')), '-1003752539559');
         assert.equal(getCmSourceFromComment('unrelated'), null);
+    });
+});
+
+describe('openclawApply session model cache cleanup', () => {
+    it('clears model cache fields for CM synth Telegram sessions', async () => {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cm-apply-session-cache-'));
+        const sessionsDir = path.join(dir, 'tars-1001', 'sessions');
+        fs.mkdirSync(sessionsDir, { recursive: true });
+        const sessionsPath = path.join(sessionsDir, 'sessions.json');
+        fs.writeFileSync(
+            sessionsPath,
+            JSON.stringify(
+                {
+                    'agent:tars-1001:telegram:group:-1001': {
+                        sessionId: '11111111-1111-4111-8111-111111111111',
+                        model: 'deepseek-v4-pro',
+                        modelProvider: 'deepseek',
+                        authProfileOverride: 'deepseek:default',
+                        authProfileOverrideSource: 'auto',
+                        authProfileOverrideCompactionCount: 0,
+                        updatedAt: 1
+                    }
+                },
+                null,
+                2
+            )
+        );
+
+        try {
+            const summary = await clearCmSessionModelCaches(
+                [{ synthAgentId: 'tars-1001', groupId: '-1001' }],
+                { agentsRoot: dir }
+            );
+            const parsed = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+            const entry = parsed['agent:tars-1001:telegram:group:-1001'];
+            assert.equal(entry.model, undefined);
+            assert.equal(entry.modelProvider, undefined);
+            assert.equal(entry.authProfileOverride, undefined);
+            assert.equal(entry.authProfileOverrideSource, undefined);
+            assert.equal(entry.authProfileOverrideCompactionCount, undefined);
+            assert.equal(summary.entriesUpdated, 1);
+            assert.equal(summary.filesUpdated, 1);
+            assert.equal(summary.backupPaths.length, 1);
+            assert.ok(fs.existsSync(summary.backupPaths[0]));
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+
+    it('preserves cache fields when a user model override exists', async () => {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cm-apply-session-override-'));
+        const sessionsDir = path.join(dir, 'tars-1001', 'sessions');
+        fs.mkdirSync(sessionsDir, { recursive: true });
+        const sessionsPath = path.join(sessionsDir, 'sessions.json');
+        fs.writeFileSync(
+            sessionsPath,
+            JSON.stringify(
+                {
+                    'agent:tars-1001:telegram:group:-1001': {
+                        sessionId: '11111111-1111-4111-8111-111111111111',
+                        model: 'deepseek-v4-pro',
+                        modelProvider: 'deepseek',
+                        modelOverride: 'deepseek-v4-pro',
+                        providerOverride: 'deepseek',
+                        modelOverrideSource: 'user'
+                    }
+                },
+                null,
+                2
+            )
+        );
+
+        try {
+            const summary = await clearCmSessionModelCaches(
+                [{ synthAgentId: 'tars-1001', groupId: '-1001' }],
+                { agentsRoot: dir }
+            );
+            const parsed = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+            const entry = parsed['agent:tars-1001:telegram:group:-1001'];
+            assert.equal(entry.model, 'deepseek-v4-pro');
+            assert.equal(entry.modelProvider, 'deepseek');
+            assert.equal(summary.entriesSkippedForOverride, 1);
+            assert.equal(summary.entriesUpdated, 0);
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    });
+
+    it('preserves user auth override while clearing stale model cache', async () => {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cm-apply-session-user-auth-'));
+        const sessionsDir = path.join(dir, 'tars-1001', 'sessions');
+        fs.mkdirSync(sessionsDir, { recursive: true });
+        const sessionsPath = path.join(sessionsDir, 'sessions.json');
+        fs.writeFileSync(
+            sessionsPath,
+            JSON.stringify(
+                {
+                    'agent:tars-1001:telegram:group:-1001': {
+                        sessionId: '11111111-1111-4111-8111-111111111111',
+                        model: 'deepseek-v4-pro',
+                        modelProvider: 'deepseek',
+                        authProfileOverride: 'deepseek:default',
+                        authProfileOverrideSource: 'user'
+                    }
+                },
+                null,
+                2
+            )
+        );
+
+        try {
+            const summary = await clearCmSessionModelCaches(
+                [{ synthAgentId: 'tars-1001', groupId: '-1001' }],
+                { agentsRoot: dir }
+            );
+            const parsed = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+            const entry = parsed['agent:tars-1001:telegram:group:-1001'];
+            assert.equal(entry.model, undefined);
+            assert.equal(entry.modelProvider, undefined);
+            assert.equal(entry.authProfileOverride, 'deepseek:default');
+            assert.equal(entry.authProfileOverrideSource, 'user');
+            assert.equal(summary.entriesUpdated, 1);
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
     });
 });
