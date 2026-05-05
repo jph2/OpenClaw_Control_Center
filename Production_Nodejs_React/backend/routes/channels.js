@@ -216,6 +216,16 @@ const UpdateSubAgentSchema = z.object({
     enabled: z.boolean().nullish()
 }).passthrough();
 
+const UpdateWorkerCandidateSchema = z.object({
+    workerId: z.string().min(1).transform((s) => s.trim()),
+    modelProfile: z
+        .preprocess(
+            (v) => (v === '' || v === null ? 'inherit' : v),
+            z.string().min(1).max(240).transform((s) => s.trim())
+        )
+        .optional()
+}).passthrough();
+
 const ReorderMainAgentsSchema = z.object({
     orderedAgentIds: z.array(z.string().min(1))
 });
@@ -756,6 +766,52 @@ router.post('/updateSubAgent', async (req, res, next) => {
             const finalState = ChannelConfigSchema.parse(parsed);
             await fsPromises.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
             res.json({ ok: true, message: 'SubAgent configuration updated atomically.' });
+        } finally {
+            await release();
+        }
+    } catch (error) {
+        if (error instanceof z.ZodError) error.status = 400;
+        next(error);
+    }
+});
+
+/**
+ * POST /api/channels/updateWorkerCandidate
+ * Updates C1e Runtime Worker Candidate properties atomically.
+ */
+router.post('/updateWorkerCandidate', async (req, res, next) => {
+    try {
+        const payload = UpdateWorkerCandidateSchema.parse(req.body);
+        const configPath = await getConfigPath();
+        await ensureConfigExists(configPath);
+        const release = await lockfile.lock(configPath, { retries: 5 });
+
+        try {
+            const raw = await fsPromises.readFile(configPath, 'utf8');
+            const parsed = JSON.parse(raw);
+            normalizeParsedChannelConfig(parsed);
+
+            parsed.workerCandidates = Array.isArray(parsed.workerCandidates) ? parsed.workerCandidates : [];
+            const workerIndex = parsed.workerCandidates.findIndex((w) => w?.id === payload.workerId);
+            if (workerIndex < 0) {
+                const err = new Error(`Worker Candidate not found: ${payload.workerId}`);
+                err.status = 404;
+                throw err;
+            }
+
+            if (payload.modelProfile !== undefined) {
+                parsed.workerCandidates[workerIndex].modelProfile = payload.modelProfile || 'inherit';
+            }
+
+            parsed.channels = normalizeChannelsAssignedAgentTars(parsed.channels || []);
+            const finalState = ChannelConfigSchema.parse(parsed);
+            await fsPromises.writeFile(configPath, JSON.stringify(finalState, null, 2), 'utf8');
+            configEvents.emit('configChange');
+            res.json({
+                ok: true,
+                message: 'Worker Candidate configuration updated atomically.',
+                data: finalState.workerCandidates?.[workerIndex] || null
+            });
         } finally {
             await release();
         }

@@ -336,6 +336,30 @@ export default function ChannelManager() {
         onSettled: () => queryClient.invalidateQueries({ queryKey: ['channels'] })
     });
 
+    const updateWorkerCandidateMutation = useMutation({
+        mutationKey: CM_PERSIST_MUTATION_KEY,
+        mutationFn: async (payload) => {
+            const res = await fetch(apiUrl('/api/channels/updateWorkerCandidate'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data.message || `Worker Candidate update failed (${res.status})`);
+            }
+            return data;
+        },
+        onError: (err) => window.alert(err?.message || 'Worker Candidate update failed.'),
+        onSuccess: () => {
+            markApplyDirty();
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['channels'] });
+            queryClient.invalidateQueries({ queryKey: APPLY_PREVIEW_QUERY_KEY });
+        }
+    });
+
     const createSubAgentMutation = useMutation({
         mutationKey: CM_PERSIST_MUTATION_KEY,
         mutationFn: async (payload) => {
@@ -1480,26 +1504,75 @@ export default function ChannelManager() {
                         with no Telegram binding. Worker Runs are visible in the Chat panel audit/readback strip.
                     </div>
                     {activeWorkerCandidates.length > 0 && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
+                        <div style={{ display: 'grid', gap: '8px', marginTop: '10px' }}>
                             {activeWorkerCandidates.map((worker) => (
-                                <span
+                                <div
                                     key={worker.id}
                                     title={`Runtime agent: worker-${worker.id}\nParent: ${worker.parentId || '—'}\nSource Skill Role: ${worker.sourceSkillRoleId || '—'}\nSpeak: false`}
                                     style={{
-                                        display: 'inline-flex',
+                                        display: 'grid',
+                                        gridTemplateColumns: 'minmax(180px, 1fr) minmax(220px, 340px)',
                                         alignItems: 'center',
-                                        gap: '6px',
+                                        gap: '10px',
                                         border: '1px solid rgba(80,227,194,0.28)',
                                         background: 'rgba(0,0,0,0.18)',
                                         borderRadius: '6px',
-                                        padding: '5px 8px',
+                                        padding: '7px 8px',
                                         color: '#b8f0d8',
                                         fontSize: '12px'
                                     }}
                                 >
-                                    <code style={{ fontSize: '11px', color: '#9ff0dc' }}>worker-{worker.id}</code>
-                                    <span>{worker.displayName || worker.id}</span>
-                                </span>
+                                    <div style={{ minWidth: 0 }}>
+                                        <code style={{ fontSize: '11px', color: '#9ff0dc' }}>worker-{worker.id}</code>
+                                        <span style={{ marginLeft: '8px' }}>{worker.displayName || worker.id}</span>
+                                    </div>
+                                    <label
+                                        style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: 'auto minmax(0, 1fr)',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            color: '#8fa6a0',
+                                            minWidth: 0
+                                        }}
+                                    >
+                                        <span style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>Model</span>
+                                        <select
+                                            value={worker.modelProfile || 'inherit'}
+                                            disabled={updateWorkerCandidateMutation.isPending}
+                                            onChange={(e) =>
+                                                updateWorkerCandidateMutation.mutate({
+                                                    workerId: worker.id,
+                                                    modelProfile: e.target.value || 'inherit'
+                                                })
+                                            }
+                                            title="Runtime Worker model profile. Inherit uses the parent/synth model."
+                                            style={{
+                                                width: '100%',
+                                                minWidth: 0,
+                                                height: '28px',
+                                                background: '#13141c',
+                                                border: '1px solid rgba(80,227,194,0.35)',
+                                                color: '#dfe6f3',
+                                                borderRadius: '4px',
+                                                padding: '3px 7px',
+                                                fontSize: '12px'
+                                            }}
+                                        >
+                                            <option value="inherit">Inherit parent model</option>
+                                            {(AVAILABLE_MODELS || []).map((model) => (
+                                                <option key={model.id} value={model.id}>
+                                                    {model.name || model.id}
+                                                </option>
+                                            ))}
+                                            {worker.modelProfile &&
+                                                worker.modelProfile !== 'inherit' &&
+                                                !(AVAILABLE_MODELS || []).some((model) => model.id === worker.modelProfile) && (
+                                                    <option value={worker.modelProfile}>{worker.modelProfile}</option>
+                                                )}
+                                        </select>
+                                    </label>
+                                </div>
                             ))}
                         </div>
                     )}

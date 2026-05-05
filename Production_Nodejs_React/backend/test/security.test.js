@@ -53,4 +53,13 @@ test('Security G4: Zod Input Validation', async (t) => {
 
         assert.strictEqual(response.body.error, true);
     });
+
+    await t.test('Reject missing workerId for Worker Candidate updates', async () => {
+        const response = await request(app)
+            .post('/api/channels/updateWorkerCandidate')
+            .send({ modelProfile: 'openai/gpt-5.4' })
+            .expect(400);
+
+        assert.strictEqual(response.body.error, true);
+    });
 });
