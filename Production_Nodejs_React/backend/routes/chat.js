@@ -25,6 +25,12 @@ import {
     forceChannelCanonicalSession,
     resolveChannelRuntimeBinding
 } from '../services/channelRuntimeBinding.js';
+import {
+    createWorkerRun,
+    listWorkerRuns,
+    WorkerRunRequestSchema
+} from '../services/workerRuns.js';
+import { resolveSafe } from '../utils/security.js';
 
 const GroupSendSchema = z.object({
     text: z.string().min(1)
@@ -50,6 +56,10 @@ const SessionSendMediaSchema = z.object({
     message: z.string().optional().default(''),
     sessionKey: z.string().optional(),
     image: SendImageBodySchema
+});
+
+const WorkerRunsQuerySchema = z.object({
+    limit: z.coerce.number().int().min(1).max(200).optional().default(20)
 });
 
 const EXT_TO_MIME = {
@@ -84,6 +94,43 @@ export async function handleForceCanonicalSession(req, res, next, groupIdParam) 
         const payload = await forceChannelCanonicalSession(String(groupIdParam));
         res.json({ ...payload, timestamp: Date.now() });
     } catch (error) {
+        next(error);
+    }
+}
+
+async function loadChannelConfig() {
+    const { resolved } = await resolveSafe(
+        process.env.WORKSPACE_ROOT,
+        'OpenClaw_Control_Center/Prototyp/channel_CHAT-manager/channel_config.json'
+    );
+    return JSON.parse(await fs.promises.readFile(resolved, 'utf8'));
+}
+
+export async function handleWorkerRunsList(req, res, next, groupIdParam) {
+    try {
+        const query = WorkerRunsQuerySchema.parse(req.query ?? {});
+        const out = await listWorkerRuns({ channelId: String(groupIdParam), limit: query.limit });
+        res.json({ ok: true, ...out, timestamp: Date.now() });
+    } catch (error) {
+        if (error instanceof z.ZodError) error.status = 400;
+        next(error);
+    }
+}
+
+export async function handleWorkerRunCreate(req, res, next, groupIdParam) {
+    try {
+        const body = WorkerRunRequestSchema.parse(req.body ?? {});
+        const cfg = await loadChannelConfig();
+        const out = await createWorkerRun({
+            channelId: String(groupIdParam),
+            workerId: body.workerId,
+            task: body.task,
+            channelConfigRaw: cfg,
+            operator: req.ip || null
+        });
+        res.json({ ...out, timestamp: Date.now() });
+    } catch (error) {
+        if (error instanceof z.ZodError) error.status = 400;
         next(error);
     }
 }
@@ -363,6 +410,12 @@ router.get('/:groupId/runtime-binding', (req, res, next) =>
 );
 router.post('/:groupId/force-canonical-session', apiLimiter, (req, res, next) =>
     handleForceCanonicalSession(req, res, next, req.params.groupId)
+);
+router.get('/:groupId/worker-runs', (req, res, next) =>
+    handleWorkerRunsList(req, res, next, req.params.groupId)
+);
+router.post('/:groupId/worker-runs', apiLimiter, (req, res, next) =>
+    handleWorkerRunCreate(req, res, next, req.params.groupId)
 );
 router.get('/:groupId/session', (req, res) => handleGroupSession(req, res, req.params.groupId));
 router.get('/:groupId/stream', (req, res) => handleGroupStream(req, res, req.params.groupId));

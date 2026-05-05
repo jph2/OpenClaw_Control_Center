@@ -493,8 +493,14 @@ third**, never "turn every sub-agent into a worker" as a bulk migration.
 **Recorded as accepted for the schema-slice MVP in**
 [`040_DECISIONS.md`](../040_DECISIONS.md) (**ADR-022**). The accepted first
 worker path is explicit `workerCandidates[]` projected as dedicated headless
-OpenClaw `agents.list[]` rows. Full Worker Run delegation, parent aggregation,
-and audit/readback remain P3 proof criteria.
+OpenClaw `agents.list[]` rows.
+
+The current P3 proof slice records headless Worker Runs in
+`Prototyp/channel_CHAT-manager/worker_runs_audit.jsonl` with a bounded input
+envelope, result artifact, event trail, and parent-aggregation status. This
+proves CM audit/readback and UI visibility while keeping `canSpeakToChannel:
+false`. Live model delegation and richer parent aggregation remain the next P3
+criteria.
 
 ---
 

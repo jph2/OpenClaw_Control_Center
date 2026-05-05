@@ -592,11 +592,15 @@ export default function ChatPanel({
         sessionBindingError,
         runtimeBinding,
         runtimeBindingError,
+        workerRuns,
+        workerRunsError,
         lastSendMeta,
         isSending,
+        isRunningWorker,
         isForcingCanonical,
         sendMessage,
         sendMedia,
+        runWorker,
         forceCanonicalSession
     } = useChatSession(channelId);
 
@@ -604,6 +608,7 @@ export default function ChatPanel({
     const [showSystemMessages, setShowSystemMessages] = useState(false);
     const [pasteHint, setPasteHint] = useState(null);
     const [pendingImage, setPendingImage] = useState(null);
+    const [selectedWorkerId, setSelectedWorkerId] = useState('');
 
     const containerRef = useRef(null);
     const messagesInnerRef = useRef(null);
@@ -614,6 +619,7 @@ export default function ChatPanel({
         if (!channelId) return;
         stuckToBottomRef.current = true;
         setPendingImage(null);
+        setSelectedWorkerId('');
     }, [channelId]);
 
     // OPTIMIZED: useMemo to prevent recalculation on every render
@@ -708,6 +714,12 @@ export default function ChatPanel({
         sessionBinding?.sessionFile ||
         channelRuntimeBinding?.canonicalSession?.expectedTranscriptFile ||
         '';
+    const runtimeWorkers = channelRuntimeBinding?.workerPolicy?.runtimeWorkers || [];
+    const activeWorkerId =
+        selectedWorkerId && runtimeWorkers.some((w) => w.id === selectedWorkerId)
+            ? selectedWorkerId
+            : runtimeWorkers[0]?.id || '';
+    const recentWorkerRuns = Array.isArray(workerRuns) ? workerRuns.slice(0, 3) : [];
 
     // Within this distance of the bottom we consider the user "pinned" and
     // safe to auto-scroll on new messages. Anything larger → user is
@@ -813,6 +825,18 @@ export default function ChatPanel({
             const hint = result?.error?.message ? String(result.error.message) : '';
             alert(hint ? `Canonical Session konnte nicht erzwungen werden:\n\n${hint}` : 'Canonical Session konnte nicht erzwungen werden.');
         }
+    };
+
+    const handleRunWorker = async () => {
+        const task = inputValue.trim();
+        if (!activeWorkerId || !task || isRunningWorker) return;
+        const result = await runWorker?.({ workerId: activeWorkerId, task });
+        if (!result?.ok) {
+            const hint = result?.error?.message ? String(result.error.message) : '';
+            alert(hint ? `Worker Run fehlgeschlagen:\n\n${hint}` : 'Worker Run fehlgeschlagen.');
+            return;
+        }
+        setInputValue('');
     };
 
     const handlePaste = (e) => {
@@ -1052,6 +1076,69 @@ export default function ChatPanel({
                     </div>
                 </div>
             )}
+            {(runtimeWorkers.length > 0 || recentWorkerRuns.length > 0 || workerRunsError) && (
+                <div
+                    style={{
+                        borderBottom: '1px solid rgba(80,227,194,0.20)',
+                        background: 'rgba(80,227,194,0.06)',
+                        padding: '8px 16px',
+                        fontSize: '12px',
+                        color: '#cfeee6'
+                    }}
+                >
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span style={{ color: '#9ff0dc', fontWeight: 700 }}>Runtime Worker</span>
+                        {runtimeWorkers.length > 0 ? (
+                            <>
+                                <select
+                                    value={activeWorkerId}
+                                    onChange={(e) => setSelectedWorkerId(e.target.value)}
+                                    title="Headless Runtime Worker auswählen"
+                                    style={{
+                                        maxWidth: '260px',
+                                        height: '26px',
+                                        background: '#13141c',
+                                        border: '1px solid rgba(80,227,194,0.35)',
+                                        color: '#dfe6f3',
+                                        borderRadius: '4px',
+                                        padding: '2px 6px',
+                                        fontSize: '12px'
+                                    }}
+                                >
+                                    {runtimeWorkers.map((w) => (
+                                        <option key={w.id} value={w.id}>
+                                            {w.displayName || w.id}
+                                        </option>
+                                    ))}
+                                </select>
+                                <span style={{ color: '#8fa6a0' }}>headless · audit/readback · no Telegram binding</span>
+                            </>
+                        ) : (
+                            <span style={{ color: '#8fa6a0' }}>no active Worker Candidate for this channel</span>
+                        )}
+                        {workerRunsError && <span style={{ color: '#ffb3b3' }}>{workerRunsError}</span>}
+                    </div>
+                    {recentWorkerRuns.length > 0 && (
+                        <div style={{ marginTop: '6px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {recentWorkerRuns.map((run) => (
+                                <span
+                                    key={run.runId}
+                                    title={run.workerResultArtifact?.text || run.runId}
+                                    style={{
+                                        border: '1px solid rgba(80,227,194,0.22)',
+                                        background: 'rgba(0,0,0,0.18)',
+                                        borderRadius: '4px',
+                                        padding: '3px 6px',
+                                        color: '#a9d8ce'
+                                    }}
+                                >
+                                    {run.workerId} · {run.status} · {run.runId}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
             
             {/* Messages Area. The outer div is the scroll container (fixed
                 height via flex: 1); the inner div is what actually grows
@@ -1164,7 +1251,7 @@ export default function ChatPanel({
                             border: 'none',
                             color: '#fff',
                             outline: 'none',
-                            padding: '12px 88px 12px 12px',
+                            padding: runtimeWorkers.length > 0 ? '12px 128px 12px 12px' : '12px 88px 12px 12px',
                             resize: 'vertical',
                             fontSize: '14px',
                             lineHeight: '1.45',
@@ -1198,6 +1285,35 @@ export default function ChatPanel({
                     >
                         <Paperclip size={16} strokeWidth={2.2} />
                     </button>
+                    {runtimeWorkers.length > 0 && (
+                        <button
+                            type="button"
+                            onClick={handleRunWorker}
+                            disabled={isRunningWorker || !inputValue.trim() || !activeWorkerId}
+                            title="Eingabetext als headless Worker Run aufzeichnen"
+                            aria-label="Worker Run starten"
+                            style={{
+                                position: 'absolute',
+                                bottom: '8px',
+                                right: '88px',
+                                width: '32px',
+                                height: '32px',
+                                padding: 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: inputValue.trim() && activeWorkerId ? 'rgba(80,227,194,0.18)' : '#2a2b36',
+                                border: '1px solid rgba(80,227,194,0.35)',
+                                borderRadius: '6px',
+                                color: inputValue.trim() && activeWorkerId ? '#9ff0dc' : 'var(--text-muted)',
+                                cursor: inputValue.trim() && activeWorkerId && !isRunningWorker ? 'pointer' : 'not-allowed',
+                                opacity: isRunningWorker ? 0.6 : 1,
+                                transition: 'background 0.15s ease'
+                            }}
+                        >
+                            <Wrench size={16} strokeWidth={2.2} />
+                        </button>
+                    )}
                     <button
                         type="button"
                         onClick={handleSendMessage}

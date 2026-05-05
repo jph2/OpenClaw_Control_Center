@@ -105,6 +105,22 @@ async function fetchRuntimeBindingJson(groupId, maxAttempts = 4) {
     throw lastErr;
 }
 
+async function fetchWorkerRunsJson(groupId, maxAttempts = 3) {
+    let lastErr = null;
+    const groupKey = encodeURIComponent(String(groupId));
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            const res = await fetch(apiUrl(`/api/chat/${groupKey}/worker-runs?limit=10`));
+            if (!res.ok) throw new Error(`Worker Runs resolve failed (${res.status})`);
+            return await res.json();
+        } catch (e) {
+            lastErr = e;
+            if (attempt < maxAttempts) await delay(150 * 2 ** (attempt - 1));
+        }
+    }
+    throw lastErr;
+}
+
 /**
  * Session resolve + SSE mirror + send for one Telegram group (Channel Manager chat panel).
  * @param {string|number|undefined} groupId — Telegram channel id (or alias resolved server-side).
@@ -115,8 +131,11 @@ export function useChatSession(groupId) {
     const [sessionBindingError, setSessionBindingError] = useState(null);
     const [runtimeBinding, setRuntimeBinding] = useState(null);
     const [runtimeBindingError, setRuntimeBindingError] = useState(null);
+    const [workerRuns, setWorkerRuns] = useState([]);
+    const [workerRunsError, setWorkerRunsError] = useState(null);
     const [lastSendMeta, setLastSendMeta] = useState(null);
     const [isSending, setIsSending] = useState(false);
+    const [isRunningWorker, setIsRunningWorker] = useState(false);
     const [isForcingCanonical, setIsForcingCanonical] = useState(false);
 
     const sseFailStreakRef = useRef(0);
@@ -127,6 +146,8 @@ export function useChatSession(groupId) {
             setSessionBindingError(null);
             setRuntimeBinding(null);
             setRuntimeBindingError(null);
+            setWorkerRuns([]);
+            setWorkerRunsError(null);
             return;
         }
 
@@ -157,6 +178,19 @@ export function useChatSession(groupId) {
                 console.error('[useChatSession] Runtime binding resolve error:', err);
                 setRuntimeBinding(null);
                 setRuntimeBindingError(err.message || 'Runtime binding resolve failed');
+            });
+
+        fetchWorkerRunsJson(groupId)
+            .then((data) => {
+                if (cancelled) return;
+                setWorkerRuns(Array.isArray(data.runs) ? data.runs : []);
+                setWorkerRunsError(null);
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                console.error('[useChatSession] Worker Runs resolve error:', err);
+                setWorkerRuns([]);
+                setWorkerRunsError(err.message || 'Worker Runs resolve failed');
             });
 
         return () => {
@@ -190,8 +224,9 @@ export function useChatSession(groupId) {
                         if (!cancelled) {
                             Promise.allSettled([
                                 fetchSessionJson(groupId),
-                                fetchRuntimeBindingJson(groupId)
-                            ]).then(([sessionResult, bindingResult]) => {
+                                fetchRuntimeBindingJson(groupId),
+                                fetchWorkerRunsJson(groupId)
+                            ]).then(([sessionResult, bindingResult, runsResult]) => {
                                 if (cancelled) return;
                                 if (sessionResult.status === 'fulfilled') {
                                     setSessionBinding(sessionResult.value);
@@ -210,6 +245,10 @@ export function useChatSession(groupId) {
                                         '[useChatSession] Runtime binding refresh failed:',
                                         bindingResult.reason?.message || bindingResult.reason
                                     );
+                                }
+                                if (runsResult.status === 'fulfilled') {
+                                    setWorkerRuns(Array.isArray(runsResult.value.runs) ? runsResult.value.runs : []);
+                                    setWorkerRunsError(null);
                                 }
                             });
                         }
@@ -363,6 +402,38 @@ export function useChatSession(groupId) {
         }
     };
 
+    const runWorker = async ({ workerId, task }) => {
+        const trimmed = String(task || '').trim();
+        if (!groupId || !workerId || !trimmed || isRunningWorker) {
+            return { ok: false, error: 'missing_or_busy' };
+        }
+        const groupKey = encodeURIComponent(String(groupId));
+        setIsRunningWorker(true);
+        try {
+            const res = await fetch(apiUrl(`/api/chat/${groupKey}/worker-runs`), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ workerId, task: trimmed })
+            });
+            await throwIfResNotOk(res);
+            const data = await res.json();
+            if (data?.run) {
+                setWorkerRuns((prev) => [data.run, ...prev.filter((r) => r.runId !== data.run.runId)].slice(0, 10));
+            } else {
+                const refreshed = await fetchWorkerRunsJson(groupId);
+                setWorkerRuns(Array.isArray(refreshed.runs) ? refreshed.runs : []);
+            }
+            setWorkerRunsError(null);
+            return { ok: true, data };
+        } catch (err) {
+            console.error('[useChatSession] runWorker', err);
+            setWorkerRunsError(err.message || 'Worker Run failed');
+            return { ok: false, error: err };
+        } finally {
+            setIsRunningWorker(false);
+        }
+    };
+
     /**
      * Send one image (+ optional caption) via gateway-native chat.send attachments.
      * @param {{ text?: string, image: { base64: string, mimeType: string, filename?: string, previewUrl?: string } }} payload
@@ -451,11 +522,15 @@ export function useChatSession(groupId) {
         sessionBindingError,
         runtimeBinding,
         runtimeBindingError,
+        workerRuns,
+        workerRunsError,
         lastSendMeta,
         isSending,
+        isRunningWorker,
         isForcingCanonical,
         sendMessage,
         sendMedia,
+        runWorker,
         forceCanonicalSession
     };
 }
