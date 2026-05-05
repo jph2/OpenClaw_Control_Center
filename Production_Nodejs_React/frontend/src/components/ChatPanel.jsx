@@ -1123,16 +1123,33 @@ export default function ChatPanel({
                             {recentWorkerRuns.map((run) => (
                                 <span
                                     key={run.runId}
-                                    title={run.workerResultArtifact?.text || run.runId}
+                                    title={[
+                                        run.workerResultArtifact?.text || run.runId,
+                                        run.liveDelegation?.childSessionKey ? `Child: ${run.liveDelegation.childSessionKey}` : '',
+                                        run.liveDelegation?.runId ? `OpenClaw run: ${run.liveDelegation.runId}` : ''
+                                    ].filter(Boolean).join('\n')}
                                     style={{
-                                        border: '1px solid rgba(80,227,194,0.22)',
+                                        border: run.completionReadback?.status === 'confirmed'
+                                            ? '1px solid rgba(80,227,194,0.55)'
+                                            : '1px solid rgba(80,227,194,0.22)',
                                         background: 'rgba(0,0,0,0.18)',
                                         borderRadius: '4px',
                                         padding: '3px 6px',
-                                        color: '#a9d8ce'
+                                        color: run.completionReadback?.status === 'confirmed' ? '#d7fff5' : '#a9d8ce',
+                                        display: 'inline-flex',
+                                        flexDirection: 'column',
+                                        gap: '2px',
+                                        maxWidth: '360px'
                                     }}
                                 >
-                                    {run.workerId} · {run.status} · {run.runId}
+                                    <span>
+                                        {run.workerId} · {run.completionReadback?.status === 'confirmed' ? 'completion readback' : run.status}
+                                    </span>
+                                    {(run.liveDelegation?.childSessionKey || run.liveDelegation?.runId) && (
+                                        <span style={{ color: '#7fb3a8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {run.liveDelegation?.runId || 'no-run-id'} · {run.liveDelegation?.childSessionKey || 'no-child-session'}
+                                        </span>
+                                    )}
                                 </span>
                             ))}
                         </div>

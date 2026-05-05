@@ -5,6 +5,8 @@ import { pathToFileURL } from 'url';
 import { z } from 'zod';
 import { resolveSafe } from '../utils/security.js';
 import { buildChannelRuntimeBinding } from './channelRuntimeBinding.js';
+import { loadMessageHistoryFromSessionJsonl } from './chat/chatMirrorState.js';
+import { listAgentSessionsJsonPaths } from './chat/sessionIndex.js';
 
 export const WORKER_RUN_AUDIT_SCHEMA = 'cm.worker-run-audit.v1';
 const DEFAULT_OPENCLAW_DIST_DIR = '/home/claw-agentbox/.npm-global/lib/node_modules/openclaw/dist';
@@ -101,6 +103,99 @@ function parseAuditLine(line) {
     }
 }
 
+async function readSessionsJsonSafe(sessionsPath) {
+    try {
+        const raw = await fs.readFile(sessionsPath, 'utf8');
+        return JSON.parse(raw);
+    } catch {
+        return {};
+    }
+}
+
+async function resolveSessionEntryByKey(sessionKey) {
+    const wanted = String(sessionKey || '').trim();
+    if (!wanted) return { entry: null, sessionsPath: null };
+
+    for (const sessionsPath of listAgentSessionsJsonPaths()) {
+        const parsed = await readSessionsJsonSafe(sessionsPath);
+        const entry = parsed?.[wanted];
+        if (entry && typeof entry === 'object') return { entry, sessionsPath };
+    }
+    return { entry: null, sessionsPath: null };
+}
+
+function completionFromSessionFile(sessionFile, sessionKey) {
+    if (!sessionFile || typeof sessionFile !== 'string') return null;
+    const messages = loadMessageHistoryFromSessionJsonl(sessionFile, sessionKey, 200);
+    const assistantMessages = messages.filter((msg) => msg.senderRole === 'assistant' && String(msg.text || '').trim());
+    const last = assistantMessages[assistantMessages.length - 1];
+    if (!last) return null;
+
+    return {
+        status: 'confirmed',
+        childSessionKey: sessionKey,
+        sessionFile,
+        messageId: last.id || null,
+        completedAt: new Date((last.date || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
+        model: last.model || null,
+        text: String(last.text || '').trim().slice(0, 8000)
+    };
+}
+
+async function enrichWorkerRunWithCompletionReadback(entry) {
+    const childSessionKey = entry?.liveDelegation?.childSessionKey;
+    if (!childSessionKey || entry?.liveDelegation?.status !== 'accepted') return entry;
+
+    const { entry: sessionEntry, sessionsPath } = await resolveSessionEntryByKey(childSessionKey);
+    if (!sessionEntry?.sessionFile) return entry;
+
+    const completion = completionFromSessionFile(sessionEntry.sessionFile, childSessionKey);
+    if (!completion) {
+        return {
+            ...entry,
+            completionReadback: {
+                status: 'pending',
+                childSessionKey,
+                sessionsPath,
+                sessionFile: sessionEntry.sessionFile
+            }
+        };
+    }
+
+    const events = Array.isArray(entry.events) ? entry.events : [];
+    const hasCompletionEvent = events.some((event) => event?.type === 'worker_completion_readback_confirmed');
+    return {
+        ...entry,
+        status: 'worker_completion_readback_confirmed',
+        completedAt: entry.completedAt || completion.completedAt,
+        workerResultArtifact: {
+            ...(entry.workerResultArtifact || {}),
+            text: completion.text
+        },
+        completionReadback: {
+            ...completion,
+            sessionsPath
+        },
+        parentAggregation: {
+            ...(entry.parentAggregation || {}),
+            status: 'completion_readback_confirmed',
+            summary: `Worker completion read back from ${childSessionKey}; parent ${entry.parentAgentId || '(unknown)'} remains the only channel voice.`
+        },
+        events: hasCompletionEvent
+            ? events
+            : [
+                  ...events,
+                  {
+                      type: 'worker_completion_readback_confirmed',
+                      at: completion.completedAt,
+                      childSessionKey,
+                      messageId: completion.messageId,
+                      derived: true
+                  }
+              ]
+    };
+}
+
 export async function listWorkerRuns({ channelId = null, workerId = null, limit = 50 } = {}) {
     let auditPath;
     try {
@@ -120,7 +215,7 @@ export async function listWorkerRuns({ channelId = null, workerId = null, limit 
     const wantedChannel = channelId == null ? '' : normalizeChannelId(channelId);
     const wantedWorker = workerId == null ? '' : String(workerId).trim();
     const max = Math.max(1, Math.min(Number.parseInt(String(limit), 10) || 50, 200));
-    const runs = raw
+    const selected = raw
         .split(/\r?\n/u)
         .map(parseAuditLine)
         .filter(Boolean)
@@ -128,6 +223,10 @@ export async function listWorkerRuns({ channelId = null, workerId = null, limit 
         .filter((entry) => !wantedWorker || entry.workerId === wantedWorker || entry.runtimeAgentId === wantedWorker)
         .slice(-max)
         .reverse();
+    const runs = [];
+    for (const entry of selected) {
+        runs.push(await enrichWorkerRunWithCompletionReadback(entry));
+    }
 
     return { auditPath, runs };
 }

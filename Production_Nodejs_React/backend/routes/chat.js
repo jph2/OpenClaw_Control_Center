@@ -125,6 +125,7 @@ export async function handleWorkerRunCreate(req, res, next, groupIdParam) {
             channelId: String(groupIdParam),
             workerId: body.workerId,
             task: body.task,
+            executionMode: body.executionMode,
             channelConfigRaw: cfg,
             operator: req.ip || null
         });

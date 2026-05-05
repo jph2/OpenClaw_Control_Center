@@ -499,9 +499,11 @@ The current P3 proof slice records headless Worker Runs in
 `Prototyp/channel_CHAT-manager/worker_runs_audit.jsonl` with a bounded input
 envelope, result artifact, event trail, and parent-aggregation status. CM can
 also request OpenClaw's native subagent spawn path for the headless worker and
-records the returned `childSessionKey` / OpenClaw `runId` when accepted. This
-proves live spawn wiring while keeping `canSpeakToChannel: false`. Completion
-readback and richer parent aggregation remain the next P3 criteria.
+records the returned `childSessionKey` / OpenClaw `runId` when accepted. CM now
+derives completion readback from the child session JSONL once the child session
+is present in OpenClaw `sessions.json`; the parent remains the only Telegram
+voice. Richer parent aggregation and timeline correlation remain the next P3
+criteria.
 
 ---
 
