@@ -39,6 +39,24 @@ const stripToolCallMarkers = (text) => {
         .trim();
 };
 
+/**
+ * OpenClaw may attach `model` to assistant bubbles that only report a failed
+ * attempt (no successful completion). Those must not drive the header "live" chip.
+ */
+const isFailedAttemptAssistantModel = (msg) => {
+    if (!msg || msg.senderRole !== 'assistant' || !msg.model) return false;
+    const modelTag = String(msg.model || '').toLowerCase();
+    if (modelTag.includes('gateway-injected')) return true;
+    const t = String(msg.text || '').trim();
+    if (!t) return false;
+    const lower = t.toLowerCase();
+    if (lower.includes('agent failed') || lower.includes('before reply')) return true;
+    if (lower.includes('no api key')) return true;
+    if (lower.includes('request failed')) return true;
+    if (lower.includes('unknown model')) return true;
+    return false;
+};
+
 const copyTextToClipboard = async (text) => {
     if (!text) return;
     if (navigator.clipboard?.writeText && window.isSecureContext) {
@@ -68,6 +86,18 @@ const normalizeModelForCompare = (model) => {
     if (!value) return '';
     const slash = value.lastIndexOf('/');
     return slash >= 0 ? value.slice(slash + 1) : value;
+};
+
+/** Build `provider/model` id when OpenClaw `sessions.json` stores split fields. */
+const compositeModelIdFromHints = (hints) => {
+    if (!hints || typeof hints !== 'object') return '';
+    const po = hints.providerOverride;
+    const mo = hints.modelOverride;
+    if (typeof po === 'string' && po && typeof mo === 'string' && mo) return `${po}/${mo}`;
+    const lp = hints.lastResolvedProvider;
+    const lm = hints.lastResolvedModel;
+    if (typeof lp === 'string' && lp && typeof lm === 'string' && lm) return `${lp}/${lm}`;
+    return '';
 };
 
 /**
@@ -560,10 +590,14 @@ export default function ChatPanel({
         messages,
         sessionBinding,
         sessionBindingError,
+        runtimeBinding,
+        runtimeBindingError,
         lastSendMeta,
         isSending,
+        isForcingCanonical,
         sendMessage,
-        sendMedia
+        sendMedia,
+        forceCanonicalSession
     } = useChatSession(channelId);
 
     const [inputValue, setInputValue] = useState('');
@@ -628,11 +662,52 @@ export default function ChatPanel({
     const configuredModelLabel = configuredModel
         ? (modelLabelById.get(configuredModel) || configuredModel)
         : 'Inherit default';
-    const liveModel = [...messages].reverse().find((msg) => msg.model)?.model || '';
+    const liveModel =
+        [...messages]
+            .reverse()
+            .find((msg) => msg.model && !isFailedAttemptAssistantModel(msg))?.model || '';
     const liveModelMatchesConfigured =
         liveModel &&
         configuredModel &&
         normalizeModelForCompare(liveModel) === normalizeModelForCompare(configuredModel);
+
+    const sessionHints = sessionBinding?.openClawSessionHints || null;
+    const gatewayModelId = compositeModelIdFromHints(sessionHints);
+    const gatewayModelLabel = gatewayModelId
+        ? modelLabelById.get(gatewayModelId) || gatewayModelId
+        : '';
+    const sessionUserOverrideActive = sessionHints?.modelOverrideSource === 'user';
+    const sessionOverrideDetail = sessionUserOverrideActive
+        ? [sessionHints.providerOverride, sessionHints.modelOverride].filter(Boolean).join(' / ') ||
+          '(see sessions.json)'
+        : '';
+    const gatewayMatchesConfigured =
+        gatewayModelId &&
+        configuredModel &&
+        normalizeModelForCompare(gatewayModelId) === normalizeModelForCompare(configuredModel);
+    const transcriptDiffersFromGateway =
+        Boolean(liveModel && gatewayModelId) &&
+        normalizeModelForCompare(liveModel) !== normalizeModelForCompare(gatewayModelId);
+    const showTranscriptBadge =
+        Boolean(liveModel) &&
+        (!gatewayModelId || transcriptDiffersFromGateway);
+    const transcriptModelLabel = liveModel ? modelLabelById.get(liveModel) || liveModel : '';
+    const channelRuntimeBinding = runtimeBinding?.channelRuntimeBinding || null;
+    const runtimeAlignment = runtimeBinding?.alignment || null;
+    const runtimeResolvedSession = runtimeBinding?.resolvedSession || null;
+    const runtimeStatus = runtimeAlignment?.status || 'unknown';
+    const runtimeMismatch = runtimeStatus === 'mismatch';
+    const runtimeUnknown = runtimeStatus === 'unknown';
+    const cmTargetLabel = channelRuntimeBinding
+        ? `${channelRuntimeBinding.displayName} / ${channelRuntimeBinding.agentId}`
+        : '';
+    const expectedRuntimeSession = runtimeAlignment?.expectedSessionKey || '';
+    const actualRuntimeSession = runtimeAlignment?.actualSessionKey || runtimeResolvedSession?.logicalSessionId || '';
+    const transcriptSource =
+        runtimeResolvedSession?.storageSessionFile ||
+        sessionBinding?.sessionFile ||
+        channelRuntimeBinding?.canonicalSession?.expectedTranscriptFile ||
+        '';
 
     // Within this distance of the bottom we consider the user "pinned" and
     // safe to auto-scroll on new messages. Anything larger → user is
@@ -732,6 +807,14 @@ export default function ChatPanel({
         }
     };
 
+    const handleForceCanonicalSession = async () => {
+        const result = await forceCanonicalSession?.();
+        if (!result?.ok) {
+            const hint = result?.error?.message ? String(result.error.message) : '';
+            alert(hint ? `Canonical Session konnte nicht erzwungen werden:\n\n${hint}` : 'Canonical Session konnte nicht erzwungen werden.');
+        }
+    };
+
     const handlePaste = (e) => {
         const items = e.clipboardData?.items;
         if (!items) return;
@@ -802,9 +885,46 @@ export default function ChatPanel({
                             </option>
                         ))}
                     </select>
-                    {liveModel && (
+                    {gatewayModelId && (
                         <span
-                            title="Model reported by the live OpenClaw transcript"
+                            title={
+                                (sessionUserOverrideActive
+                                    ? `User session override in OpenClaw (${sessionOverrideDetail}). ` +
+                                      'The dropdown is the Channel Manager row — it may not match until you clear overrides in sessions.json or use /model.\n\n'
+                                    : 'Last resolved OpenClaw session routing (from sessions.json — what the gateway tends to use).\n\n') +
+                                `Composite id: ${gatewayModelId}`
+                            }
+                            style={{
+                                fontSize: '11px',
+                                color: gatewayMatchesConfigured ? '#9ff0dc' : '#7ec8ff',
+                                background: sessionUserOverrideActive
+                                    ? 'rgba(255,120,90,0.12)'
+                                    : gatewayMatchesConfigured
+                                      ? 'rgba(80,227,194,0.10)'
+                                      : 'rgba(100,180,255,0.10)',
+                                border: `1px solid ${
+                                    sessionUserOverrideActive
+                                        ? 'rgba(255,140,100,0.35)'
+                                        : gatewayMatchesConfigured
+                                          ? 'rgba(80,227,194,0.25)'
+                                          : 'rgba(120,180,255,0.28)'
+                                }`,
+                                borderRadius: '4px',
+                                padding: '3px 6px',
+                                whiteSpace: 'nowrap'
+                            }}
+                        >
+                            Gateway · {gatewayModelLabel}
+                            {sessionUserOverrideActive ? ' · user' : ''}
+                        </span>
+                    )}
+                    {showTranscriptBadge && (
+                        <span
+                            title={
+                                'Older or different model tag on a mirrored assistant line (JSONL). ' +
+                                'Shown only when it disagrees with Gateway, or when no session hints exist. Raw: ' +
+                                liveModel
+                            }
                             style={{
                                 fontSize: '11px',
                                 color: liveModelMatchesConfigured ? '#9ff0dc' : '#ffd38a',
@@ -815,7 +935,7 @@ export default function ChatPanel({
                                 whiteSpace: 'nowrap'
                             }}
                         >
-                            live {liveModel}
+                            Transcript · {transcriptModelLabel}
                         </span>
                     )}
                 </div>
@@ -828,9 +948,46 @@ export default function ChatPanel({
                         />
                         Show System/Agent Internal Tasks
                     </label>
-                    {sessionBinding?.sessionKey && (
-                        <div style={{ fontSize: '11px', color: '#8fb3ff', background: 'rgba(80,120,255,0.12)', padding: '2px 6px', borderRadius: '4px' }}>
-                            session {sessionBinding.sessionKey}
+                    {(channelRuntimeBinding || sessionBinding?.sessionKey) && (
+                        <div
+                            title={cmTargetLabel ? `CM Target: ${cmTargetLabel}` : 'Channel Manager target'}
+                            style={{ fontSize: '11px', color: '#9ff0dc', background: 'rgba(80,227,194,0.10)', padding: '2px 6px', borderRadius: '4px' }}
+                        >
+                            CM target
+                        </div>
+                    )}
+                    {(actualRuntimeSession || sessionBinding?.sessionKey) && (
+                        <div
+                            title={
+                                [
+                                    `Gateway session: ${actualRuntimeSession || sessionBinding?.sessionKey}`,
+                                    expectedRuntimeSession ? `Expected canonical: ${expectedRuntimeSession}` : '',
+                                    runtimeAlignment?.reasons?.length
+                                        ? `Reasons: ${runtimeAlignment.reasons.join(', ')}`
+                                        : ''
+                                ].filter(Boolean).join('\n')
+                            }
+                            style={{
+                                fontSize: '11px',
+                                color: runtimeMismatch ? '#ffcf8a' : runtimeUnknown ? '#c4cad4' : '#50e3c2',
+                                background: runtimeMismatch
+                                    ? 'rgba(255,190,90,0.12)'
+                                    : runtimeUnknown
+                                      ? 'rgba(255,255,255,0.06)'
+                                      : 'rgba(80,227,194,0.10)',
+                                padding: '2px 6px',
+                                borderRadius: '4px'
+                            }}
+                        >
+                            Gateway session · {runtimeStatus}
+                        </div>
+                    )}
+                    {transcriptSource && (
+                        <div
+                            title={transcriptSource}
+                            style={{ fontSize: '11px', color: '#8fb3ff', background: 'rgba(80,120,255,0.12)', padding: '2px 6px', borderRadius: '4px' }}
+                        >
+                            Transcript source
                         </div>
                     )}
                     <div style={{ fontSize: '11px', color: sessionBinding?.sessionId ? '#50e3c2' : '#e0a030', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>
@@ -846,8 +1003,55 @@ export default function ChatPanel({
                             {sessionBindingError}
                         </div>
                     )}
+                    {runtimeBindingError && (
+                        <div style={{ fontSize: '11px', color: '#ff8f8f', background: 'rgba(255,80,80,0.1)', padding: '2px 6px', borderRadius: '4px' }}>
+                            {runtimeBindingError}
+                        </div>
+                    )}
                 </div>
             </div>
+            {runtimeMismatch && (
+                <div
+                    style={{
+                        borderBottom: '1px solid rgba(255, 190, 90, 0.28)',
+                        background: 'rgba(255, 190, 90, 0.10)',
+                        color: '#ffddaa',
+                        padding: '8px 16px',
+                        fontSize: '12px',
+                        lineHeight: 1.45
+                    }}
+                >
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                            <strong>Session mismatch:</strong> CM expects{' '}
+                            <code>{expectedRuntimeSession || 'canonical Telegram session'}</code>, but the
+                            resolved gateway session is <code>{actualRuntimeSession || 'unknown'}</code>.
+                            Off-canonical sessions are fine for debugging, but they are not the operative
+                            Channel Manager path for this channel.
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleForceCanonicalSession}
+                            disabled={isForcingCanonical}
+                            title="Refresh the canonical sessions.json entry so this Channel Manager row resolves to its Telegram session."
+                            style={{
+                                flexShrink: 0,
+                                background: '#50e3c2',
+                                border: '1px solid rgba(80,227,194,0.45)',
+                                color: '#061312',
+                                borderRadius: '4px',
+                                padding: '6px 10px',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                cursor: isForcingCanonical ? 'wait' : 'pointer',
+                                opacity: isForcingCanonical ? 0.7 : 1
+                            }}
+                        >
+                            {isForcingCanonical ? 'Switching...' : 'Switch to canonical'}
+                        </button>
+                    </div>
+                </div>
+            )}
             
             {/* Messages Area. The outer div is the scroll container (fixed
                 height via flex: 1); the inner div is what actually grows

@@ -75,10 +75,27 @@ async function throwIfResNotOk(res) {
 /** Few retries when the browser hits transient connection limits or the Vite proxy blips. */
 async function fetchSessionJson(groupId, maxAttempts = 4) {
     let lastErr = null;
+    const groupKey = encodeURIComponent(String(groupId));
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-            const res = await fetch(apiUrl(`/api/chat/${groupId}/session`));
+            const res = await fetch(apiUrl(`/api/chat/${groupKey}/session`));
             if (!res.ok) throw new Error(`Session resolve failed (${res.status})`);
+            return await res.json();
+        } catch (e) {
+            lastErr = e;
+            if (attempt < maxAttempts) await delay(200 * 2 ** (attempt - 1));
+        }
+    }
+    throw lastErr;
+}
+
+async function fetchRuntimeBindingJson(groupId, maxAttempts = 4) {
+    let lastErr = null;
+    const groupKey = encodeURIComponent(String(groupId));
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            const res = await fetch(apiUrl(`/api/chat/${groupKey}/runtime-binding`));
+            if (!res.ok) throw new Error(`Runtime binding resolve failed (${res.status})`);
             return await res.json();
         } catch (e) {
             lastErr = e;
@@ -96,8 +113,11 @@ export function useChatSession(groupId) {
     const [messages, setMessages] = useState([]);
     const [sessionBinding, setSessionBinding] = useState(null);
     const [sessionBindingError, setSessionBindingError] = useState(null);
+    const [runtimeBinding, setRuntimeBinding] = useState(null);
+    const [runtimeBindingError, setRuntimeBindingError] = useState(null);
     const [lastSendMeta, setLastSendMeta] = useState(null);
     const [isSending, setIsSending] = useState(false);
+    const [isForcingCanonical, setIsForcingCanonical] = useState(false);
 
     const sseFailStreakRef = useRef(0);
 
@@ -105,6 +125,8 @@ export function useChatSession(groupId) {
         if (!groupId) {
             setSessionBinding(null);
             setSessionBindingError(null);
+            setRuntimeBinding(null);
+            setRuntimeBindingError(null);
             return;
         }
 
@@ -124,6 +146,19 @@ export function useChatSession(groupId) {
                 setLastSendMeta(null);
             });
 
+        fetchRuntimeBindingJson(groupId)
+            .then((data) => {
+                if (cancelled) return;
+                setRuntimeBinding(data);
+                setRuntimeBindingError(null);
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                console.error('[useChatSession] Runtime binding resolve error:', err);
+                setRuntimeBinding(null);
+                setRuntimeBindingError(err.message || 'Runtime binding resolve failed');
+            });
+
         return () => {
             cancelled = true;
         };
@@ -131,6 +166,8 @@ export function useChatSession(groupId) {
 
     useEffect(() => {
         if (!groupId) return;
+
+        let cancelled = false;
 
         sseFailStreakRef.current = 0;
 
@@ -150,6 +187,32 @@ export function useChatSession(groupId) {
                 try {
                     const parsed = JSON.parse(event.data);
                     if (parsed.type === 'INIT' || parsed.type === 'SESSION_REBOUND') {
+                        if (!cancelled) {
+                            Promise.allSettled([
+                                fetchSessionJson(groupId),
+                                fetchRuntimeBindingJson(groupId)
+                            ]).then(([sessionResult, bindingResult]) => {
+                                if (cancelled) return;
+                                if (sessionResult.status === 'fulfilled') {
+                                    setSessionBinding(sessionResult.value);
+                                    setSessionBindingError(null);
+                                } else {
+                                    console.warn(
+                                        '[useChatSession] Session resolve refresh failed:',
+                                        sessionResult.reason?.message || sessionResult.reason
+                                    );
+                                }
+                                if (bindingResult.status === 'fulfilled') {
+                                    setRuntimeBinding(bindingResult.value);
+                                    setRuntimeBindingError(null);
+                                } else {
+                                    console.warn(
+                                        '[useChatSession] Runtime binding refresh failed:',
+                                        bindingResult.reason?.message || bindingResult.reason
+                                    );
+                                }
+                            });
+                        }
                         const incoming = parsed.messages || [];
                         startTransition(() =>
                             setMessages((prev) => [
@@ -204,6 +267,7 @@ export function useChatSession(groupId) {
         connectSSE();
 
         return () => {
+            cancelled = true;
             shouldReconnect = false;
             if (reconnectTimer) {
                 clearTimeout(reconnectTimer);
@@ -267,6 +331,35 @@ export function useChatSession(groupId) {
             return { ok: false, error: err };
         } finally {
             setIsSending(false);
+        }
+    };
+
+    const forceCanonicalSession = async () => {
+        if (!groupId || isForcingCanonical) return { ok: false, error: 'missing_or_busy' };
+        const groupKey = encodeURIComponent(String(groupId));
+        setIsForcingCanonical(true);
+        try {
+            const res = await fetch(apiUrl(`/api/chat/${groupKey}/force-canonical-session`), {
+                method: 'POST'
+            });
+            await throwIfResNotOk(res);
+            const data = await res.json();
+            setRuntimeBinding(data);
+            setRuntimeBindingError(null);
+
+            const expectedSessionKey = data?.alignment?.expectedSessionKey;
+            if (expectedSessionKey) {
+                const session = await fetchSessionJson(expectedSessionKey);
+                setSessionBinding(session);
+                setSessionBindingError(null);
+            }
+            return { ok: true, data };
+        } catch (err) {
+            console.error('[useChatSession] forceCanonicalSession', err);
+            setRuntimeBindingError(err.message || 'Force canonical session failed');
+            return { ok: false, error: err };
+        } finally {
+            setIsForcingCanonical(false);
         }
     };
 
@@ -356,9 +449,13 @@ export function useChatSession(groupId) {
         messages,
         sessionBinding,
         sessionBindingError,
+        runtimeBinding,
+        runtimeBindingError,
         lastSendMeta,
         isSending,
+        isForcingCanonical,
         sendMessage,
-        sendMedia
+        sendMedia,
+        forceCanonicalSession
     };
 }

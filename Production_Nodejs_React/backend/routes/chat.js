@@ -21,6 +21,10 @@ import {
     resolveInboundMediaAbsolutePath,
     resolveInboundMediaDirectory
 } from '../services/chat/chatSendMedia.js';
+import {
+    forceChannelCanonicalSession,
+    resolveChannelRuntimeBinding
+} from '../services/channelRuntimeBinding.js';
 
 const GroupSendSchema = z.object({
     text: z.string().min(1)
@@ -64,6 +68,24 @@ export function handleGroupSession(req, res, groupIdParam, opts = {}) {
     const payload = { ok: true, ...resolved };
     if (opts.timestamp) payload.timestamp = Date.now();
     res.json(payload);
+}
+
+export async function handleGroupRuntimeBinding(req, res, next, groupIdParam) {
+    try {
+        const payload = await resolveChannelRuntimeBinding(String(groupIdParam));
+        res.json({ ...payload, timestamp: Date.now() });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function handleForceCanonicalSession(req, res, next, groupIdParam) {
+    try {
+        const payload = await forceChannelCanonicalSession(String(groupIdParam));
+        res.json({ ...payload, timestamp: Date.now() });
+    } catch (error) {
+        next(error);
+    }
 }
 
 /** @param {string} groupIdParam — Telegram group id or alias */
@@ -336,6 +358,12 @@ router.post('/session/:sessionId/send', apiLimiter, handleSessionSend);
 router.get('/session/:sessionId/messages', handleSessionMessages);
 router.get('/session/:sessionId/stream', handleSessionStream);
 
+router.get('/:groupId/runtime-binding', (req, res, next) =>
+    handleGroupRuntimeBinding(req, res, next, req.params.groupId)
+);
+router.post('/:groupId/force-canonical-session', apiLimiter, (req, res, next) =>
+    handleForceCanonicalSession(req, res, next, req.params.groupId)
+);
 router.get('/:groupId/session', (req, res) => handleGroupSession(req, res, req.params.groupId));
 router.get('/:groupId/stream', (req, res) => handleGroupStream(req, res, req.params.groupId));
 router.post('/:groupId/send-media', apiLimiter, (req, res, next) =>
