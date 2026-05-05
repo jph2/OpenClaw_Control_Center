@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient, useIsMutating } from '@tanstack/react-query';
-import { Download, Upload, RefreshCw, Save, Check, ChevronUp, ChevronDown, Plus, X, FileJson2 } from 'lucide-react';
+import { Download, Upload, RefreshCw, Save, Check, ChevronUp, ChevronDown, Plus, X, FileJson2, Wrench } from 'lucide-react';
 import ChannelManagerChannelRow from '../../../components/ChannelManagerChannelRow';
 import OpenClawApplyModal from '../../../components/OpenClawApplyModal.jsx';
 import TelegramAccountPolicyPanel from '../../../components/TelegramAccountPolicyPanel.jsx';
@@ -83,6 +83,16 @@ function buildApplyBaselineSignature(configData) {
         channels: sortById(data.channels).map(pickChannel),
         agents: sortById(data.agents).map(pickAgent),
         subAgents: sortById(data.subAgents).map(pickSubAgent),
+        workerCandidates: sortById(data.workerCandidates || []).map((w) => ({
+            id: w.id,
+            displayName: w.displayName,
+            parentId: w.parentId,
+            sourceSkillRoleId: w.sourceSkillRoleId,
+            enabled: w.enabled,
+            status: w.status,
+            canSpeakToChannel: w.canSpeakToChannel,
+            openclawProjection: w.openclawProjection || null
+        })),
         telegramAccountPolicy: data.telegramAccountPolicy || null,
         openclawAgentsDefaultsPolicy: data.openclawAgentsDefaultsPolicy || null
     });
@@ -484,6 +494,22 @@ export default function ChannelManager() {
 
     const backendAgents = configData?.data?.agents || [];
     const backendSubAgents = configData?.data?.subAgents || [];
+    const backendWorkerCandidates = configData?.data?.workerCandidates || [];
+    const activeWorkerCandidates = backendWorkerCandidates.filter(
+        (w) =>
+            w &&
+            w.enabled !== false &&
+            (w.status === 'active' || w.status === 'experimental') &&
+            w.openclawProjection?.mode === 'dedicatedAgentsListEntry' &&
+            w.canSpeakToChannel === false
+    );
+    const workerCandidatesBySkillRole = activeWorkerCandidates.reduce((acc, worker) => {
+        const key = String(worker.sourceSkillRoleId || '').trim();
+        if (!key) return acc;
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(worker);
+        return acc;
+    }, {});
     
     // Dynamic Metadata (Data Integrity Phase 1)
     const activeMetadata = configData?.data?.metadata || { models: [], mainAgents: {}, subAgentsDict: {}, skills: {} };
@@ -1408,9 +1434,81 @@ export default function ChannelManager() {
                     <Plus size={16} aria-hidden /> Skill Role anlegen
                 </button>
             </div>
+            <div
+                style={{
+                    display: 'grid',
+                    gridTemplateColumns: activeWorkerCandidates.length > 0 ? 'auto 1fr' : 'auto 1fr',
+                    gap: '12px',
+                    alignItems: 'start',
+                    marginBottom: '16px',
+                    padding: '12px 14px',
+                    borderRadius: '8px',
+                    border: activeWorkerCandidates.length > 0
+                        ? '1px solid rgba(80,227,194,0.38)'
+                        : '1px solid rgba(255,255,255,0.12)',
+                    background: activeWorkerCandidates.length > 0
+                        ? 'rgba(80,227,194,0.08)'
+                        : 'rgba(255,255,255,0.035)',
+                    color: '#dfe6f3'
+                }}
+            >
+                <Wrench
+                    size={18}
+                    aria-hidden
+                    style={{ color: activeWorkerCandidates.length > 0 ? '#9ff0dc' : 'var(--text-secondary)', marginTop: '1px' }}
+                />
+                <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <strong style={{ color: activeWorkerCandidates.length > 0 ? '#9ff0dc' : '#c4cad4' }}>
+                            Runtime Worker Candidates
+                        </strong>
+                        <span
+                            style={{
+                                fontSize: '10px',
+                                textTransform: 'uppercase',
+                                border: '1px solid rgba(80,227,194,0.30)',
+                                borderRadius: '4px',
+                                padding: '2px 6px',
+                                color: activeWorkerCandidates.length > 0 ? '#9ff0dc' : 'var(--text-secondary)'
+                            }}
+                        >
+                            {activeWorkerCandidates.length} active
+                        </span>
+                    </div>
+                    <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                        Active candidates are projected as headless OpenClaw <code style={{ fontSize: '11px' }}>agents.list[]</code> entries
+                        with no Telegram binding. Worker Runs are visible in the Chat panel audit/readback strip.
+                    </div>
+                    {activeWorkerCandidates.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
+                            {activeWorkerCandidates.map((worker) => (
+                                <span
+                                    key={worker.id}
+                                    title={`Runtime agent: worker-${worker.id}\nParent: ${worker.parentId || '—'}\nSource Skill Role: ${worker.sourceSkillRoleId || '—'}\nSpeak: false`}
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        border: '1px solid rgba(80,227,194,0.28)',
+                                        background: 'rgba(0,0,0,0.18)',
+                                        borderRadius: '6px',
+                                        padding: '5px 8px',
+                                        color: '#b8f0d8',
+                                        fontSize: '12px'
+                                    }}
+                                >
+                                    <code style={{ fontSize: '11px', color: '#9ff0dc' }}>worker-{worker.id}</code>
+                                    <span>{worker.displayName || worker.id}</span>
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
             <div style={{ display: 'grid', gap: '16px' }}>
                 {backendSubAgents.map(sub => {
                     const parentColor = backendAgents.find(a => a.id === sub.parent)?.color || '#50e3c2';
+                    const linkedWorkers = workerCandidatesBySkillRole[sub.id] || [];
                     return (
                         <div key={sub.id} id={`agent-card-${sub.id}`} className="agent-card main" style={{ borderColor: parentColor, transition: 'box-shadow 0.3s' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
@@ -1422,6 +1520,26 @@ export default function ChannelManager() {
                                     <span title="OpenClaw: merged into Channel Synth; Runtime Worker: no; Cursor: IDE Agent Profile" style={{ fontSize: '10px', background: 'rgba(80,227,194,0.10)', border: '1px solid rgba(80,227,194,0.30)', padding: '2px 6px', borderRadius: '4px', color: '#9ff0dc', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
                                         Skill Role
                                     </span>
+                                    {linkedWorkers.length > 0 && (
+                                        <span
+                                            title={`Feeds Runtime Worker Candidate: ${linkedWorkers.map((w) => `worker-${w.id}`).join(', ')}. Still no direct Telegram speech.`}
+                                            style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                                fontSize: '10px',
+                                                background: 'rgba(80,227,194,0.16)',
+                                                border: '1px solid rgba(80,227,194,0.45)',
+                                                padding: '2px 6px',
+                                                borderRadius: '4px',
+                                                color: '#b8f0d8',
+                                                textTransform: 'uppercase',
+                                                whiteSpace: 'nowrap'
+                                            }}
+                                        >
+                                            <Wrench size={11} aria-hidden /> Worker Candidate
+                                        </span>
+                                    )}
                                     <button
                                         type="button"
                                         aria-label={`Skill Role ${sub.id} löschen`}
